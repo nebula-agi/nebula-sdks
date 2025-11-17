@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nebula-client"
+version = "0.1.8"
+description = "Official Python SDK for Nebula API"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Nebula AI Inc", email = "support@trynebula.ai"},
+]
+requires-python = ">=3.8"
+keywords = ["nebula", "ai", "memory", "vector", "search", "embeddings", "rag"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://nebulacloud.app"
+Documentation = "https://docs.nebulacloud.app"
+Repository = "https://github.com/nebula-cloud/nebula-sdks"
+Issues = "https://github.com/nebula-cloud/nebula-sdks/issues"
+Changelog = "https://github.com/nebula-cloud/nebula-sdks/blob/main/CHANGELOG.md"
+dependencies = [
+    "httpx >=0.24.0",
+    "typing-extensions >=4.0.0",
+    "tiktoken>=0.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest >=7.0.0",
+    "pytest-asyncio >=0.21.0",
+    "pytest-mock >=3.10.0",
+    "ruff >=0.1.0",
+    "mypy >=1.0.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+select = ["E", "F", "I", "B", "C4", "UP"]
+ignore = ["B008", "B024", "B026", "E501", "F402", "F403", "F405", "F841"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+]
+
+[tool.setuptools]
+packages = ["nebula_client"]
+include-package-data = true 

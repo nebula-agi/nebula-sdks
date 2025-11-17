@@ -1,0 +1,77 @@
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# JavaScript/Node
+javascript/node_modules/
+javascript/dist/
+javascript/build/
+javascript/coverage/
+javascript/.npm
+javascript/*.log
+javascript/.eslintcache
+
+# Python
+python/__pycache__/
+python/*.py[cod]
+python/*$py.class
+python/*.so
+python/.Python
+python/build/
+python/develop-eggs/
+python/dist/
+python/downloads/
+python/eggs/
+python/.eggs/
+python/lib/
+python/lib64/
+python/parts/
+python/sdist/
+python/var/
+python/wheels/
+python/pip-wheel-metadata/
+python/share/python-wheels/
+python/*.egg-info/
+python/.installed.cfg
+python/*.egg
+python/MANIFEST
+python/.pytest_cache/
+python/.coverage
+python/htmlcov/
+python/.mypy_cache/
+python/.ruff_cache/
+python/venv/
+python/env/
+python/ENV/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+.nyc_output
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
