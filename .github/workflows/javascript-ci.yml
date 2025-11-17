@@ -56,6 +56,10 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/js-v')
+    environment: npm-publish
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout code
@@ -77,6 +81,4 @@ jobs:
 
       - name: Publish to npm
         working-directory: ./javascript
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
