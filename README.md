@@ -2,8 +2,8 @@
 
 Official SDKs for the Nebula AI Memory platform. Build intelligent applications with persistent, contextual memory.
 
-[![JavaScript CI](https://github.com/nebula-cloud/nebula-sdks/actions/workflows/javascript-ci.yml/badge.svg)](https://github.com/nebula-cloud/nebula-sdks/actions/workflows/javascript-ci.yml)
-[![Python CI](https://github.com/nebula-cloud/nebula-sdks/actions/workflows/python-ci.yml/badge.svg)](https://github.com/nebula-cloud/nebula-sdks/actions/workflows/python-ci.yml)
+[![JavaScript CI](https://github.com/nebula-agi/nebula-sdks/actions/workflows/javascript-ci.yml/badge.svg)](https://github.com/nebula-agi/nebula-sdks/actions/workflows/javascript-ci.yml)
+[![Python CI](https://github.com/nebula-agi/nebula-sdks/actions/workflows/python-ci.yml/badge.svg)](https://github.com/nebula-agi/nebula-sdks/actions/workflows/python-ci.yml)
 
 ## Available SDKs
 
@@ -133,7 +133,7 @@ pytest
 
 - [Documentation](https://docs.nebulacloud.app)
 - [Discord Community](https://discord.gg/nebula)
-- [GitHub Issues](https://github.com/nebula-cloud/nebula-sdks/issues)
+- [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
 - Email: support@trynebula.ai
 
 ## License

@@ -28,9 +28,9 @@ classifiers = [
 [project.urls]
 Homepage = "https://nebulacloud.app"
 Documentation = "https://docs.nebulacloud.app"
-Repository = "https://github.com/nebula-cloud/nebula-sdks"
-Issues = "https://github.com/nebula-cloud/nebula-sdks/issues"
-Changelog = "https://github.com/nebula-cloud/nebula-sdks/blob/main/CHANGELOG.md"
+Repository = "https://github.com/nebula-agi/nebula-sdks"
+Issues = "https://github.com/nebula-agi/nebula-sdks/issues"
+Changelog = "https://github.com/nebula-agi/nebula-sdks/blob/main/CHANGELOG.md"
 dependencies = [
     "httpx >=0.24.0",
     "typing-extensions >=4.0.0",

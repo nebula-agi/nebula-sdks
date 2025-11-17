@@ -48,4 +48,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 JavaScript SDK releases use tags in the format `js-vX.Y.Z`
 Python SDK releases use tags in the format `py-vX.Y.Z`
 
-To see all releases, visit: https://github.com/nebula-cloud/nebula-sdks/releases
+To see all releases, visit: https://github.com/nebula-agi/nebula-sdks/releases

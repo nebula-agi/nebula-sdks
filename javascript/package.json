@@ -43,13 +43,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nebula-cloud/nebula-sdks.git",
+    "url": "https://github.com/nebula-agi/nebula-sdks.git",
     "directory": "javascript"
   },
   "bugs": {
-    "url": "https://github.com/nebula-cloud/nebula-sdks/issues"
+    "url": "https://github.com/nebula-agi/nebula-sdks/issues"
   },
-  "homepage": "https://github.com/nebula-cloud/nebula-sdks/tree/main/javascript#readme",
+  "homepage": "https://github.com/nebula-agi/nebula-sdks/tree/main/javascript#readme",
   "engines": {
     "node": ">=16.0.0"
   },

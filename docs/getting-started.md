@@ -253,6 +253,6 @@ except Exception as e:
 ## Getting Help
 
 - [Documentation](https://docs.nebulacloud.app)
-- [GitHub Issues](https://github.com/nebula-cloud/nebula-sdks/issues)
+- [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
 - [Discord](https://discord.gg/nebula)
 - Email: support@trynebula.ai

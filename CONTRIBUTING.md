@@ -12,7 +12,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 If you find a bug:
 
-1. Check if the issue already exists in [GitHub Issues](https://github.com/nebula-cloud/nebula-sdks/issues)
+1. Check if the issue already exists in [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
 2. If not, create a new issue with:
    - Clear title and description
    - Steps to reproduce
@@ -169,7 +169,7 @@ Maintainers handle releases:
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/nebula-cloud/nebula-sdks/discussions)
+- Open a [GitHub Discussion](https://github.com/nebula-agi/nebula-sdks/discussions)
 - Join our [Discord](https://discord.gg/nebula)
 - Email: support@trynebula.ai
 
