@@ -1,26 +1,26 @@
-import { NebulaClient } from './client';
+import { Nebula } from './client';
 import { NebulaException } from './types';
 
 // Mock fetch for testing
 global.fetch = jest.fn();
 
-describe('NebulaClient', () => {
-  let client: NebulaClient;
+describe('Nebula', () => {
+  let client: Nebula;
   const mockApiKey = 'test-api-key';
 
   beforeEach(() => {
-    client = new NebulaClient({ apiKey: mockApiKey });
+    client = new Nebula({ apiKey: mockApiKey });
     jest.clearAllMocks();
   });
 
   describe('Constructor', () => {
     it('should initialize with default values', () => {
-      const client = new NebulaClient({ apiKey: mockApiKey });
+      const client = new Nebula({ apiKey: mockApiKey });
       expect(client.isApiKeySet()).toBe(true);
     });
 
     it('should initialize with custom values', () => {
-      const client = new NebulaClient({
+      const client = new Nebula({
         apiKey: mockApiKey,
         baseUrl: 'https://custom.api.com',
         timeout: 60000
@@ -29,7 +29,7 @@ describe('NebulaClient', () => {
     });
 
     it('should throw error when API key is empty', () => {
-      expect(() => new NebulaClient({ apiKey: '' })).toThrow();
+      expect(() => new Nebula({ apiKey: '' })).toThrow();
     });
   });
 

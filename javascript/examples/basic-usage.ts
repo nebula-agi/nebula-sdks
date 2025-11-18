@@ -1,9 +1,9 @@
-import { NebulaClient } from '../src/index';
+import Nebula from '../src/index';
 
 // Example: Basic memory management with Nebula SDK
 async function basicExample() {
   // Initialize the SDK
-  const client = new NebulaClient({
+  const client = new Nebula({
     apiKey: process.env.NEBULA_API_KEY || 'your-api-key-here',
     baseUrl: 'https://api.nebulacloud.app',
     timeout: 30000
@@ -96,7 +96,7 @@ async function basicExample() {
 
 // Example: Conversation tracking with the new unified Memory model
 async function conversationExample() {
-  const client = new NebulaClient({
+  const client = new Nebula({
     apiKey: process.env.NEBULA_API_KEY || 'your-api-key-here'
   });
 
@@ -166,7 +166,7 @@ async function conversationExample() {
 
 // Example: Advanced search with graph results
 async function advancedSearchExample() {
-  const client = new NebulaClient({
+  const client = new Nebula({
     apiKey: process.env.NEBULA_API_KEY || 'your-api-key-here'
   });
 

@@ -21,7 +21,7 @@ import {
  * Official Nebula JavaScript/TypeScript SDK
  * Mirrors the exact Nebula Python SDK client.py implementation
  */
-export class NebulaClient {
+export class Nebula {
   private apiKey: string;
   private baseUrl: string;
   private timeout: number;
