@@ -3,8 +3,6 @@ name: Python SDK CI
 on:
   push:
     branches: [ main, develop ]
-    tags:
-      - 'py-v*'
     paths:
       - 'python/**'
       - '.github/workflows/python-ci.yml'
@@ -49,7 +47,7 @@ jobs:
 
       - name: Run type check
         working-directory: ./python
-        run: mypy nebula_client/
+        run: mypy nebula/
         continue-on-error: true
 
       - name: Run tests
@@ -61,7 +59,7 @@ jobs:
     name: Publish to PyPI
     needs: test
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/py-v')
+    if: github.ref == 'refs/heads/main'
     environment: pypi-publish
     permissions:
       id-token: write
@@ -70,20 +68,42 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: version-check
+        run: |
+          CURRENT_VERSION=$(grep -oP "(?<=version = \")[^\"]*" python/pyproject.toml)
+          git checkout HEAD^
+          PREVIOUS_VERSION=$(grep -oP "(?<=version = \")[^\"]*" python/pyproject.toml)
+          git checkout -
+
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version unchanged: $CURRENT_VERSION"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup Python
+        if: steps.version-check.outputs.changed == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install build tools
+        if: steps.version-check.outputs.changed == 'true'
         run: pip install build
 
       - name: Build package
+        if: steps.version-check.outputs.changed == 'true'
         working-directory: ./python
         run: python -m build
 
       - name: Publish to PyPI
+        if: steps.version-check.outputs.changed == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python/dist/
