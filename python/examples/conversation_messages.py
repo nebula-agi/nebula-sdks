@@ -7,14 +7,15 @@ new get_conversation_messages method, which retrieves messages directly
 from the conversations API for accurate chronological ordering.
 """
 
-import os
-from nebula import (
-    Nebula,
-    AsyncNebula,
-    NebulaException,
-    NebulaClientException,
-)
 import asyncio
+import os
+
+from nebula import (
+    AsyncNebula,
+    Nebula,
+    NebulaClientException,
+    NebulaException,
+)
 
 
 def sync_example():
@@ -165,7 +166,7 @@ async def async_example():
         example_conversation_id = "your-conversation-id-here"  # Replace with actual ID
 
         try:
-            messages = await nebula.get_conversation_messages(example_conversation_id)
+            messages = await client.get_conversation_messages(example_conversation_id)
             print(f"✅ Retrieved {len(messages)} messages asynchronously")
 
             for i, msg in enumerate(messages[:3], 1):  # Show first 3 messages
@@ -174,7 +175,7 @@ async def async_example():
                 print(f"  {i}. [{role.upper()}] {content_preview}")
 
         except Exception as e:
-            print(f"ℹ️  Note: Replace 'your-conversation-id-here' with an actual conversation ID to test async retrieval")
+            print("ℹ️  Note: Replace 'your-conversation-id-here' with an actual conversation ID to test async retrieval")
             print(f"    Error: {e}")
 
         print("\n🎉 Async conversation messages example completed!")

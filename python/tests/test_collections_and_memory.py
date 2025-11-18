@@ -1,7 +1,9 @@
 import os
 import time
 import uuid
+
 import pytest
+
 from nebula import Nebula
 
 API_KEY = os.environ.get("NEBULA_API_KEY")

@@ -2,22 +2,22 @@
 Tests for the Nebula class
 """
 
-import pytest
 from unittest.mock import Mock, patch
-from datetime import datetime
+
+import pytest
 
 from nebula import (
-    Nebula,
-    Memory,
-    Collection,
-    SearchResult,
     AgentResponse,
-    RetrievalType,
-    NebulaException,
-    NebulaClientException,
+    Collection,
+    Memory,
+    Nebula,
     NebulaAuthenticationException,
+    NebulaClientException,
+    NebulaException,
     NebulaRateLimitException,
     NebulaValidationException,
+    RetrievalType,
+    SearchResult,
 )
 
 

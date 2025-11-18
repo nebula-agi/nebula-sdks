@@ -4,10 +4,11 @@ Comprehensive API Debug Test
 Tests each Nebula API endpoint individually to identify what works and what doesn't.
 """
 
-import os
 import json
+import os
 import time
 import uuid
+
 from nebula import Nebula
 
 def print_section(title):

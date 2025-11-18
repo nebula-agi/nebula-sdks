@@ -3,8 +3,6 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
-import pytest
-
 # Ensure the package root (sdk/nebula_client) is importable when running from py/
 _THIS_DIR = os.path.dirname(__file__)
 _PKG_ROOT = os.path.abspath(os.path.join(_THIS_DIR, ".."))

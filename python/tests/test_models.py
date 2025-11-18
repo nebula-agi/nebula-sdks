@@ -2,14 +2,13 @@
 Tests for the data models
 """
 
-import pytest
 from datetime import datetime
+
 from nebula import (
-    Memory,
-    Cluster,
-    SearchResult,
     AgentResponse,
+    Memory,
     RetrievalType,
+    SearchResult,
 )
 
 

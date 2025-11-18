@@ -10,10 +10,11 @@ This example demonstrates the core functionality of the SDK:
 """
 
 import os
+
 from nebula import (
     Nebula,
-    NebulaException,
     NebulaClientException,
+    NebulaException,
 )
 
 

@@ -2,11 +2,10 @@
 Tests for the exception classes
 """
 
-import pytest
 from nebula import (
-    NebulaException,
-    NebulaClientException,
     NebulaAuthenticationException,
+    NebulaClientException,
+    NebulaException,
     NebulaRateLimitException,
     NebulaValidationException,
 )

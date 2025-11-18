@@ -18,7 +18,7 @@ class NebulaException(Exception):
         return f"Nebula API Error: {self.message}"
 
 
-class NebulaException(Exception):
+class NebulaClientException(Exception):
     """Exception for client-side errors (network, configuration, etc.)"""
     
     def __init__(self, message: str, original_exception: Exception = None):

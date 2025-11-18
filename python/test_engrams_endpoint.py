@@ -5,13 +5,11 @@ Test script for the updated Nebula Client SDK using documents endpoint
 
 import os
 import sys
-from typing import List, Dict, Any
 
 # Add the current directory to the path so we can import the client
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from nebula import Nebula
-from nebula.models import Memory, Cluster, SearchResult
 
 # Set the API key for testing
 os.environ["NEBULA_API_KEY"] = "key_L2bhhSmBCKX-wh-c_QcI8g==.mouoseeWHgXvrMcc7pYDYAKMhtXljXfwMYXblotgI84="

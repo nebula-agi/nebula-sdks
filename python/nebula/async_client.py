@@ -2,28 +2,27 @@
 Async client for the Nebula Client SDK
 """
 
-import os
-import json
 import hashlib
-import uuid
+import json
+import os
 from typing import Any, Dict, List, Optional, Union
-import httpx
 from urllib.parse import urljoin
 
+import httpx
+
 from .exceptions import (
-    NebulaException,
-    NebulaClientException,
     NebulaAuthenticationException,
+    NebulaClientException,
+    NebulaException,
+    NebulaNotFoundException,
     NebulaRateLimitException,
     NebulaValidationException,
-    NebulaNotFoundException,
 )
 from .models import (
-    MemoryResponse,
-    Memory,
     Collection,
+    Memory,
+    MemoryResponse,
     SearchResult,
-    RetrievalType,
 )
 
 
@@ -148,14 +147,14 @@ class AsyncNebula:
             raise NebulaClientException(
                 f"Failed to connect to {self.base_url}. Check your internet connection.",
                 e,
-            )
+            ) from e
         except httpx.TimeoutException as e:
             raise NebulaClientException(
                 f"Request timed out after {self.timeout} seconds",
                 e,
-            )
+            ) from e
         except httpx.RequestError as e:
-            raise NebulaClientException(f"Request failed: {str(e)}", e)
+            raise NebulaClientException(f"Request failed: {str(e)}", e) from e
     
     # Collection Management Methods
     
@@ -413,12 +412,12 @@ class AsyncNebula:
             try:
                 from uuid import UUID
                 collection_uuid = UUID(memory.collection_id)
-            except:
+            except (ValueError, TypeError):
                 collection_uuid = memory.collection_id
 
             files = {
                 "engram_type": (None, "conversation"),
-                "name": (None, name or f"Conversation"),
+                "name": (None, name or "Conversation"),
                 "metadata": (None, json.dumps(doc_metadata)),
                 "collection_ids": (None, json.dumps([str(collection_uuid)])),
             }
@@ -558,7 +557,7 @@ class AsyncNebula:
         except NebulaException as e:
             # Convert 404 errors to NebulaNotFoundException
             if e.status_code == 404:
-                raise NebulaNotFoundException(memory_id, "Memory")
+                raise NebulaNotFoundException(memory_id, "Memory") from e
             raise
 
     async def store_memories(self, memories: List[Memory]) -> List[str]:
@@ -673,7 +672,7 @@ class AsyncNebula:
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(chunk_id, "Chunk")
+                raise NebulaNotFoundException(chunk_id, "Chunk") from e
             raise
 
     async def update_chunk(self, chunk_id: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
@@ -700,7 +699,7 @@ class AsyncNebula:
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(chunk_id, "Chunk")
+                raise NebulaNotFoundException(chunk_id, "Chunk") from e
             raise
 
     async def list_memories(

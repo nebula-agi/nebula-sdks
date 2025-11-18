@@ -4,7 +4,7 @@ Simple test file for Nebula functionality
 Replace the API key and cluster IDs with your own values
 """
 
-from nebula import Nebula
+from nebula import Nebula  # noqa: I001
 
 def main():
     # Replace with your API key

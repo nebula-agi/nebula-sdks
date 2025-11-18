@@ -2,23 +2,22 @@
 Main client for the Nebula Client SDK
 """
 
-import os
-import json
 import hashlib
-import uuid
+import os
 from typing import Any, Dict, List, Optional, Union
-import httpx
 from urllib.parse import urljoin
 
+import httpx
+
 from .exceptions import (
-    NebulaException,
-    NebulaClientException,
     NebulaAuthenticationException,
+    NebulaClientException,
+    NebulaException,
+    NebulaNotFoundException,
     NebulaRateLimitException,
     NebulaValidationException,
-    NebulaNotFoundException,
 )
-from .models import MemoryResponse, Memory, Collection, SearchResult, RetrievalType
+from .models import Collection, Memory, MemoryResponse, SearchResult
 
 
 class Nebula:
@@ -159,14 +158,14 @@ class Nebula:
             raise NebulaClientException(
                 f"Failed to connect to {self.base_url}. Check your internet connection.",
                 e
-            )
+            ) from e
         except httpx.TimeoutException as e:
             raise NebulaClientException(
                 f"Request timed out after {self.timeout} seconds",
                 e
-            )
+            ) from e
         except httpx.RequestError as e:
-            raise NebulaClientException(f"Request failed: {str(e)}", e)
+            raise NebulaClientException(f"Request failed: {str(e)}", e) from e
     
     # Collection Management Methods
 
@@ -795,7 +794,7 @@ class Nebula:
         except NebulaException as e:
             # Convert 404 errors to NebulaNotFoundException
             if e.status_code == 404:
-                raise NebulaNotFoundException(memory_id, "Memory")
+                raise NebulaNotFoundException(memory_id, "Memory") from e
             raise
 
     def store_memories(self, memories: List[Memory]) -> List[str]:
@@ -891,7 +890,6 @@ class Nebula:
                 response = self._make_request(
                     "POST",
                     "/v1/memories/delete",
-                    "/v1/memories/delete",
                     json_data={"ids": memory_ids}
                 )
                 return response
@@ -916,7 +914,7 @@ class Nebula:
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(chunk_id, "Chunk")
+                raise NebulaNotFoundException(chunk_id, "Chunk") from e
             raise
 
     def update_chunk(self, chunk_id: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
@@ -943,7 +941,7 @@ class Nebula:
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(chunk_id, "Chunk")
+                raise NebulaNotFoundException(chunk_id, "Chunk") from e
             raise
 
     def update_memory(
