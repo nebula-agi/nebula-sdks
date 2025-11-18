@@ -54,6 +54,7 @@
     "node": ">=16.0.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
@@ -62,7 +63,5 @@
     "ts-jest": "^29.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
-  },
-  "peerDependencies": {},
-  "dependencies": {}
+  }
 }
