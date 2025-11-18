@@ -3,6 +3,8 @@ name: Python SDK CI
 on:
   push:
     branches: [ main, develop ]
+    tags:
+      - 'py-v*'
     paths:
       - 'python/**'
       - '.github/workflows/python-ci.yml'

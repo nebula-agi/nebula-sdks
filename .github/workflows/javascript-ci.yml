@@ -3,6 +3,8 @@ name: JavaScript SDK CI
 on:
   push:
     branches: [ main, develop ]
+    tags:
+      - 'js-v*'
     paths:
       - 'javascript/**'
       - '.github/workflows/javascript-ci.yml'
