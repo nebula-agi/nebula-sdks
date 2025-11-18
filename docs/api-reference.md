@@ -370,7 +370,7 @@ All methods are async by default and return Promises.
 ### Python Async Client
 
 ```python
-from nebula import AsyncNebulaClient
+from nebula import AsyncNebula
 import asyncio
 
 async def main():

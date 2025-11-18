@@ -31,7 +31,7 @@ class AsyncNebula:
     """
     Async client for interacting with Nebula API
     
-    Mirrors the public API of `NebulaClient`, implemented using httpx.AsyncClient.
+    Mirrors the public API of `Nebula`, implemented using httpx.AsyncClient.
     """
     
     def __init__(
@@ -60,7 +60,7 @@ class AsyncNebula:
         # Lazily initialized tokenizer encoder for token counting
         self._token_encoder = None  # type: ignore[var-annotated]
     
-    async def __aenter__(self) -> "AsyncNebulaClient":
+    async def __aenter__(self) -> "AsyncNebula":
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:

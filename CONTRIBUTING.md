@@ -134,7 +134,7 @@ ruff format .            # Format code
 ### JavaScript Tests
 
 ```typescript
-describe('NebulaClient', () => {
+describe('Nebula', () => {
   it('should create a collection', async () => {
     // Test implementation
   });

@@ -11,13 +11,19 @@ on:
       - 'javascript/**'
       - '.github/workflows/javascript-ci.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test on Node ${{ matrix.node-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [16, 18, 20]
+        # Use minimal matrix for PRs, full matrix for main/develop
+        node-version: ${{ github.event_name == 'pull_request' && fromJSON('["20"]') || fromJSON('["16", "18", "20"]') }}
 
     steps:
       - name: Checkout code
@@ -37,7 +43,6 @@ jobs:
       - name: Run linter
         working-directory: ./javascript
         run: npm run lint
-        continue-on-error: true
 
       - name: Run type check
         working-directory: ./javascript
@@ -46,11 +51,18 @@ jobs:
       - name: Run tests
         working-directory: ./javascript
         run: npm test
-        continue-on-error: true
 
       - name: Build
         working-directory: ./javascript
         run: npm run build
+
+      - name: Upload build artifacts
+        if: matrix.node-version == '20'
+        uses: actions/upload-artifact@v4
+        with:
+          name: javascript-build
+          path: javascript/dist/
+          retention-days: 1
 
   publish:
     name: Publish to npm
@@ -68,44 +80,43 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Check if version changed
-        id: version-check
-        run: |
-          CURRENT_VERSION=$(node -p "require('./javascript/package.json').version")
-          git checkout HEAD^
-          PREVIOUS_VERSION=$(node -p "require('./javascript/package.json').version")
-          git checkout -
-
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "Version unchanged: $CURRENT_VERSION"
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Setup Node.js
-        if: steps.version-check.outputs.changed == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Update npm
-        if: steps.version-check.outputs.changed == 'true'
-        run: npm install -g npm@latest
+      - name: Check if version changed
+        id: version-check
+        run: |
+          CURRENT_VERSION=$(node -p "require('./javascript/package.json').version")
+          PREVIOUS_VERSION=$(git show HEAD^:javascript/package.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version")
 
-      - name: Install dependencies
-        if: steps.version-check.outputs.changed == 'true'
-        working-directory: ./javascript
-        run: npm ci
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "Version unchanged: $CURRENT_VERSION"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Build package
+      - name: Download build artifacts
         if: steps.version-check.outputs.changed == 'true'
-        working-directory: ./javascript
-        run: npm run build
+        uses: actions/download-artifact@v4
+        with:
+          name: javascript-build
+          path: javascript/dist/
 
       - name: Publish to npm
         if: steps.version-check.outputs.changed == 'true'
         working-directory: ./javascript
         run: npm publish --provenance --access public
+
+      - name: Create release tag
+        if: steps.version-check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "js-v${{ steps.version-check.outputs.version }}" -m "JavaScript SDK v${{ steps.version-check.outputs.version }}"
+          git push origin "js-v${{ steps.version-check.outputs.version }}"

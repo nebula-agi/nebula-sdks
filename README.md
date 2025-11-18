@@ -17,24 +17,24 @@ npm install @nebula-ai/sdk
 ```javascript
 import Nebula from '@nebula-ai/sdk';
 
-const client = new Nebula({
+const nebula = new Nebula({
   apiKey: process.env.NEBULA_API_KEY
 });
 
 // Create a collection
-const collection = await client.createCollection({
+const collection = await nebula.createCollection({
   name: "My Documents",
   description: "Document memory collection"
 });
 
 // Add memory
-await client.addMemory({
+await nebula.addMemory({
   collectionId: collection.id,
   content: "Important information to remember"
 });
 
 // Search memory
-const results = await client.search({
+const results = await nebula.search({
   collectionId: collection.id,
   query: "information",
   limit: 10
@@ -49,25 +49,25 @@ pip install nebula-client
 ```
 
 ```python
-from nebula import NebulaClient
+from nebula import Nebula
 import os
 
-client = Nebula(api_key=os.getenv("NEBULA_API_KEY"))
+nebula = Nebula(api_key=os.getenv("NEBULA_API_KEY"))
 
 # Create a collection
-collection = client.create_collection(
+collection = nebula.create_collection(
     name="My Documents",
     description="Document memory collection"
 )
 
 # Add memory
-client.add_memory(
+nebula.add_memory(
     collection_id=collection.id,
     content="Important information to remember"
 )
 
 # Search memory
-results = client.search(
+results = nebula.search(
     collection_id=collection.id,
     query="information",
     limit=10

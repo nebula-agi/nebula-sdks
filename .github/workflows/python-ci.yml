@@ -11,13 +11,19 @@ on:
       - 'python/**'
       - '.github/workflows/python-ci.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test on Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        # Use minimal matrix for PRs, full matrix for main/develop
+        python-version: ${{ github.event_name == 'pull_request' && fromJSON('["3.11"]') || fromJSON('["3.8", "3.9", "3.10", "3.11", "3.12"]') }}
 
     steps:
       - name: Checkout code
@@ -28,6 +34,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
+          cache-dependency-path: python/pyproject.toml
 
       - name: Install dependencies
         working-directory: ./python
@@ -38,22 +45,33 @@ jobs:
       - name: Run linter
         working-directory: ./python
         run: ruff check .
-        continue-on-error: true
 
       - name: Run formatter check
         working-directory: ./python
         run: ruff format --check .
-        continue-on-error: true
 
       - name: Run type check
         working-directory: ./python
         run: mypy nebula/
-        continue-on-error: true
 
       - name: Run tests
         working-directory: ./python
         run: pytest
-        continue-on-error: true
+
+      - name: Build package
+        if: matrix.python-version == '3.11'
+        working-directory: ./python
+        run: |
+          pip install build
+          python -m build
+
+      - name: Upload build artifacts
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: python/dist/
+          retention-days: 1
 
   publish:
     name: Publish to PyPI
@@ -71,39 +89,44 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Check if version changed
         id: version-check
         run: |
-          CURRENT_VERSION=$(grep -oP "(?<=version = \")[^\"]*" python/pyproject.toml)
-          git checkout HEAD^
-          PREVIOUS_VERSION=$(grep -oP "(?<=version = \")[^\"]*" python/pyproject.toml)
-          git checkout -
+          # Use Python to parse TOML instead of fragile grep regex
+          CURRENT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('python/pyproject.toml', 'rb'))['project']['version'])")
+          PREVIOUS_VERSION=$(git show HEAD^:python/pyproject.toml | python -c "import tomllib, sys; print(tomllib.load(sys.stdin.buffer)['project']['version'])")
 
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
             echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
             echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           else
             echo "Version unchanged: $CURRENT_VERSION"
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Setup Python
+      - name: Download build artifacts
         if: steps.version-check.outputs.changed == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/download-artifact@v4
         with:
-          python-version: '3.11'
-
-      - name: Install build tools
-        if: steps.version-check.outputs.changed == 'true'
-        run: pip install build
-
-      - name: Build package
-        if: steps.version-check.outputs.changed == 'true'
-        working-directory: ./python
-        run: python -m build
+          name: python-dist
+          path: python/dist/
 
       - name: Publish to PyPI
         if: steps.version-check.outputs.changed == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python/dist/
+
+      - name: Create release tag
+        if: steps.version-check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "py-v${{ steps.version-check.outputs.version }}" -m "Python SDK v${{ steps.version-check.outputs.version }}"
+          git push origin "py-v${{ steps.version-check.outputs.version }}"

@@ -11,7 +11,7 @@ _PKG_ROOT = os.path.abspath(os.path.join(_THIS_DIR, ".."))
 if _PKG_ROOT not in sys.path:
     sys.path.insert(0, _PKG_ROOT)
 
-from nebula.async_client import AsyncNebulaClient
+from nebula.async_client import AsyncNebula
 from nebula.models import Memory
 
 

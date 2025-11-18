@@ -11,7 +11,7 @@ This example demonstrates the core functionality of the SDK:
 
 import os
 from nebula import (
-    NebulaClient,
+    Nebula,
     NebulaException,
     NebulaClientException,
 )
@@ -28,12 +28,12 @@ def main():
         return
     
     try:
-        client = Nebula(api_key=api_key)
+        nebula = Nebula(api_key=api_key)
         print("✅ Successfully initialized Nebula client")
         
         # Example 1: Create a cluster
         print("\n📦 Creating a cluster...")
-        cluster = client.create_cluster(
+        cluster = nebula.create_cluster(
             name="Customer Support Knowledges",
             description="Cluster of customer support interactions and solutions",
             metadata={
@@ -47,7 +47,7 @@ def main():
         # Example 2: Store memories
         print("\n💾 Storing memories...")
         
-        memory1 = client.store(
+        memory1 = nebula.store(
             agent_id="customer-support-bot",
             content="Customer prefers email communication over phone calls",
             metadata={
@@ -59,7 +59,7 @@ def main():
         )
         print(f"✅ Stored memory 1: {memory1.content[:50]}...")
         
-        memory2 = client.store(
+        memory2 = nebula.store(
             agent_id="customer-support-bot",
             content="Customer reported login issues with mobile app on iOS",
             metadata={
@@ -72,7 +72,7 @@ def main():
         )
         print(f"✅ Stored memory 2: {memory2.content[:50]}...")
         
-        memory3 = client.store(
+        memory3 = nebula.store(
             agent_id="customer-support-bot",
             content="Customer mentioned they work in healthcare and need HIPAA compliance",
             metadata={
@@ -89,7 +89,7 @@ def main():
         print("\n🔍 Searching memories...")
 
         # Fast BFS search
-        results = client.search(
+        results = nebula.search(
             query="user-123 preferences and issues",
             collection_ids=[cluster.id],
             limit=5,
@@ -100,7 +100,7 @@ def main():
             print(f"  {i}. Score: {result.score:.3f} - {result.content[:80]}...")
 
         # SuperBFS search (default)
-        results = client.search(
+        results = nebula.search(
             query="What are the key considerations for helping user-123?",
             collection_ids=[cluster.id],
             limit=3,
@@ -113,7 +113,7 @@ def main():
         # Example 4: Chat with agent
         print("\n💬 Chatting with agent...")
         
-        response = client.chat(
+        response = nebula.chat(
             agent_id="customer-support-bot",
             message="How should I approach helping user-123 with their current issue?",
             conversation_id="example-conversation",
@@ -127,7 +127,7 @@ def main():
         # Example 5: Search across cluster
         print("\n🔎 Searching across cluster...")
 
-        search_results = client.search(
+        search_results = nebula.search(
             query="healthcare compliance",
             collection_ids=[cluster.id],
             limit=3
@@ -139,7 +139,7 @@ def main():
         # Example 6: Get cluster information
         print("\n📊 Getting cluster information...")
         
-        cluster_info = client.get_cluster(cluster.id)
+        cluster_info = nebula.get_cluster(cluster.id)
         print(f"✅ Cluster: {cluster_info.name}")
         print(f"   Description: {cluster_info.description}")
         print(f"   Memory count: {cluster_info.memory_count}")
@@ -148,7 +148,7 @@ def main():
         # Example 7: List memories in cluster
         print("\n📋 Listing memories in cluster...")
         
-        memories = client.get_cluster_memories(cluster.id, limit=10)
+        memories = nebula.get_cluster_memories(cluster.id, limit=10)
         print(f"✅ Found {len(memories)} memories in cluster")
         for i, memory in enumerate(memories, 1):
             print(f"  {i}. {memory.content[:60]}...")
@@ -156,7 +156,7 @@ def main():
         # Example 8: Health check
         print("\n🏥 Checking API health...")
         
-        health = client.health_check()
+        health = nebula.health_check()
         print(f"✅ API Status: {health.get('status', 'unknown')}")
         print(f"   Version: {health.get('version', 'unknown')}")
         

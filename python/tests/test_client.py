@@ -1,5 +1,5 @@
 """
-Tests for the NebulaClient class
+Tests for the Nebula class
 """
 
 import pytest
@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 from datetime import datetime
 
 from nebula import (
-    NebulaClient,
+    Nebula,
     Memory,
     Collection,
     SearchResult,
@@ -21,8 +21,8 @@ from nebula import (
 )
 
 
-class TestNebulaClient:
-    """Test cases for NebulaClient"""
+class TestNebula:
+    """Test cases for Nebula"""
 
     def setup_method(self):
         """Set up test fixtures"""
@@ -416,7 +416,7 @@ class TestNebulaClient:
     def test_context_manager(self):
         """Test client as context manager"""
         with Nebula(api_key="test-key") as client:
-            assert isinstance(client, NebulaClient)
+            assert isinstance(client, Nebula)
             assert client.api_key == "test-key"
 
     def test_close_method(self):

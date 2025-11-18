@@ -9,8 +9,8 @@ from the conversations API for accurate chronological ordering.
 
 import os
 from nebula import (
-    NebulaClient,
-    AsyncNebulaClient,
+    Nebula,
+    AsyncNebula,
     NebulaException,
     NebulaClientException,
 )
@@ -27,12 +27,12 @@ def sync_example():
         return
 
     try:
-        client = Nebula(api_key=api_key)
+        nebula = Nebula(api_key=api_key)
         print("✅ Successfully initialized Nebula client")
 
         # Example 1: Create a cluster for our conversation
         print("\n📦 Creating a cluster for conversations...")
-        cluster = client.create_cluster(
+        cluster = nebula.create_cluster(
             name="Example Conversations",
             description="Cluster for testing conversation message retrieval",
         )
@@ -62,7 +62,7 @@ def sync_example():
         ]
 
         # Store messages using store_memories (batches conversation messages)
-        conversation_ids = client.store_memories([
+        conversation_ids = nebula.store_memories([
             {
                 "collection_id": cluster.id,
                 "content": msg["content"],
@@ -81,7 +81,7 @@ def sync_example():
         # Example 3: Retrieve conversation messages
         print("\n🔍 Retrieving conversation messages...")
 
-        retrieved_messages = client.get_conversation_messages(conversation_id)
+        retrieved_messages = nebula.get_conversation_messages(conversation_id)
         print(f"✅ Retrieved {len(retrieved_messages)} messages from conversation")
 
         # Display messages in chronological order
@@ -108,7 +108,7 @@ def sync_example():
         ]
 
         # Store additional messages with the existing conversation_id
-        more_ids = client.store_memories([
+        more_ids = nebula.store_memories([
             {
                 "collection_id": cluster.id,
                 "content": msg["content"],
@@ -125,7 +125,7 @@ def sync_example():
 
         # Example 5: Retrieve updated conversation
         print("\n🔄 Retrieving updated conversation...")
-        updated_messages = client.get_conversation_messages(conversation_id)
+        updated_messages = nebula.get_conversation_messages(conversation_id)
         print(f"✅ Conversation now has {len(updated_messages)} total messages")
 
         # Show only the new messages
@@ -165,7 +165,7 @@ async def async_example():
         example_conversation_id = "your-conversation-id-here"  # Replace with actual ID
 
         try:
-            messages = await client.get_conversation_messages(example_conversation_id)
+            messages = await nebula.get_conversation_messages(example_conversation_id)
             print(f"✅ Retrieved {len(messages)} messages asynchronously")
 
             for i, msg in enumerate(messages[:3], 1):  # Show first 3 messages

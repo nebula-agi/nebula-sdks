@@ -43,9 +43,9 @@ echo "📏 Package size: $PACKAGE_SIZE"
 # Test the built package
 echo "🧪 Testing built package..."
 node -e "
-const { NebulaClient } = require('./dist/index.js');
+const { Nebula } = require('./dist/index.js');
 console.log('✅ Package imports successfully');
-console.log('📦 SDK version:', NebulaClient.name);
+console.log('📦 SDK version:', Nebula.name);
 "
 
 echo ""

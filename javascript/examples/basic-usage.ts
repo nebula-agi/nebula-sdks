@@ -3,7 +3,7 @@ import Nebula from '../src/index';
 // Example: Basic memory management with Nebula SDK
 async function basicExample() {
   // Initialize the SDK
-  const client = new Nebula({
+  const nebula = new Nebula({
     apiKey: process.env.NEBULA_API_KEY || 'your-api-key-here',
     baseUrl: 'https://api.nebulacloud.app',
     timeout: 30000
@@ -13,7 +13,7 @@ async function basicExample() {
     console.log('🚀 Creating a new cluster...');
     
     // Create a new cluster
-    const cluster = await client.createCollection({
+    const cluster = await nebula.createCollection({
       name: 'SDK Example Project',
       description: 'A demonstration of the Nebula JavaScript SDK capabilities'
     });
@@ -47,13 +47,13 @@ async function basicExample() {
     ];
 
     for (const memory of memories) {
-      const memoryId = await client.storeMemory(memory);
+      const memoryId = await nebula.storeMemory(memory);
       console.log('💾 Stored memory:', memoryId);
     }
 
     // Search for memories using the new search API
     console.log('🔍 Searching for JavaScript-related memories...');
-    const searchResults = await client.search({
+    const searchResults = await nebula.search({
       query: 'JavaScript',
       collection_ids: [cluster.id],
       limit: 5,
@@ -70,7 +70,7 @@ async function basicExample() {
 
     // List all memories using the new API
     console.log('📋 Listing all memories...');
-    const allMemories = await client.listMemories({
+    const allMemories = await nebula.listMemories({
       collection_ids: [cluster.id],
       limit: 10,
       offset: 0
@@ -81,7 +81,7 @@ async function basicExample() {
 
     // Clean up - delete the cluster
     console.log('🧹 Cleaning up - deleting cluster...');
-    await client.deleteCollection(cluster.id);
+    await nebula.deleteCollection(cluster.id);
     console.log('✅ Collection deleted successfully');
 
   } catch (error) {
@@ -96,13 +96,13 @@ async function basicExample() {
 
 // Example: Conversation tracking with the new unified Memory model
 async function conversationExample() {
-  const client = new Nebula({
+  const nebula = new Nebula({
     apiKey: process.env.NEBULA_API_KEY || 'your-api-key-here'
   });
 
   try {
     // Create a cluster for conversations
-    const cluster = await client.createCollection({
+    const cluster = await nebula.createCollection({
       name: 'Conversation Examples',
       description: 'Tracking AI conversations and responses'
     });
@@ -138,7 +138,7 @@ async function conversationExample() {
     ];
 
     // Store all conversation memories at once
-    const conversationIds = await client.storeMemories(conversationMemories);
+    const conversationIds = await nebula.storeMemories(conversationMemories);
     console.log('💬 Stored conversation with IDs:', conversationIds);
 
     // Search for related conversations
@@ -156,7 +156,7 @@ async function conversationExample() {
     });
 
     // Clean up
-    await client.deleteCollection(cluster.id);
+    await nebula.deleteCollection(cluster.id);
     console.log('✅ Conversation cluster cleaned up');
 
   } catch (error) {
@@ -166,13 +166,13 @@ async function conversationExample() {
 
 // Example: Advanced search with graph results
 async function advancedSearchExample() {
-  const client = new Nebula({
+  const nebula = new Nebula({
     apiKey: process.env.NEBULA_API_KEY || 'your-api-key-here'
   });
 
   try {
     // Create a cluster for advanced search
-    const cluster = await client.createCollection({
+    const cluster = await nebula.createCollection({
       name: 'Advanced Search Example',
       description: 'Demonstrating graph search capabilities'
     });
@@ -197,12 +197,12 @@ async function advancedSearchExample() {
     ];
 
     for (const memory of knowledgeMemories) {
-      await client.storeMemory(memory);
+      await nebula.storeMemory(memory);
     }
 
     // Perform advanced search that may return both chunk and graph results
     console.log('🔍 Performing advanced search...');
-    const searchResults = await client.search({
+    const searchResults = await nebula.search({
       query: 'Einstein relativity physics',
       collection_ids: [cluster.id],
       limit: 10,
@@ -236,7 +236,7 @@ async function advancedSearchExample() {
     });
 
     // Clean up
-    await client.deleteCollection(cluster.id);
+    await nebula.deleteCollection(cluster.id);
     console.log('✅ Advanced search cluster cleaned up');
 
   } catch (error) {
