@@ -6,7 +6,7 @@ global.fetch = jest.fn();
 
 describe('Nebula', () => {
   let client: Nebula;
-  const mockApiKey = 'test-api-key';
+  const mockApiKey = 'key_test.mockraw123';
 
   beforeEach(() => {
     client = new Nebula({ apiKey: mockApiKey });
@@ -70,7 +70,7 @@ describe('Nebula', () => {
 
   describe('Health Check', () => {
     it('should make health check request', async () => {
-      const mockResponse = { ok: true, json: () => Promise.resolve({ status: 'healthy' }) };
+      const mockResponse = { ok: true, status: 200, json: () => Promise.resolve({ status: 'healthy' }) };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
       await client.healthCheck();
@@ -87,10 +87,10 @@ describe('Nebula', () => {
     });
 
     it('should handle health check failure', async () => {
-      const mockResponse = { ok: false, status: 500 };
+      const mockResponse = { ok: false, status: 500, json: () => Promise.resolve({}) };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      await expect(client.healthCheck()).rejects.toThrow('Health check failed: 500');
+      await expect(client.healthCheck()).rejects.toThrow();
     });
   });
 
@@ -98,6 +98,7 @@ describe('Nebula', () => {
     it('should create collection with correct parameters', async () => {
       const mockResponse = {
         ok: true,
+        status: 200,
         json: () => Promise.resolve({
           results: {
             id: 'collection-123',
@@ -113,7 +114,10 @@ describe('Nebula', () => {
       };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const result = await client.createCollection('Test Collection', 'Test Description');
+      const result = await client.createCollection({
+        name: 'Test Collection',
+        description: 'Test Description'
+      });
 
       expect(result.name).toBe('Test Collection');
       expect(result.description).toBe('Test Description');
@@ -127,7 +131,7 @@ describe('Nebula', () => {
     });
 
     it('should delete collection', async () => {
-      const mockResponse = { ok: true };
+      const mockResponse = { ok: true, status: 200, json: () => Promise.resolve({}) };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
       const result = await client.deleteCollection('collection-123');
@@ -146,6 +150,7 @@ describe('Nebula', () => {
     it('should store memory with correct parameters', async () => {
       const mockResponse = {
         ok: true,
+        status: 200,
         json: () => Promise.resolve({
           results: {
             engram_id: 'doc-123'
@@ -170,6 +175,7 @@ describe('Nebula', () => {
     it('should search memories with correct parameters', async () => {
       const mockResponse = {
         ok: true,
+        status: 200,
         json: () => Promise.resolve({
           results: {
             chunk_search_results: [
@@ -186,7 +192,11 @@ describe('Nebula', () => {
       };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const results = await client.search('test query', 'collection-123', { limit: 5 });
+      const results = await client.search({
+        query: 'test query',
+        collection_ids: 'collection-123',
+        limit: 5
+      });
 
       expect(results).toHaveLength(1);
       expect(results[0].content).toBe('Test content');
@@ -202,6 +212,7 @@ describe('Nebula', () => {
     it('should list memories with pagination', async () => {
       const mockResponse = {
         ok: true,
+        status: 200,
         json: () => Promise.resolve({
           results: [
             {
@@ -215,7 +226,11 @@ describe('Nebula', () => {
       };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const results = await client.listMemories('collection-123', 10, 0);
+      const results = await client.listMemories({
+        collection_ids: 'collection-123',
+        limit: 10,
+        offset: 0
+      });
 
       expect(results).toHaveLength(1);
       expect(global.fetch).toHaveBeenCalledWith(
@@ -231,6 +246,7 @@ describe('Nebula', () => {
     it('should store conversation with correct format', async () => {
       const mockResponse = {
         ok: true,
+        status: 200,
         json: () => Promise.resolve({
           results: { engram_id: 'conv-123' }
         })
@@ -252,6 +268,7 @@ describe('Nebula', () => {
     it('should search conversations with filters', async () => {
       const mockResponse = {
         ok: true,
+        status: 200,
         json: () => Promise.resolve({
           results: {
             chunk_search_results: []

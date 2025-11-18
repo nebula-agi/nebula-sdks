@@ -1,11 +1,13 @@
 """
 Tests for the data models
 """
-
 from datetime import datetime
+
+import pytest
 
 from nebula import (
     AgentResponse,
+    Cluster,
     Memory,
     RetrievalType,
     SearchResult,

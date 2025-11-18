@@ -997,7 +997,7 @@ class Nebula:
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(memory_id, "Memory")
+                raise NebulaNotFoundException(memory_id, "Memory") from None
             raise
 
     def list_memories(
