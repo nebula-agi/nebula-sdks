@@ -40,7 +40,7 @@ export NEBULA_API_KEY="your_api_key_here"
 ### Basic Initialization
 
 ```python
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 
 # Using environment variable
 client = NebulaClient()
@@ -69,7 +69,7 @@ client = NebulaClient(
 ```python
 with NebulaClient(api_key="your_api_key") as client:
     # Your operations here
-    from nebula_client import Memory
+    from nebula import Memory
     memory = Memory(collection_id="cluster_123", content="Hello world")
     doc_id = client.store_memory(memory)
 ```
@@ -166,7 +166,7 @@ The SDK provides unified methods for storing both conversation messages and text
 ### Store Single Memory
 
 ```python
-from nebula_client import Memory
+from nebula import Memory
 
 # Store a text document
 memory = Memory(
@@ -376,7 +376,7 @@ for result in results:
 The SDK provides an async client with identical functionality:
 
 ```python
-from nebula_client import AsyncNebulaClient, Memory
+from nebula import AsyncNebulaClient, Memory
 
 async with AsyncNebulaClient(api_key="your_api_key") as client:
     # Store memory
@@ -425,7 +425,7 @@ The SDK provides specific exception types for different error scenarios:
 ### Error Handling Example
 
 ```python
-from nebula_client import NebulaClient, NebulaAuthenticationException, NebulaValidationException
+from nebula import NebulaClient, NebulaAuthenticationException, NebulaValidationException
 
 try:
     client = NebulaClient(api_key="invalid_key")
@@ -512,7 +512,7 @@ class SearchResult:
 ### Basic Usage
 
 ```python
-from nebula_client import NebulaClient, Memory
+from nebula import NebulaClient, Memory
 
 # Initialize client
 client = NebulaClient(api_key="your_api_key")
@@ -624,7 +624,7 @@ for result in results:
 
 ```python
 import asyncio
-from nebula_client import AsyncNebulaClient, Memory
+from nebula import AsyncNebulaClient, Memory
 
 async def main():
     async with AsyncNebulaClient(api_key="your_api_key") as client:

@@ -3,7 +3,7 @@ Tests for the exception classes
 """
 
 import pytest
-from nebula_client import (
+from nebula import (
     NebulaException,
     NebulaClientException,
     NebulaAuthenticationException,

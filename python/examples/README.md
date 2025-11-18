@@ -18,7 +18,7 @@ The Nebula Client SDK provides a clean interface to Nebula's memory and retrieva
 ## Quick Start
 
 ```python
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 
 # Initialize the client
 client = NebulaClient(api_key="your_api_key")
@@ -115,7 +115,7 @@ The SDK also supports async operations:
 
 ```python
 import asyncio
-from nebula_client import AsyncNebulaClient
+from nebula import AsyncNebulaClient
 
 async def main():
     client = AsyncNebulaClient(api_key="your_api_key")
@@ -370,7 +370,7 @@ The test suite covers:
 The SDK provides comprehensive error handling:
 
 ```python
-from nebula_client.exceptions import (
+from nebula.exceptions import (
     NebulaException,
     NebulaClientException,
     NebulaAuthenticationException,

@@ -8,7 +8,7 @@ import os
 import json
 import time
 import uuid
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 
 def print_section(title):
     print(f"\n{'='*60}")

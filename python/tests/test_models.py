@@ -4,7 +4,7 @@ Tests for the data models
 
 import pytest
 from datetime import datetime
-from nebula_client import (
+from nebula import (
     Memory,
     Cluster,
     SearchResult,

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nebula-client"
-version = "2.0.0"
+version = "2.0.1"
 description = "Official Python SDK for Nebula API"
 readme = "README.md"
 license = {text = "MIT"}
@@ -71,5 +71,5 @@ filterwarnings = [
 ]
 
 [tool.setuptools]
-packages = ["nebula_client"]
+packages = ["nebula"]
 include-package-data = true 

@@ -4,7 +4,7 @@ Simple test file for Nebula functionality
 Replace the API key and cluster IDs with your own values
 """
 
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 
 def main():
     # Replace with your API key

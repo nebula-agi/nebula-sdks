@@ -11,7 +11,7 @@ pip install nebula-client
 ## Quick Start
 
 ```python
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 
 # Initialize client
 client = NebulaClient(api_key="your-api-key")
@@ -64,7 +64,7 @@ client.delete_cluster(collection_id)
 
 ```python
 # Single memory
-from nebula_client import Memory
+from nebula import Memory
 
 memory = Memory(
     collection_id=collection.id,
@@ -147,7 +147,7 @@ messages = client.get_conversation_messages(conv_id)
 ## Async Client
 
 ```python
-from nebula_client import AsyncNebulaClient, Memory
+from nebula import AsyncNebulaClient, Memory
 
 async with AsyncNebulaClient(api_key="your-api-key") as client:
     # All methods available with await

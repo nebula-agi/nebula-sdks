@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
-from nebula_client import (
+from nebula import (
     NebulaClient,
     Memory,
     Collection,

@@ -8,7 +8,7 @@ from the conversations API for accurate chronological ordering.
 """
 
 import os
-from nebula_client import (
+from nebula import (
     NebulaClient,
     AsyncNebulaClient,
     NebulaException,

@@ -2,7 +2,7 @@ import os
 import time
 import uuid
 import pytest
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 
 API_KEY = os.environ.get("NEBULA_API_KEY")
 
