@@ -11,10 +11,10 @@ pip install nebula-client
 ## Quick Start
 
 ```python
-from nebula import NebulaClient
+from nebula import Nebula
 
 # Initialize client
-client = NebulaClient(api_key="your-api-key")
+client = Nebula(api_key="your-api-key")
 
 # Create a collection
 collection = client.create_cluster(name="my_notes")
@@ -147,9 +147,9 @@ messages = client.get_conversation_messages(conv_id)
 ## Async Client
 
 ```python
-from nebula import AsyncNebulaClient, Memory
+from nebula import AsyncNebula, Memory
 
-async with AsyncNebulaClient(api_key="your-api-key") as client:
+async with AsyncNebula(api_key="your-api-key") as client:
     # All methods available with await
     collection = await client.create_cluster(name="async_collection")
     memory_id = await client.store_memory(Memory(

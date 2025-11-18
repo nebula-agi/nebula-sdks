@@ -27,7 +27,7 @@ def sync_example():
         return
 
     try:
-        client = NebulaClient(api_key=api_key)
+        client = Nebula(api_key=api_key)
         print("✅ Successfully initialized Nebula client")
 
         # Example 1: Create a cluster for our conversation
@@ -154,7 +154,7 @@ async def async_example():
         return
 
     try:
-        client = AsyncNebulaClient(api_key=api_key)
+        client = AsyncNebula(api_key=api_key)
         print("✅ Successfully initialized AsyncNebula client")
 
         # Example: Quick conversation retrieval demo

@@ -52,7 +52,7 @@ pip install nebula-client
 from nebula import NebulaClient
 import os
 
-client = NebulaClient(api_key=os.getenv("NEBULA_API_KEY"))
+client = Nebula(api_key=os.getenv("NEBULA_API_KEY"))
 
 # Create a collection
 collection = client.create_collection(

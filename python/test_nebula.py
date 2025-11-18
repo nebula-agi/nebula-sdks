@@ -4,14 +4,14 @@ Simple test file for Nebula functionality
 Replace the API key and cluster IDs with your own values
 """
 
-from nebula import NebulaClient
+from nebula import Nebula
 
 def main():
     # Replace with your API key
     api_key = "key_8dLIxbjdJJcayoNemQcYGA==.b7JUWoaRebqmlSnFZylEYmMInaOoIgiuL3vjView5A8="
     
     # Initialize client
-    client = NebulaClient(api_key=api_key, base_url="http://localhost:7272")
+    client = Nebula(api_key=api_key, base_url="http://localhost:7272")
     print("✅ Connected to Nebula!")
     
     # Replace with your cluster IDs

@@ -42,7 +42,7 @@ def run(coro):
 
 
 def test_store_memory_conversation_creates_and_posts(monkeypatch):
-    client = AsyncNebulaClient(api_key="key_public.raw", base_url="https://example.com")
+    client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
 
     # Inject dummy HTTP client
     dummy = _DummyHttpClient()
@@ -70,7 +70,7 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
 
 
 def test_store_memory_text_engram_posts(monkeypatch):
-    client = AsyncNebulaClient(api_key="key_public.raw", base_url="https://example.com")
+    client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
     dummy = _DummyHttpClient()
     client._client = dummy  # type: ignore[attr-defined]
 
@@ -84,7 +84,7 @@ def test_store_memory_text_engram_posts(monkeypatch):
 
 
 def test_store_memories_mixed_batch(monkeypatch):
-    client = AsyncNebulaClient(api_key="key_public.raw", base_url="https://example.com")
+    client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
     dummy = _DummyHttpClient()
     client._client = dummy  # type: ignore[attr-defined]
 
@@ -119,7 +119,7 @@ def test_store_memories_mixed_batch(monkeypatch):
 
 
 def test_store_memory_conversation_includes_authority(monkeypatch):
-    client = AsyncNebulaClient(api_key="key_public.raw", base_url="https://example.com")
+    client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
 
     # Dummy HTTP client for form POST to /v1/memories
     class _DummyHttpClientWithConv(_DummyHttpClient):
@@ -156,7 +156,7 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
 
 
 def test_store_memory_document_metadata_includes_authority(monkeypatch):
-    client = AsyncNebulaClient(api_key="key_public.raw", base_url="https://example.com")
+    client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
 
     dummy = _DummyHttpClient()
     client._client = dummy  # type: ignore[attr-defined]

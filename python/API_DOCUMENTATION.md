@@ -40,19 +40,19 @@ export NEBULA_API_KEY="your_api_key_here"
 ### Basic Initialization
 
 ```python
-from nebula import NebulaClient
+from nebula import Nebula
 
 # Using environment variable
-client = NebulaClient()
+client = Nebula()
 
 # Or with explicit API key
-client = NebulaClient(api_key="your_api_key_here")
+client = Nebula(api_key="your_api_key_here")
 ```
 
 ### Advanced Configuration
 
 ```python
-client = NebulaClient(
+client = Nebula(
     api_key="your_api_key_here",
     base_url="https://api.nebulacloud.app",  # Default
     timeout=30.0  # Default timeout in seconds
@@ -67,7 +67,7 @@ client = NebulaClient(
 ### Context Manager Usage
 
 ```python
-with NebulaClient(api_key="your_api_key") as client:
+with Nebula(api_key="your_api_key") as client:
     # Your operations here
     from nebula import Memory
     memory = Memory(collection_id="cluster_123", content="Hello world")
@@ -376,9 +376,9 @@ for result in results:
 The SDK provides an async client with identical functionality:
 
 ```python
-from nebula import AsyncNebulaClient, Memory
+from nebula import AsyncNebula, Memory
 
-async with AsyncNebulaClient(api_key="your_api_key") as client:
+async with AsyncNebula(api_key="your_api_key") as client:
     # Store memory
     memory = Memory(collection_id="cluster_123", content="Async memory")
     doc_id = await client.store_memory(memory)
@@ -425,10 +425,10 @@ The SDK provides specific exception types for different error scenarios:
 ### Error Handling Example
 
 ```python
-from nebula import NebulaClient, NebulaAuthenticationException, NebulaValidationException
+from nebula import Nebula, NebulaAuthenticationException, NebulaValidationException
 
 try:
-    client = NebulaClient(api_key="invalid_key")
+    client = Nebula(api_key="invalid_key")
     memory = Memory(collection_id="cluster_123", content="test")
     doc_id = client.store_memory(memory)
 except NebulaAuthenticationException as e:
@@ -512,10 +512,10 @@ class SearchResult:
 ### Basic Usage
 
 ```python
-from nebula import NebulaClient, Memory
+from nebula import Nebula, Memory
 
 # Initialize client
-client = NebulaClient(api_key="your_api_key")
+client = Nebula(api_key="your_api_key")
 
 # Create a cluster
 cluster = client.create_cluster(
@@ -624,10 +624,10 @@ for result in results:
 
 ```python
 import asyncio
-from nebula import AsyncNebulaClient, Memory
+from nebula import AsyncNebula, Memory
 
 async def main():
-    async with AsyncNebulaClient(api_key="your_api_key") as client:
+    async with AsyncNebula(api_key="your_api_key") as client:
         # Create cluster
         cluster = await client.create_cluster(name="async_memories")
         

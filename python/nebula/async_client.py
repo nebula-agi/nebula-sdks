@@ -27,7 +27,7 @@ from .models import (
 )
 
 
-class AsyncNebulaClient:
+class AsyncNebula:
     """
     Async client for interacting with Nebula API
     

@@ -10,12 +10,12 @@ Demonstrates:
 """
 
 import os
-from nebula import NebulaClient
+from nebula import Nebula
 
 
 def main():
     # Initialize the client
-    client = NebulaClient(api_key=os.getenv("NEBULA_API_KEY"))
+    client = Nebula(api_key=os.getenv("NEBULA_API_KEY"))
 
     print("🚀 Starting Nebula SDK Basic Operations Example\n")
 

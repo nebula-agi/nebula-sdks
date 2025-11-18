@@ -2,14 +2,14 @@ import os
 import time
 import uuid
 import pytest
-from nebula import NebulaClient
+from nebula import Nebula
 
 API_KEY = os.environ.get("NEBULA_API_KEY")
 
 @pytest.fixture(scope="module")
 def client():
     assert API_KEY, "NEBULA_API_KEY must be set"
-    return NebulaClient(api_key=API_KEY)
+    return Nebula(api_key=API_KEY)
 
 @pytest.fixture(scope="module")
 def test_collection(client):

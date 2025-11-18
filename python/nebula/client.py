@@ -21,7 +21,7 @@ from .exceptions import (
 from .models import MemoryResponse, Memory, Collection, SearchResult, RetrievalType
 
 
-class NebulaClient:
+class Nebula:
     """
     Simple client for interacting with Nebula API
     

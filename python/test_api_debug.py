@@ -8,7 +8,7 @@ import os
 import json
 import time
 import uuid
-from nebula import NebulaClient
+from nebula import Nebula
 
 def print_section(title):
     print(f"\n{'='*60}")
@@ -33,7 +33,7 @@ def test_api_connection():
         return None
     
     try:
-        client = NebulaClient(api_key=api_key)
+        client = Nebula(api_key=api_key)
         print_result(True, "Connected to Nebula API")
         return client
     except Exception as e:

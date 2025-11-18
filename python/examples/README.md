@@ -18,10 +18,10 @@ The Nebula Client SDK provides a clean interface to Nebula's memory and retrieva
 ## Quick Start
 
 ```python
-from nebula import NebulaClient
+from nebula import Nebula
 
 # Initialize the client
-client = NebulaClient(api_key="your_api_key")
+client = Nebula(api_key="your_api_key")
 
 # Store a memory
 memory = client.store(
@@ -115,10 +115,10 @@ The SDK also supports async operations:
 
 ```python
 import asyncio
-from nebula import AsyncNebulaClient
+from nebula import AsyncNebula
 
 async def main():
-    client = AsyncNebulaClient(api_key="your_api_key")
+    client = AsyncNebula(api_key="your_api_key")
 
     # Create conversation memory
     conversation = await client.store_memory(

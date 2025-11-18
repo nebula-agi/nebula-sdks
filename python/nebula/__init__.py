@@ -5,8 +5,8 @@ This SDK provides a simplified interface to Nebula's memory and retrieval capabi
 focusing on chunks and hiding the complexity of the underlying Nebula system.
 """
 
-from .client import NebulaClient
-from .async_client import AsyncNebulaClient
+from .client import Nebula
+from .async_client import AsyncNebula
 from .exceptions import (
     NebulaException,
     NebulaClientException,
@@ -17,10 +17,10 @@ from .exceptions import (
 )
 from .models import Memory, MemoryResponse, Collection, SearchResult, AgentResponse, Chunk
 
-__version__ = "0.1.8"
+__version__ = "3.0.0"
 __all__ = [
-    "NebulaClient",
-    "AsyncNebulaClient",
+    "Nebula",
+    "AsyncNebula",
     "NebulaException",
     "NebulaClientException",
     "NebulaAuthenticationException",

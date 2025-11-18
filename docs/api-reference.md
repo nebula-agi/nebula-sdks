@@ -32,7 +32,7 @@ const client = new Nebula({
 ```python
 from nebula import NebulaClient
 
-client = NebulaClient(
+client = Nebula(
     api_key='your-api-key',        # Required
     base_url='https://api.nebulacloud.app',  # Optional
     timeout=30.0                    # Optional, in seconds
@@ -374,7 +374,7 @@ from nebula import AsyncNebulaClient
 import asyncio
 
 async def main():
-    async with AsyncNebulaClient(api_key='your-key') as client:
+    async with AsyncNebula(api_key='your-key') as client:
         collection = await client.create_collection(name='Async Collection')
         memories = await client.list_memories(collection_id=collection.id)
 

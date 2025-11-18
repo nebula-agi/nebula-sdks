@@ -28,7 +28,7 @@ def main():
         return
     
     try:
-        client = NebulaClient(api_key=api_key)
+        client = Nebula(api_key=api_key)
         print("✅ Successfully initialized Nebula client")
         
         # Example 1: Create a cluster

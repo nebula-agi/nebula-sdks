@@ -10,7 +10,7 @@ from typing import List, Dict, Any
 # Add the current directory to the path so we can import the client
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from nebula import NebulaClient
+from nebula import Nebula
 from nebula.models import Memory, Cluster, SearchResult
 
 # Set the API key for testing
@@ -20,7 +20,7 @@ def test_collection_management():
     """Test collection creation and management"""
     print("🧪 Testing collection management...")
     
-    client = NebulaClient()
+    client = Nebula()
     
     # Create a test collection
     collection = client.create_collection(
@@ -39,7 +39,7 @@ def test_memory_storage():
     """Test storing individual memories"""
     print("\n🧪 Testing individual memory storage...")
     
-    client = NebulaClient()
+    client = Nebula()
     
     # Create a collection for testing with unique name
     import time
@@ -69,7 +69,7 @@ def test_conversation_storage():
     """Test storing conversation memories"""
     print("\n🧪 Testing conversation storage...")
     
-    client = NebulaClient()
+    client = Nebula()
     
     # Create a collection for testing with unique name
     import time
@@ -122,7 +122,7 @@ def test_retrieval():
     """Test memory retrieval"""
     print("\n🧪 Testing memory retrieval...")
     
-    client = NebulaClient()
+    client = Nebula()
     
     # Create a collection and store some test data with unique name
     import time
@@ -167,7 +167,7 @@ def test_chat():
     """Test chat functionality"""
     print("\n🧪 Testing chat functionality...")
     
-    client = NebulaClient()
+    client = Nebula()
     
     # Create a collection and store some context with unique name
     import time
@@ -210,7 +210,7 @@ def test_search():
     """Test general search functionality"""
     print("\n🧪 Testing general search...")
     
-    client = NebulaClient()
+    client = Nebula()
     
     # Create a collection and store diverse content with unique name
     import time
@@ -252,7 +252,7 @@ def test_collection_memories():
     """Test getting memories from a collection using documents"""
     print("\n🧪 Testing collection memories retrieval...")
     
-    client = NebulaClient()
+    client = Nebula()
     
     # Create a collection and add some memories with unique name
     import time
@@ -283,7 +283,7 @@ def cleanup_test_collections(collection_ids: List[str]):
     """Clean up test collections"""
     print("\n🧹 Cleaning up test collections...")
     
-    client = NebulaClient()
+    client = Nebula()
     
     for collection_id in collection_ids:
         try:

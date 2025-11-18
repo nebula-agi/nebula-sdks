@@ -26,12 +26,12 @@ class TestNebulaClient:
 
     def setup_method(self):
         """Set up test fixtures"""
-        self.client = NebulaClient(api_key="test-api-key")
+        self.client = Nebula(api_key="test-api-key")
         self.mock_response = Mock()
 
     def test_init_with_api_key(self):
         """Test client initialization with API key"""
-        client = NebulaClient(api_key="test-key")
+        client = Nebula(api_key="test-key")
         assert client.api_key == "test-key"
         assert client.base_url == "https://api.nebulacloud.app"
         assert client.timeout == 30.0
@@ -39,37 +39,37 @@ class TestNebulaClient:
     def test_init_with_env_var(self, monkeypatch):
         """Test client initialization with environment variable"""
         monkeypatch.setenv("NEBULA_API_KEY", "env-api-key")
-        client = NebulaClient()
+        client = Nebula()
         assert client.api_key == "env-api-key"
 
     def test_init_without_api_key(self):
         """Test client initialization without API key raises exception"""
         with pytest.raises(NebulaClientException, match="API key is required"):
-            NebulaClient()
+            Nebula()
 
     def test_init_with_custom_base_url(self):
         """Test client initialization with custom base URL"""
-        client = NebulaClient(api_key="test-key", base_url="https://custom.api.com")
+        client = Nebula(api_key="test-key", base_url="https://custom.api.com")
         assert client.base_url == "https://custom.api.com"
 
     def test_init_with_custom_timeout(self):
         """Test client initialization with custom timeout"""
-        client = NebulaClient(api_key="test-key", timeout=60.0)
+        client = Nebula(api_key="test-key", timeout=60.0)
         assert client.timeout == 60.0
 
     # New tests for header behavior
     def test_is_nebula_api_key_detection(self):
-        client = NebulaClient(api_key="key_abc.def")
+        client = Nebula(api_key="key_abc.def")
         assert client._is_nebula_api_key() is True
-        client2 = NebulaClient(api_key="not-a-jwt-or-nebula")
+        client2 = Nebula(api_key="not-a-jwt-or-nebula")
         assert client2._is_nebula_api_key() is False
-        client3 = NebulaClient(api_key="key_only_without_dot")
+        client3 = Nebula(api_key="key_only_without_dot")
         assert client3._is_nebula_api_key() is False
-        client4 = NebulaClient(api_key="key_ab.c.d")
+        client4 = Nebula(api_key="key_ab.c.d")
         assert client4._is_nebula_api_key() is False
 
     def test_build_auth_headers_for_nebula_key(self):
-        client = NebulaClient(api_key="key_pub.VERY_SECRET_RAW")
+        client = Nebula(api_key="key_pub.VERY_SECRET_RAW")
         headers = client._build_auth_headers()
         assert "X-API-Key" in headers
         assert headers["X-API-Key"] == "key_pub.VERY_SECRET_RAW"
@@ -77,7 +77,7 @@ class TestNebulaClient:
         assert headers["Content-Type"] == "application/json"
 
     def test_build_auth_headers_for_bearer(self):
-        client = NebulaClient(api_key="a.b.c.jwt-looking-token")
+        client = Nebula(api_key="a.b.c.jwt-looking-token")
         headers = client._build_auth_headers()
         assert "Authorization" in headers
         assert headers["Authorization"] == f"Bearer {client.api_key}"
@@ -415,7 +415,7 @@ class TestNebulaClient:
 
     def test_context_manager(self):
         """Test client as context manager"""
-        with NebulaClient(api_key="test-key") as client:
+        with Nebula(api_key="test-key") as client:
             assert isinstance(client, NebulaClient)
             assert client.api_key == "test-key"
 
@@ -430,7 +430,7 @@ class TestBackwardCompatibility:
 
     def setup_method(self):
         """Set up test fixtures"""
-        self.client = NebulaClient(api_key="test-api-key")
+        self.client = Nebula(api_key="test-api-key")
 
     def test_chunk_aliases(self):
         """Test chunk terminology aliases"""
