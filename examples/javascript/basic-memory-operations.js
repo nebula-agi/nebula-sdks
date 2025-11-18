@@ -9,11 +9,11 @@
  * - Deleting memories
  */
 
-import { NebulaClient } from '@nebula-ai/sdk';
+import Nebula from '@nebula-ai/sdk';
 
 async function main() {
   // Initialize the client
-  const client = new NebulaClient({
+  const client = new Nebula({
     apiKey: process.env.NEBULA_API_KEY
   });
 

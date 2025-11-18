@@ -11,10 +11,10 @@ npm install @nebula-ai/sdk
 ## Quick Start
 
 ```typescript
-import { NebulaClient } from '@nebula-ai/sdk';
+import Nebula from '@nebula-ai/sdk';
 
 // Initialize client
-const client = new NebulaClient({
+const client = new Nebula({
   apiKey: 'your-api-key'
 });
 
@@ -159,7 +159,7 @@ const messages = await client.getConversationMessages(conversationId);
 ## Error Handling
 
 ```typescript
-import {
+import Nebula, {
   NebulaAuthenticationException,
   NebulaRateLimitException,
   NebulaValidationException

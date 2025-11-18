@@ -18,9 +18,9 @@ Complete API reference for both JavaScript and Python SDKs.
 ### JavaScript/TypeScript
 
 ```typescript
-import { NebulaClient } from '@nebula-ai/sdk';
+import Nebula from '@nebula-ai/sdk';
 
-const client = new NebulaClient({
+const client = new Nebula({
   apiKey: 'your-api-key',        // Required
   baseUrl: 'https://api.nebulacloud.app',  // Optional
   timeout: 30000                  // Optional, in milliseconds
@@ -30,7 +30,7 @@ const client = new NebulaClient({
 ### Python
 
 ```python
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 
 client = NebulaClient(
     api_key='your-api-key',        # Required
@@ -326,7 +326,7 @@ Both SDKs provide typed exceptions for different error scenarios.
 ### JavaScript Error Handling
 
 ```typescript
-import { NebulaAuthenticationException, NebulaNotFoundException } from '@nebula-ai/sdk';
+import Nebula, { NebulaAuthenticationException, NebulaNotFoundException } from '@nebula-ai/sdk';
 
 try {
   const collection = await client.getCollection('non-existent-id');
@@ -344,7 +344,7 @@ try {
 ### Python Error Handling
 
 ```python
-from nebula_client.exceptions import (
+from nebula.exceptions import (
     NebulaAuthenticationException,
     NebulaNotFoundException
 )
@@ -370,7 +370,7 @@ All methods are async by default and return Promises.
 ### Python Async Client
 
 ```python
-from nebula_client import AsyncNebulaClient
+from nebula import AsyncNebulaClient
 import asyncio
 
 async def main():

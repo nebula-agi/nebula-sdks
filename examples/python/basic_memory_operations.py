@@ -10,7 +10,7 @@ Demonstrates:
 """
 
 import os
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 
 
 def main():

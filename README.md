@@ -15,9 +15,9 @@ npm install @nebula-ai/sdk
 ```
 
 ```javascript
-import { NebulaClient } from '@nebula-ai/sdk';
+import Nebula from '@nebula-ai/sdk';
 
-const client = new NebulaClient({
+const client = new Nebula({
   apiKey: process.env.NEBULA_API_KEY
 });
 
@@ -49,7 +49,7 @@ pip install nebula-client
 ```
 
 ```python
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 import os
 
 client = NebulaClient(api_key=os.getenv("NEBULA_API_KEY"))

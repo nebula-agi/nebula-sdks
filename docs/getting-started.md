@@ -27,9 +27,9 @@ export NEBULA_API_KEY=your_api_key_here
 3. **Create your first collection**
 
 ```javascript
-import { NebulaClient } from '@nebula-ai/sdk';
+import Nebula from '@nebula-ai/sdk';
 
-const client = new NebulaClient({
+const client = new Nebula({
   apiKey: process.env.NEBULA_API_KEY
 });
 
@@ -59,7 +59,7 @@ export NEBULA_API_KEY=your_api_key_here
 3. **Create your first collection**
 
 ```python
-from nebula_client import NebulaClient
+from nebula import NebulaClient
 import os
 
 client = NebulaClient(api_key=os.getenv('NEBULA_API_KEY'))
@@ -206,7 +206,7 @@ Always handle errors appropriately:
 
 **JavaScript:**
 ```javascript
-import { NebulaAuthenticationException, NebulaNotFoundException } from '@nebula-ai/sdk';
+import Nebula, { NebulaAuthenticationException, NebulaNotFoundException } from '@nebula-ai/sdk';
 
 try {
   const memory = await client.getMemory(memoryId);
@@ -223,7 +223,7 @@ try {
 
 **Python:**
 ```python
-from nebula_client.exceptions import NebulaAuthenticationException, NebulaNotFoundException
+from nebula.exceptions import NebulaAuthenticationException, NebulaNotFoundException
 
 try:
     memory = client.get_memory(memory_id)
