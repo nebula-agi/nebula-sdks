@@ -1,6 +1,6 @@
 {
   "name": "@nebula-ai/sdk",
-  "version": "0.0.33",
+  "version": "0.0.34",
   "description": "Official JavaScript/TypeScript SDK for Nebula AI Memory",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
