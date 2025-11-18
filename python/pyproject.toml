@@ -12,6 +12,11 @@ authors = [
     {name = "Nebula AI Inc", email = "support@trynebula.ai"},
 ]
 requires-python = ">=3.8"
+dependencies = [
+    "httpx >=0.24.0",
+    "typing-extensions >=4.0.0",
+    "tiktoken>=0.6.0",
+]
 keywords = ["nebula", "ai", "memory", "vector", "search", "embeddings", "rag"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -31,11 +36,6 @@ Documentation = "https://docs.nebulacloud.app"
 Repository = "https://github.com/nebula-agi/nebula-sdks"
 Issues = "https://github.com/nebula-agi/nebula-sdks/issues"
 Changelog = "https://github.com/nebula-agi/nebula-sdks/blob/main/CHANGELOG.md"
-dependencies = [
-    "httpx >=0.24.0",
-    "typing-extensions >=4.0.0",
-    "tiktoken>=0.6.0",
-]
 
 [project.optional-dependencies]
 dev = [
