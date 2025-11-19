@@ -115,10 +115,17 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            # Commit version bump
+            # Commit and push version bump with retry
             git add package.json
             git commit -m "chore(javascript): bump version to $NEW_VERSION [skip ci]"
-            git push
+
+            # Pull with rebase and push (retry up to 3 times)
+            for i in {1..3}; do
+              git pull --rebase origin main && git push && break || {
+                echo "Push attempt $i failed, retrying..."
+                sleep 2
+              }
+            done
 
             echo "should_publish=true" >> $GITHUB_OUTPUT
             echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
@@ -136,7 +143,7 @@ jobs:
         working-directory: ./javascript
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --ignore-scripts
 
       - name: Create release tag
         if: steps.version-check.outputs.should_publish == 'true'
