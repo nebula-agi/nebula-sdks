@@ -1489,4 +1489,4 @@ class Nebula:
         Returns:
             Health status information
         """
-        return self._make_request("GET", "/health")
+        return self._make_request("GET", "/v1/health")

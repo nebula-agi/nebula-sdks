@@ -1035,4 +1035,4 @@ class AsyncNebula:
         return messages
 
     async def health_check(self) -> dict[str, Any]:
-        return await self._make_request_async("GET", "/health")
+        return await self._make_request_async("GET", "/v1/health")

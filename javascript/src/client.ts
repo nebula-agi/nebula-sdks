@@ -1125,7 +1125,7 @@ export class Nebula {
 
   // Health Check
   async healthCheck(): Promise<Record<string, any>> {
-    return this._makeRequest('GET', '/health');
+    return this._makeRequest('GET', '/v1/health');
   }
 
   // Helpers
