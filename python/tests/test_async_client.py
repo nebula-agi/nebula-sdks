@@ -18,7 +18,8 @@ class _DummyResponse:
         self.status_code = status_code
         self._payload = payload
         import json as _json
-        self.content = _json.dumps(payload).encode('utf-8')
+
+        self.content = _json.dumps(payload).encode("utf-8")
         self.text = _json.dumps(payload)
 
     def json(self) -> dict[str, Any]:
@@ -36,14 +37,24 @@ class _DummyHttpClient:
         headers: dict[str, str] | None = None,
         files: dict[str, Any] | None = None,
     ):
-        self.posts.append({"url": url, "data": data, "headers": headers, "files": files})
+        self.posts.append(
+            {"url": url, "data": data, "headers": headers, "files": files}
+        )
         # Check if this is a conversation creation (has engram_type in files)
         if files and files.get("engram_type"):
-            engram_type_val = files["engram_type"][1] if isinstance(files["engram_type"], tuple) else files["engram_type"]
+            engram_type_val = (
+                files["engram_type"][1]
+                if isinstance(files["engram_type"], tuple)
+                else files["engram_type"]
+            )
             if engram_type_val == "conversation":
-                return _DummyResponse(200, {"results": {"engram_id": "conv_123", "id": "conv_123"}})
+                return _DummyResponse(
+                    200, {"results": {"engram_id": "conv_123", "id": "conv_123"}}
+                )
         # Default successful create with document id
-        return _DummyResponse(200, {"results": {"engram_id": "doc_123", "id": "doc_123"}})
+        return _DummyResponse(
+            200, {"results": {"engram_id": "doc_123", "id": "doc_123"}}
+        )
 
     async def aclose(self) -> None:
         return None

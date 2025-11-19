@@ -218,7 +218,6 @@ class TestNebula:
         assert results[0].score == 0.95
         assert results[1].score == 0.87
 
-
     @patch("httpx.Client.request")
     def test_health_check(self, mock_request):
         """Test health check"""
