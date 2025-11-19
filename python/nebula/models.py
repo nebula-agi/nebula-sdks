@@ -5,7 +5,7 @@ Data models for the Nebula Client SDK
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -14,8 +14,8 @@ class Chunk:
 
     id: str
     content: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    role: Optional[str] = None  # For conversation messages
+    metadata: dict[str, Any] = field(default_factory=dict)
+    role: str | None = None  # For conversation messages
 
 
 @dataclass
@@ -30,15 +30,15 @@ class MemoryResponse:
     """
 
     id: str
-    content: Optional[str] = None
-    chunks: Optional[List[Chunk]] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    collection_ids: List[str] = field(default_factory=list)
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    content: str | None = None
+    chunks: list[Chunk] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    collection_ids: list[str] = field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Memory":
+    def from_dict(cls, data: dict[str, Any]) -> "MemoryResponse":
         """Create a Memory from a dictionary"""
         created_at = None
         if data.get("created_at"):
@@ -62,10 +62,10 @@ class MemoryResponse:
         memory_id = str(data.get("id", ""))
 
         # Prefer explicit chunks if present; otherwise map 'text'/'content' → content
-        content: Optional[str] = data.get("content") or data.get("text")
-        chunks: Optional[List[Chunk]] = None
+        content: str | None = data.get("content") or data.get("text")
+        chunks: list[Chunk] | None = None
         if "chunks" in data and isinstance(data["chunks"], list):
-            chunk_list: List[Chunk] = []
+            chunk_list: list[Chunk] = []
             for item in data["chunks"]:
                 if isinstance(item, dict):
                     # Parse chunk object with id, content/text, metadata, role
@@ -110,7 +110,7 @@ class MemoryResponse:
             updated_at=updated_at,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert Memory to dictionary"""
         result = {
             "id": self.id,
@@ -140,10 +140,10 @@ class Memory:
 
     collection_id: str
     content: str
-    role: Optional[str] = None  # user, assistant, or custom
-    memory_id: Optional[str] = None  # ID of existing memory to append to
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    authority: Optional[float] = None  # Optional authority score (0.0 - 1.0)
+    role: str | None = None  # user, assistant, or custom
+    memory_id: str | None = None  # ID of existing memory to append to
+    metadata: dict[str, Any] = field(default_factory=dict)
+    authority: float | None = None  # Optional authority score (0.0 - 1.0)
 
 
 @dataclass
@@ -152,15 +152,15 @@ class Collection:
 
     id: str
     name: str
-    description: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    description: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     memory_count: int = 0
-    owner_id: Optional[str] = None
+    owner_id: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Collection":
+    def from_dict(cls, data: dict[str, Any]) -> "Collection":
         """Create a Collection from a dictionary"""
         created_at = None
         if data.get("created_at"):
@@ -211,7 +211,7 @@ class Collection:
             owner_id=collection_owner_id,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert Collection to dictionary"""
         return {
             "id": self.id,
@@ -233,30 +233,30 @@ class GraphSearchResultType(str, Enum):
 
 @dataclass
 class GraphEntityResult:
-    id: Optional[str]
+    id: str | None
     name: str
     description: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class GraphRelationshipResult:
-    id: Optional[str]
+    id: str | None
     subject: str
     predicate: str
     object: str
-    subject_id: Optional[str] = None
-    object_id: Optional[str] = None
-    description: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    subject_id: str | None = None
+    object_id: str | None = None
+    description: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class GraphCommunityResult:
-    id: Optional[str]
+    id: str | None
     name: str
     summary: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -272,31 +272,31 @@ class SearchResult:
 
     id: str  # chunk_id
     score: float
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # Document/source information
-    memory_id: Optional[str] = None  # Parent memory/conversation container
-    owner_id: Optional[str] = None  # Owner UUID
+    memory_id: str | None = None  # Parent memory/conversation container
+    owner_id: str | None = None  # Owner UUID
 
     # Chunk fields
-    content: Optional[str] = None
+    content: str | None = None
 
     # Graph variant discriminator and payload
-    graph_result_type: Optional[GraphSearchResultType] = None
-    graph_entity: Optional[GraphEntityResult] = None
-    graph_relationship: Optional[GraphRelationshipResult] = None
-    graph_community: Optional[GraphCommunityResult] = None
-    chunk_ids: Optional[List[str]] = None
+    graph_result_type: GraphSearchResultType | None = None
+    graph_entity: GraphEntityResult | None = None
+    graph_relationship: GraphRelationshipResult | None = None
+    graph_community: GraphCommunityResult | None = None
+    chunk_ids: list[str] | None = None
 
     # Utterance-specific fields
-    source_role: Optional[str] = (
+    source_role: str | None = (
         None  # Speaker role for conversations: "user", "assistant", etc.
     )
-    timestamp: Optional[datetime] = None
-    display_name: Optional[str] = None  # Human-readable: "user on 2025-01-15"
+    timestamp: datetime | None = None
+    display_name: str | None = None  # Human-readable: "user on 2025-01-15"
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SearchResult":
+    def from_dict(cls, data: dict[str, Any]) -> "SearchResult":
         """Create a chunk-style SearchResult from a dictionary."""
         content = data.get("content") or data.get("text")
         result_id = data.get("id") or data.get("chunk_id", "")
@@ -312,7 +312,7 @@ class SearchResult:
         )
 
     @classmethod
-    def from_graph_dict(cls, data: Dict[str, Any]) -> "SearchResult":
+    def from_graph_dict(cls, data: dict[str, Any]) -> "SearchResult":
         """Create a graph-style SearchResult (entity/relationship/community).
 
         Assumes server returns a valid result_type and well-formed content.
@@ -344,9 +344,9 @@ class SearchResult:
         owner_id = str(data["owner_id"]) if data.get("owner_id") else None
 
         # Build typed content only (no text fallbacks for production cleanliness)
-        entity: Optional[GraphEntityResult] = None
-        rel: Optional[GraphRelationshipResult] = None
-        comm: Optional[GraphCommunityResult] = None
+        entity: GraphEntityResult | None = None
+        rel: GraphRelationshipResult | None = None
+        comm: GraphCommunityResult | None = None
 
         if rtype == GraphSearchResultType.ENTITY:
             entity = GraphEntityResult(
@@ -402,12 +402,12 @@ class AgentResponse:
 
     content: str
     agent_id: str
-    conversation_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    citations: List[Dict[str, Any]] = field(default_factory=list)
+    conversation_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    citations: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AgentResponse":
+    def from_dict(cls, data: dict[str, Any]) -> "AgentResponse":
         """Create an AgentResponse from a dictionary"""
         return cls(
             content=data["content"],
@@ -423,7 +423,7 @@ class SearchOptions:
     """Options for search operations"""
 
     limit: int = 10
-    filters: Optional[Dict[str, Any]] = None
+    filters: dict[str, Any] | None = None
     search_mode: str = "super"  # "fast" or "super"
 
 

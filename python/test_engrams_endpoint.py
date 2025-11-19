@@ -5,7 +5,6 @@ Test script for the updated Nebula Client SDK using documents endpoint
 
 import os
 import sys
-from typing import List
 
 # Add the current directory to the path so we can import the client
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -290,7 +289,7 @@ def test_collection_memories():
     return collection.id
 
 
-def cleanup_test_collections(collection_ids: List[str]):
+def cleanup_test_collections(collection_ids: list[str]):
     """Clean up test collections"""
     print("\n🧹 Cleaning up test collections...")
 

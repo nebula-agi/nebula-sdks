@@ -4,7 +4,7 @@ Main client for the Nebula Client SDK
 
 import hashlib
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from urllib.parse import urljoin
 
 import httpx
@@ -30,7 +30,7 @@ class Nebula:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         base_url: str = "https://api.nebulacloud.app",
         timeout: float = 30.0,
     ):
@@ -64,7 +64,7 @@ class Nebula:
         """Close the HTTP client"""
         self._client.close()
 
-    def _is_nebula_api_key(self, token: Optional[str] = None) -> bool:
+    def _is_nebula_api_key(self, token: str | None = None) -> bool:
         """Detect if a token looks like an Nebula API key (public.raw).
 
         Heuristic:
@@ -79,7 +79,7 @@ class Nebula:
         public_part, raw_part = candidate.split(".", 1)
         return public_part.startswith("key_") and len(raw_part) > 0
 
-    def _build_auth_headers(self, include_content_type: bool = True) -> Dict[str, str]:
+    def _build_auth_headers(self, include_content_type: bool = True) -> dict[str, str]:
         """Build authentication headers.
 
         - If the provided credential looks like an Nebula API key, send it via X-API-Key
@@ -87,9 +87,9 @@ class Nebula:
         - Otherwise, send it as a Bearer token.
         - Optionally include Content-Type: application/json for JSON requests.
         """
-        headers: Dict[str, str] = {}
+        headers: dict[str, str] = {}
         if self._is_nebula_api_key():
-            headers["X-API-Key"] = self.api_key  # type: ignore[arg-type]
+            headers["X-API-Key"] = self.api_key  # type: ignore[assignment]
         else:
             headers["Authorization"] = f"Bearer {self.api_key}"
         if include_content_type:
@@ -100,9 +100,9 @@ class Nebula:
         self,
         method: str,
         endpoint: str,
-        json_data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Make an HTTP request to the Nebula API
 
@@ -133,16 +133,20 @@ class Nebula:
 
             # Handle different response status codes
             if response.status_code in (200, 202):
-                return response.json()
+                result: dict[str, Any] = response.json()
+                return result
             elif response.status_code == 401:
                 raise NebulaAuthenticationException("Invalid API key")
             elif response.status_code == 429:
                 raise NebulaRateLimitException("Rate limit exceeded")
             elif response.status_code == 400:
                 error_data = response.json() if response.content else {}
+                details = error_data.get("details")
+                if details is not None and not isinstance(details, dict):
+                    details = None
                 raise NebulaValidationException(
                     error_data.get("message", "Validation error"),
-                    error_data.get("details"),
+                    details,
                 )
             else:
                 error_data = response.json() if response.content else {}
@@ -169,13 +173,13 @@ class Nebula:
     def create_collection(
         self,
         name: str,
-        description: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Collection:
         """
         Create a new collection
         """
-        data = {
+        data: dict[str, Any] = {
             "name": name,
         }
         if description:
@@ -218,7 +222,7 @@ class Nebula:
         self,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Collection]:
+    ) -> list[Collection]:
         """
         Get all collections
 
@@ -248,9 +252,9 @@ class Nebula:
     def update_collection(
         self,
         collection_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Collection:
         """
         Update a collection
@@ -266,7 +270,7 @@ class Nebula:
         """
         # Existence validated server-side
 
-        data = {}
+        data: dict[str, Any] = {}
         if name is not None:
             data["name"] = name
         if description is not None:
@@ -485,9 +489,9 @@ class Nebula:
     def create_conversation(
         self,
         collection_ref: str,
-        messages: List[Dict[str, Any]],
-        name: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        messages: list[dict[str, Any]],
+        name: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Create a new conversation with messages.
@@ -531,7 +535,7 @@ class Nebula:
         self,
         collection_ref: str,
         raw_text: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         ingestion_mode: str = "fast",
     ) -> str:
         """
@@ -571,8 +575,8 @@ class Nebula:
     def create_document_chunks(
         self,
         collection_ref: str,
-        chunks: List[str],
-        metadata: Optional[Dict[str, Any]] = None,
+        chunks: list[str],
+        metadata: dict[str, Any] | None = None,
         ingestion_mode: str = "fast",
     ) -> str:
         """
@@ -605,8 +609,8 @@ class Nebula:
 
     def store_memory(
         self,
-        memory: Union[Memory, Dict[str, Any]] = None,
-        name: Optional[str] = None,
+        memory: Memory | dict[str, Any] | None = None,
+        name: str | None = None,
         **kwargs,
     ) -> str:
         """Store or append memory using the unified memory API.
@@ -664,7 +668,7 @@ class Nebula:
             # Build messages array if content and role are provided
             messages = []
             if memory.content and memory.role:
-                msg = {
+                msg: dict[str, Any] = {
                     "role": memory.role,
                     "content": str(memory.content),
                     "metadata": memory.metadata or {},
@@ -751,7 +755,7 @@ class Nebula:
         metadata = memory.metadata
 
         # Build request payload
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "collection_id": collection_id,
         }
 
@@ -786,7 +790,7 @@ class Nebula:
                 raise NebulaNotFoundException(memory_id, "Memory") from e
             raise
 
-    def store_memories(self, memories: List[Memory]) -> List[str]:
+    def store_memories(self, memories: list[Memory]) -> list[str]:
         """Store multiple memories using the unified memory API.
 
         All items are processed identically to `store_memory`:
@@ -796,9 +800,9 @@ class Nebula:
         Returns: list of memory_ids in the same order as input memories
         """
         # Group by conversation memory_id for batching
-        results: List[str] = []
-        conv_groups: Dict[str, List[Memory]] = {}
-        others: List[Memory] = []
+        results: list[str] = []
+        conv_groups: dict[str, list[Memory]] = {}
+        others: list[Memory] = []
 
         for m in memories:
             if m.role:
@@ -833,7 +837,7 @@ class Nebula:
 
             append_mem = Memory(
                 collection_id=collection_id,
-                content=messages,
+                content=messages,  # type: ignore[arg-type]
                 memory_id=conv_id,
                 metadata={},
             )
@@ -845,7 +849,7 @@ class Nebula:
             results.append(self.store_memory(m))
         return results
 
-    def delete(self, memory_ids: Union[str, List[str]]) -> Union[bool, Dict[str, Any]]:
+    def delete(self, memory_ids: str | list[str]) -> bool | dict[str, Any]:
         """
         Delete one or more memories.
 
@@ -868,11 +872,12 @@ class Nebula:
                     response = self._make_request(
                         "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
                     )
-                    return (
+                    result: bool | dict[str, Any] = (
                         response.get("success", False)
                         if isinstance(response, dict)
                         else True
                     )
+                    return result
                 except Exception as e:
                     raise
         else:
@@ -881,7 +886,8 @@ class Nebula:
                 response = self._make_request(
                     "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
                 )
-                return response
+                batch_result: bool | dict[str, Any] = response
+                return batch_result
             except Exception as e:
                 raise
 
@@ -907,7 +913,7 @@ class Nebula:
             raise
 
     def update_chunk(
-        self, chunk_id: str, content: str, metadata: Optional[Dict[str, Any]] = None
+        self, chunk_id: str, content: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """
         Update a specific chunk or message within a memory.
@@ -923,7 +929,7 @@ class Nebula:
         Raises:
             NebulaNotFoundException: If chunk_id doesn't exist
         """
-        payload: Dict[str, Any] = {"content": content}
+        payload: dict[str, Any] = {"content": content}
         if metadata is not None:
             payload["metadata"] = metadata
 
@@ -939,9 +945,9 @@ class Nebula:
         self,
         memory_id: str,
         *,
-        name: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        collection_ids: Optional[List[str]] = None,
+        name: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        collection_ids: list[str] | None = None,
         merge_metadata: bool = False,
     ) -> bool:
         """
@@ -968,7 +974,7 @@ class Nebula:
             NebulaValidationException: If validation fails (e.g., no collections specified)
             NebulaAuthenticationException: If user doesn't have permission to update this memory
         """
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
 
         if name is not None:
             payload["name"] = name
@@ -994,11 +1000,11 @@ class Nebula:
     def list_memories(
         self,
         *,
-        collection_ids: List[str],
+        collection_ids: list[str],
         limit: int = 100,
         offset: int = 0,
-        metadata_filters: Optional[dict] = None,
-    ) -> List[MemoryResponse]:
+        metadata_filters: dict | None = None,
+    ) -> list[MemoryResponse]:
         """
         Get all memories from a specific collection with optional metadata filtering.
 
@@ -1055,7 +1061,7 @@ class Nebula:
             engrams = [response]
 
         # Convert all engrams to memories (handle text or chunks)
-        memories: List[MemoryResponse] = []
+        memories: list[MemoryResponse] = []
         for doc in engrams:
             content = doc.get("text") or doc.get("content")
             chunks = doc.get("chunks") if isinstance(doc.get("chunks"), list) else None
@@ -1101,12 +1107,12 @@ class Nebula:
         self,
         query: str,
         *,
-        collection_ids: Optional[List[str]] = None,
+        collection_ids: list[str] | None = None,
         limit: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: dict[str, Any] | None = None,
         search_mode: str = "super",
-        search_settings: Optional[Dict[str, Any]] = None,
-    ) -> List[SearchResult]:
+        search_settings: dict[str, Any] | None = None,
+    ) -> list[SearchResult]:
         """
         Search your memory collections with optional metadata filtering.
 
@@ -1185,7 +1191,7 @@ class Nebula:
         # Collection existence is validated by the backend when applying collection filters
 
         # Build effective search settings with simplified structure
-        effective_settings: Dict[str, Any] = dict(search_settings or {})
+        effective_settings: dict[str, Any] = dict(search_settings or {})
 
         # Set limit
         effective_settings["limit"] = limit
@@ -1193,7 +1199,7 @@ class Nebula:
         # Retrieval type is now handled internally by the backend
 
         # Merge filters: caller-provided search_settings.filters first, then explicit filters arg
-        user_filters: Dict[str, Any] = dict(effective_settings.get("filters", {}))
+        user_filters: dict[str, Any] = dict(effective_settings.get("filters", {}))
         if filters:
             user_filters.update(filters)
 
@@ -1225,7 +1231,7 @@ class Nebula:
             chunk_results = []
             graph_results = []
 
-        out: List[SearchResult] = []
+        out: list[SearchResult] = []
         # 1) Vector chunk results
         out.extend(SearchResult.from_dict(result) for result in chunk_results)
 
@@ -1329,9 +1335,9 @@ class Nebula:
         self,
         limit: int = 100,
         offset: int = 0,
-        collection_ids: Optional[List[str]] = None,
-        metadata_filters: Optional[dict] = None,
-    ) -> List[Dict[str, Any]]:
+        collection_ids: list[str] | None = None,
+        metadata_filters: dict | None = None,
+    ) -> list[dict[str, Any]]:
         """
         List conversations for the authenticated user with optional metadata filtering.
 
@@ -1359,7 +1365,7 @@ class Nebula:
                 metadata_filters={"metadata.playground": {"$eq": True}}
             )
         """
-        params = {
+        params: dict[str, Any] = {
             "limit": limit,
             "offset": offset,
         }
@@ -1376,6 +1382,7 @@ class Nebula:
 
         response = self._make_request("GET", "/v1/conversations", params=params)
 
+        conversations: list[dict[str, Any]]
         if isinstance(response, dict) and "results" in response:
             conversations = response["results"]
         elif isinstance(response, list):
@@ -1385,7 +1392,7 @@ class Nebula:
 
         return conversations
 
-    def get_conversation_messages(self, conversation_id: str) -> List[MemoryResponse]:
+    def get_conversation_messages(self, conversation_id: str) -> list[MemoryResponse]:
         """
         Get conversation messages directly from the conversations API
 
@@ -1417,7 +1424,7 @@ class Nebula:
             messages_data = []
 
         # Convert to MemoryResponse objects
-        messages: List[MemoryResponse] = []
+        messages: list[MemoryResponse] = []
 
         for msg_resp in messages_data:
             if not isinstance(msg_resp, dict):
@@ -1475,7 +1482,7 @@ class Nebula:
 
         return messages
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """
         Check the health of the Nebula API
 

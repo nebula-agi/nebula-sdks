@@ -5,7 +5,7 @@ Async client for the Nebula Client SDK
 import hashlib
 import json
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from urllib.parse import urljoin
 
 import httpx
@@ -35,7 +35,7 @@ class AsyncNebula:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         base_url: str = "https://api.nebulacloud.app",
         timeout: float = 120.0,  # Increased from 30s to handle bulk operations & network delays
     ):
@@ -73,7 +73,7 @@ class AsyncNebula:
     async def close(self) -> None:
         await self.aclose()
 
-    def _is_nebula_api_key(self, token: Optional[str] = None) -> bool:
+    def _is_nebula_api_key(self, token: str | None = None) -> bool:
         """Detect if a token looks like a Nebula API key (public.raw)."""
         candidate = token or self.api_key
         if not candidate:
@@ -83,7 +83,7 @@ class AsyncNebula:
         public_part, raw_part = candidate.split(".", 1)
         return public_part.startswith("key_") and len(raw_part) > 0
 
-    def _build_auth_headers(self, include_content_type: bool = True) -> Dict[str, str]:
+    def _build_auth_headers(self, include_content_type: bool = True) -> dict[str, str]:
         """Build authentication headers.
 
         - If the provided credential looks like a Nebula API key, send it via X-API-Key
@@ -91,9 +91,9 @@ class AsyncNebula:
         - Otherwise, send it as a Bearer token.
         - Optionally include Content-Type: application/json for JSON requests.
         """
-        headers: Dict[str, str] = {}
+        headers: dict[str, str] = {}
         if self._is_nebula_api_key():
-            headers["X-API-Key"] = self.api_key  # type: ignore[arg-type]
+            headers["X-API-Key"] = self.api_key  # type: ignore[assignment]
         else:
             headers["Authorization"] = f"Bearer {self.api_key}"
         if include_content_type:
@@ -104,9 +104,9 @@ class AsyncNebula:
         self,
         method: str,
         endpoint: str,
-        json_data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Make an async HTTP request to the Nebula API
 
@@ -125,16 +125,20 @@ class AsyncNebula:
             )
 
             if response.status_code in (200, 202):
-                return response.json()
+                result: dict[str, Any] = response.json()
+                return result
             elif response.status_code == 401:
                 raise NebulaAuthenticationException("Invalid API key")
             elif response.status_code == 429:
                 raise NebulaRateLimitException("Rate limit exceeded")
             elif response.status_code == 400:
                 error_data = response.json() if response.content else {}
+                details = error_data.get("details")
+                if details is not None and not isinstance(details, dict):
+                    details = None
                 raise NebulaValidationException(
                     error_data.get("message", "Validation error"),
-                    error_data.get("details"),
+                    details,
                 )
             else:
                 error_data = response.json() if response.content else {}
@@ -161,10 +165,10 @@ class AsyncNebula:
     async def create_collection(
         self,
         name: str,
-        description: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Collection:
-        data = {"name": name}
+        data: dict[str, Any] = {"name": name}
         if description:
             data["description"] = description
         if metadata:
@@ -195,13 +199,13 @@ class AsyncNebula:
         self,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Collection]:
+    ) -> list[Collection]:
         params = {"limit": limit, "offset": offset}
         response = await self._make_request_async(
             "GET", "/v1/collections", params=params
         )
         if isinstance(response, dict) and "results" in response:
-            collections: List[Dict[str, Any]] = response["results"]
+            collections: list[dict[str, Any]] = response["results"]
         elif isinstance(response, list):
             collections = response
         else:
@@ -211,11 +215,11 @@ class AsyncNebula:
     async def update_collection(
         self,
         collection_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        name: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Collection:
-        data: Dict[str, Any] = {}
+        data: dict[str, Any] = {}
         if name is not None:
             data["name"] = name
         if description is not None:
@@ -237,9 +241,9 @@ class AsyncNebula:
     async def create_conversation(
         self,
         collection_ref: str,
-        messages: List[Dict[str, Any]],
-        name: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        messages: list[dict[str, Any]],
+        name: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """
         Create a new conversation with messages.
@@ -285,7 +289,7 @@ class AsyncNebula:
         self,
         collection_ref: str,
         raw_text: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         ingestion_mode: str = "fast",
     ) -> str:
         """
@@ -327,8 +331,8 @@ class AsyncNebula:
     async def create_document_chunks(
         self,
         collection_ref: str,
-        chunks: List[str],
-        metadata: Optional[Dict[str, Any]] = None,
+        chunks: list[str],
+        metadata: dict[str, Any] | None = None,
         ingestion_mode: str = "fast",
     ) -> str:
         """
@@ -363,8 +367,8 @@ class AsyncNebula:
 
     async def store_memory(
         self,
-        memory: Union[Memory, Dict[str, Any]] = None,
-        name: Optional[str] = None,
+        memory: Memory | dict[str, Any] | None = None,
+        name: str | None = None,
         **kwargs,
     ) -> str:
         """Store or append memory using the unified memory API.
@@ -420,7 +424,7 @@ class AsyncNebula:
             try:
                 from uuid import UUID
 
-                collection_uuid = UUID(memory.collection_id)
+                collection_uuid: UUID | str = UUID(memory.collection_id)
             except (ValueError, TypeError):
                 collection_uuid = memory.collection_id
 
@@ -467,7 +471,7 @@ class AsyncNebula:
                 if memory.content and memory.role:
                     append_memory = Memory(
                         collection_id=memory.collection_id,
-                        content=[
+                        content=[  # type: ignore[arg-type]
                             {
                                 "content": str(memory.content),
                                 "role": memory.role,
@@ -552,7 +556,7 @@ class AsyncNebula:
         metadata = memory.metadata
 
         # Build request payload
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "collection_id": collection_id,
         }
 
@@ -587,7 +591,7 @@ class AsyncNebula:
                 raise NebulaNotFoundException(memory_id, "Memory") from e
             raise
 
-    async def store_memories(self, memories: List[Memory]) -> List[str]:
+    async def store_memories(self, memories: list[Memory]) -> list[str]:
         """Store multiple memories using the unified memory API.
 
         All items are processed identically to `store_memory`:
@@ -596,9 +600,9 @@ class AsyncNebula:
 
         Returns: list of memory_ids in the same order as input memories
         """
-        results: List[str] = []
-        conv_groups: Dict[str, List[Memory]] = {}
-        others: List[Memory] = []
+        results: list[str] = []
+        conv_groups: dict[str, list[Memory]] = {}
+        others: list[Memory] = []
 
         for m in memories:
             if m.role:
@@ -632,7 +636,7 @@ class AsyncNebula:
 
             append_mem = Memory(
                 collection_id=collection_id,
-                content=messages,
+                content=messages,  # type: ignore[arg-type]
                 memory_id=conv_id,
                 metadata={},
             )
@@ -644,9 +648,7 @@ class AsyncNebula:
             results.append(await self.store_memory(m))
         return results
 
-    async def delete(
-        self, memory_ids: Union[str, List[str]]
-    ) -> Union[bool, Dict[str, Any]]:
+    async def delete(self, memory_ids: str | list[str]) -> bool | dict[str, Any]:
         """
         Delete one or more memories.
 
@@ -669,11 +671,12 @@ class AsyncNebula:
                     response = await self._make_request_async(
                         "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
                     )
-                    return (
+                    result: bool | dict[str, Any] = (
                         response.get("success", False)
                         if isinstance(response, dict)
                         else True
                     )
+                    return result
                 except Exception as e:
                     raise
         else:
@@ -681,7 +684,8 @@ class AsyncNebula:
             response = await self._make_request_async(
                 "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
             )
-            return response
+            batch_result: bool | dict[str, Any] = response
+            return batch_result
 
     async def delete_chunk(self, chunk_id: str) -> bool:
         """
@@ -705,7 +709,7 @@ class AsyncNebula:
             raise
 
     async def update_chunk(
-        self, chunk_id: str, content: str, metadata: Optional[Dict[str, Any]] = None
+        self, chunk_id: str, content: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """
         Update a specific chunk or message within a memory.
@@ -721,7 +725,7 @@ class AsyncNebula:
         Raises:
             NebulaNotFoundException: If chunk_id doesn't exist
         """
-        payload: Dict[str, Any] = {"content": content}
+        payload: dict[str, Any] = {"content": content}
         if metadata is not None:
             payload["metadata"] = metadata
 
@@ -738,10 +742,10 @@ class AsyncNebula:
     async def list_memories(
         self,
         *,
-        collection_ids: List[str],
+        collection_ids: list[str],
         limit: int = 100,
         offset: int = 0,
-    ) -> List[MemoryResponse]:
+    ) -> list[MemoryResponse]:
         if not collection_ids:
             raise NebulaClientException(
                 "collection_ids must be provided to list_memories()."
@@ -754,7 +758,7 @@ class AsyncNebula:
             documents = response
         else:
             documents = [response]
-        memories: List[MemoryResponse] = []
+        memories: list[MemoryResponse] = []
         for doc in documents:
             # Let the model map fields appropriately
             memories.append(MemoryResponse.from_dict(doc))
@@ -777,12 +781,12 @@ class AsyncNebula:
         self,
         query: str,
         *,
-        collection_ids: Optional[List[str]] = None,
+        collection_ids: list[str] | None = None,
         limit: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: dict[str, Any] | None = None,
         search_mode: str = "super",
-        search_settings: Optional[Dict[str, Any]] = None,
-    ) -> List[SearchResult]:
+        search_settings: dict[str, Any] | None = None,
+    ) -> list[SearchResult]:
         """
         Search your memory collections with optional metadata filtering (async version).
 
@@ -859,10 +863,10 @@ class AsyncNebula:
             List of SearchResult objects containing both vector/chunk and graph search results
         """
         # Build effective search settings with simplified structure
-        effective_settings: Dict[str, Any] = dict(search_settings or {})
+        effective_settings: dict[str, Any] = dict(search_settings or {})
         effective_settings["limit"] = limit
         # Retrieval type is now handled internally by the backend
-        user_filters: Dict[str, Any] = dict(effective_settings.get("filters", {}))
+        user_filters: dict[str, Any] = dict(effective_settings.get("filters", {}))
         if filters:
             user_filters.update(filters)
         # Add cluster filter if collection_ids provided (supports both UUIDs and names)
@@ -890,7 +894,7 @@ class AsyncNebula:
         else:
             chunk_results = []
             graph_results = []
-        out: List[SearchResult] = []
+        out: list[SearchResult] = []
         out.extend(SearchResult.from_dict(result) for result in chunk_results)
         for g in graph_results:
             out.append(SearchResult.from_graph_dict(g))
@@ -900,8 +904,8 @@ class AsyncNebula:
         self,
         limit: int = 100,
         offset: int = 0,
-        collection_ids: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        collection_ids: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         List conversations for the authenticated user (async version)
 
@@ -913,7 +917,7 @@ class AsyncNebula:
         Returns:
             List of conversation dictionaries
         """
-        params = {
+        params: dict[str, Any] = {
             "limit": limit,
             "offset": offset,
         }
@@ -926,6 +930,7 @@ class AsyncNebula:
             "GET", "/v1/conversations", params=params
         )
 
+        conversations: list[dict[str, Any]]
         if isinstance(response, dict) and "results" in response:
             conversations = response["results"]
         elif isinstance(response, list):
@@ -937,7 +942,7 @@ class AsyncNebula:
 
     async def get_conversation_messages(
         self, conversation_id: str
-    ) -> List[MemoryResponse]:
+    ) -> list[MemoryResponse]:
         """
         Get conversation messages directly from the conversations API (async version)
 
@@ -971,7 +976,7 @@ class AsyncNebula:
             messages_data = []
 
         # Convert to MemoryResponse objects
-        messages: List[MemoryResponse] = []
+        messages: list[MemoryResponse] = []
 
         for msg_resp in messages_data:
             if not isinstance(msg_resp, dict):
@@ -1029,5 +1034,5 @@ class AsyncNebula:
 
         return messages
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         return await self._make_request_async("GET", "/health")

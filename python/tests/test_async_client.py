@@ -1,7 +1,7 @@
 import asyncio
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Ensure the package root (sdk/nebula_client) is importable when running from py/
 _THIS_DIR = os.path.dirname(__file__)
@@ -14,23 +14,23 @@ from nebula.models import Memory  # noqa: E402
 
 
 class _DummyResponse:
-    def __init__(self, status_code: int, payload: Dict[str, Any]):
+    def __init__(self, status_code: int, payload: dict[str, Any]):
         self.status_code = status_code
         self._payload = payload
 
-    def json(self) -> Dict[str, Any]:
+    def json(self) -> dict[str, Any]:
         return self._payload
 
 
 class _DummyHttpClient:
     def __init__(self):
-        self.posts: List[Dict[str, Any]] = []
+        self.posts: list[dict[str, Any]] = []
 
     async def post(
         self,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        data: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ):
         self.posts.append({"url": url, "data": data, "headers": headers})
         # Default successful create with engram id
@@ -52,13 +52,13 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
     client._client = dummy  # type: ignore[attr-defined]
 
     # Track calls to _make_request_async
-    calls: List[Dict[str, Any]] = []
+    calls: list[dict[str, Any]] = []
 
     async def _fake_request(
         method: str,
         endpoint: str,
-        json_data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ):
         calls.append(
             {
@@ -107,13 +107,13 @@ def test_store_memories_mixed_batch(monkeypatch):
     dummy = _DummyHttpClient()
     client._client = dummy  # type: ignore[attr-defined]
 
-    calls: List[Dict[str, Any]] = []
+    calls: list[dict[str, Any]] = []
 
     async def _fake_request(
         method: str,
         endpoint: str,
-        json_data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ):
         calls.append(
             {
@@ -162,8 +162,8 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
         async def post(
             self,
             url: str,
-            data: Optional[Dict[str, Any]] = None,
-            headers: Optional[Dict[str, str]] = None,
+            data: dict[str, Any] | None = None,
+            headers: dict[str, str] | None = None,
         ):
             self.posts.append({"url": url, "data": data, "headers": headers})
             # Simulate conversation create response
@@ -172,13 +172,13 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
     dummy = _DummyHttpClientWithConv()
     client._client = dummy  # type: ignore[attr-defined]
 
-    calls: List[Dict[str, Any]] = []
+    calls: list[dict[str, Any]] = []
 
     async def _fake_request(
         method: str,
         endpoint: str,
-        json_data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ):
         calls.append(
             {
