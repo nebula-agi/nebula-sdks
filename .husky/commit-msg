@@ -1,0 +1,29 @@
+#!/bin/sh
+# Prevent using [skip ci] on commits that bump SDK versions.
+# GitHub Actions treats [skip ci] specially and will skip all workflows,
+# which means our Python/JavaScript publish jobs will not run.
+
+COMMIT_MSG_FILE="$1"
+
+# If we can't read the commit message for some reason, do nothing.
+if [ -z "$COMMIT_MSG_FILE" ] || [ ! -f "$COMMIT_MSG_FILE" ]; then
+  exit 0
+fi
+
+# Only care if this commit changes an SDK version file.
+if ! git diff --cached --name-only | grep -Eq '^python/pyproject\.toml$|^javascript/package\.json$'; then
+  exit 0
+fi
+
+# Block [skip ci] in commit messages when publishing SDKs.
+if grep -qi '\[skip ci\]' "$COMMIT_MSG_FILE"; then
+  echo
+  echo "husky - commit message contains [skip ci], but an SDK version file changed."
+  echo "husky - GitHub Actions will skip CI for this commit, so PyPI/npm publish will NOT run."
+  echo "husky - Please remove [skip ci] from the commit message and try committing again."
+  exit 1
+fi
+
+exit 0
+
+
