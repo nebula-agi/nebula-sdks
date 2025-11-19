@@ -21,6 +21,7 @@ from .models import (
     Collection,
     Memory,
     MemoryResponse,
+    RetrievalType,
     SearchResult,
 )
 
@@ -40,4 +41,5 @@ __all__ = [
     "SearchResult",
     "AgentResponse",
     "Chunk",
+    "RetrievalType",
 ]

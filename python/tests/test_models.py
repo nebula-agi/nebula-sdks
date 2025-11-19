@@ -8,7 +8,7 @@ import pytest
 
 from nebula import (
     AgentResponse,
-    Cluster,
+    Collection,
     Memory,
     RetrievalType,
     SearchResult,
@@ -127,12 +127,12 @@ class TestMemory:
         assert data["updated_at"] is None
 
 
-class TestCluster:
-    """Test cases for Cluster model"""
+class TestCollection:
+    """Test cases for Collection model"""
 
-    def test_cluster_creation(self):
-        """Test creating a Cluster instance"""
-        cluster = Cluster(
+    def test_collection_creation(self):
+        """Test creating a Collection instance"""
+        collection = Collection(
             id="cluster-123",
             name="Test Cluster",
             description="Test Description",
@@ -142,62 +142,59 @@ class TestCluster:
             owner_id="owner-123",
         )
 
-        assert cluster.id == "cluster-123"
-        assert cluster.name == "Test Cluster"
-        assert cluster.description == "Test Description"
-        assert cluster.metadata == {"test": "value"}
-        assert cluster.created_at == datetime(2024, 1, 1, 12, 0, 0)
-        assert cluster.memory_count == 5
-        assert cluster.owner_id == "owner-123"
+        assert collection.id == "cluster-123"
+        assert collection.name == "Test Cluster"
+        assert collection.description == "Test Description"
+        assert collection.metadata == {"test": "value"}
+        assert collection.created_at == datetime(2024, 1, 1, 12, 0, 0)
+        assert collection.memory_count == 5
+        assert collection.owner_id == "owner-123"
 
-    def test_cluster_from_dict(self):
-        """Test creating Cluster from dictionary"""
+    def test_collection_from_dict(self):
+        """Test creating Collection from dictionary"""
         data = {
             "id": "cluster-123",
             "name": "Test Cluster",
             "description": "Test Description",
-            "metadata": {"test": "value"},
+            "engram_count": 5,
+            "owner_id": "owner-123",
             "created_at": "2024-01-01T12:00:00Z",
             "updated_at": "2024-01-02T12:00:00Z",
-            "memory_count": 5,
-            "owner_id": "owner-123",
         }
 
-        cluster = Cluster.from_dict(data)
+        collection = Collection.from_dict(data)
 
-        assert cluster.id == "cluster-123"
-        assert cluster.name == "Test Cluster"
-        assert cluster.description == "Test Description"
-        assert cluster.metadata == {"test": "value"}
-        assert isinstance(cluster.created_at, datetime)
-        assert isinstance(cluster.updated_at, datetime)
-        assert cluster.memory_count == 5
-        assert cluster.owner_id == "owner-123"
+        assert collection.id == "cluster-123"
+        assert collection.name == "Test Cluster"
+        assert collection.description == "Test Description"
+        assert isinstance(collection.created_at, datetime)
+        assert isinstance(collection.updated_at, datetime)
+        assert collection.memory_count == 5
+        assert collection.owner_id == "owner-123"
 
-    def test_cluster_from_dict_without_optional_fields(self):
-        """Test creating Cluster from dictionary without optional fields"""
+    def test_collection_from_dict_without_optional_fields(self):
+        """Test creating Collection from dictionary without optional fields"""
         data = {
             "id": "cluster-123",
             "name": "Test Cluster",
         }
 
-        cluster = Cluster.from_dict(data)
+        collection = Collection.from_dict(data)
 
-        assert cluster.id == "cluster-123"
-        assert cluster.name == "Test Cluster"
-        assert cluster.description is None
-        assert cluster.metadata == {}
-        assert cluster.created_at is None
-        assert cluster.updated_at is None
-        assert cluster.memory_count == 0
-        assert cluster.owner_id is None
+        assert collection.id == "cluster-123"
+        assert collection.name == "Test Cluster"
+        assert collection.description is None
+        assert collection.created_at is None
+        assert collection.updated_at is None
+        assert collection.memory_count == 0
+        assert collection.owner_id is None
 
-    def test_cluster_to_dict(self):
-        """Test converting Cluster to dictionary"""
+    def test_collection_to_dict(self):
+        """Test converting Collection to dictionary"""
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         updated_at = datetime(2024, 1, 2, 12, 0, 0)
 
-        cluster = Cluster(
+        collection = Collection(
             id="cluster-123",
             name="Test Cluster",
             description="Test Description",
@@ -208,7 +205,7 @@ class TestCluster:
             owner_id="owner-123",
         )
 
-        data = cluster.to_dict()
+        data = collection.to_dict()
 
         assert data["id"] == "cluster-123"
         assert data["name"] == "Test Cluster"
