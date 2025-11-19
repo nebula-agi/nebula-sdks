@@ -72,13 +72,14 @@ jobs:
     environment: npm-publish
     permissions:
       id-token: write
-      contents: read
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -86,35 +87,59 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Check if version changed
+      - name: Check for SDK changes and auto-bump version
         id: version-check
         run: |
-          CURRENT_VERSION=$(node -p "require('./javascript/package.json').version")
-          PREVIOUS_VERSION=$(git show HEAD^:javascript/package.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version")
+          cd javascript
 
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          # Get current version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          # Check if there are code changes in javascript/src (excluding package.json version-only changes)
+          if git diff --quiet HEAD^ HEAD -- ../javascript/src; then
+            echo "No code changes detected in SDK"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
           else
-            echo "Version unchanged: $CURRENT_VERSION"
-            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "SDK code changes detected, auto-bumping patch version"
+
+            # Parse version and bump patch
+            IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+            NEW_VERSION="${major}.${minor}.$((patch + 1))"
+
+            echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION"
+
+            # Update version in package.json using npm
+            npm version $NEW_VERSION --no-git-tag-version
+
+            # Configure git
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Commit version bump
+            git add package.json
+            git commit -m "chore(javascript): bump version to $NEW_VERSION [skip ci]"
+            git push
+
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           fi
 
       - name: Download build artifacts
-        if: steps.version-check.outputs.changed == 'true'
+        if: steps.version-check.outputs.should_publish == 'true'
         uses: actions/download-artifact@v4
         with:
           name: javascript-build
           path: javascript/dist/
 
       - name: Publish to npm
-        if: steps.version-check.outputs.changed == 'true'
+        if: steps.version-check.outputs.should_publish == 'true'
         working-directory: ./javascript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
 
       - name: Create release tag
-        if: steps.version-check.outputs.changed == 'true'
+        if: steps.version-check.outputs.should_publish == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
