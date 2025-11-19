@@ -10,114 +10,140 @@ from nebula import (
     AgentResponse,
     Collection,
     Memory,
+    MemoryResponse,
     RetrievalType,
     SearchResult,
 )
 
 
 class TestMemory:
-    """Test cases for Memory model"""
+    """Test cases for Memory model (write-only model)"""
 
     def test_memory_creation(self):
-        """Test creating a Memory instance"""
+        """Test creating a Memory instance for writing"""
         memory = Memory(
-            id="memory-123",
-            agent_id="test-agent",
+            collection_id="collection-123",
             content="Test memory content",
             metadata={"test": "value"},
-            created_at=datetime(2024, 1, 1, 12, 0, 0),
         )
 
-        assert memory.id == "memory-123"
-        assert memory.agent_id == "test-agent"
+        assert memory.collection_id == "collection-123"
         assert memory.content == "Test memory content"
         assert memory.metadata == {"test": "value"}
-        assert memory.created_at == datetime(2024, 1, 1, 12, 0, 0)
+        assert memory.role is None
+        assert memory.memory_id is None
+        assert memory.authority is None
 
-    def test_memory_from_dict(self):
-        """Test creating Memory from dictionary"""
+    def test_memory_creation_with_role(self):
+        """Test creating a conversation Memory instance"""
+        memory = Memory(
+            collection_id="collection-123",
+            content="Hello!",
+            role="user",
+            metadata={"session": "abc"},
+        )
+
+        assert memory.collection_id == "collection-123"
+        assert memory.content == "Hello!"
+        assert memory.role == "user"
+        assert memory.metadata == {"session": "abc"}
+
+    def test_memory_creation_with_memory_id(self):
+        """Test creating a Memory for appending to existing memory"""
+        memory = Memory(
+            collection_id="collection-123",
+            content="Additional content",
+            memory_id="existing-memory-123",
+        )
+
+        assert memory.collection_id == "collection-123"
+        assert memory.content == "Additional content"
+        assert memory.memory_id == "existing-memory-123"
+
+
+class TestMemoryResponse:
+    """Test cases for MemoryResponse model (read-only model)"""
+
+    def test_memory_response_from_dict(self):
+        """Test creating MemoryResponse from dictionary"""
         data = {
             "id": "memory-123",
-            "agent_id": "test-agent",
             "content": "Test memory content",
             "metadata": {"test": "value"},
             "created_at": "2024-01-01T12:00:00Z",
             "updated_at": "2024-01-02T12:00:00Z",
+            "collection_ids": ["collection-1", "collection-2"],
         }
 
-        memory = Memory.from_dict(data)
+        memory = MemoryResponse.from_dict(data)
 
         assert memory.id == "memory-123"
-        assert memory.agent_id == "test-agent"
         assert memory.content == "Test memory content"
         assert memory.metadata == {"test": "value"}
         assert isinstance(memory.created_at, datetime)
         assert isinstance(memory.updated_at, datetime)
+        assert memory.collection_ids == ["collection-1", "collection-2"]
 
-    def test_memory_from_dict_with_datetime_objects(self):
-        """Test creating Memory from dictionary with datetime objects"""
+    def test_memory_response_from_dict_with_datetime_objects(self):
+        """Test creating MemoryResponse from dictionary with datetime objects"""
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         updated_at = datetime(2024, 1, 2, 12, 0, 0)
 
         data = {
             "id": "memory-123",
-            "agent_id": "test-agent",
             "content": "Test memory content",
             "metadata": {"test": "value"},
             "created_at": created_at,
             "updated_at": updated_at,
         }
 
-        memory = Memory.from_dict(data)
+        memory = MemoryResponse.from_dict(data)
 
         assert memory.created_at == created_at
         assert memory.updated_at == updated_at
 
-    def test_memory_from_dict_without_optional_fields(self):
-        """Test creating Memory from dictionary without optional fields"""
+    def test_memory_response_from_dict_without_optional_fields(self):
+        """Test creating MemoryResponse from dictionary without optional fields"""
         data = {
             "id": "memory-123",
-            "agent_id": "test-agent",
             "content": "Test memory content",
         }
 
-        memory = Memory.from_dict(data)
+        memory = MemoryResponse.from_dict(data)
 
         assert memory.id == "memory-123"
-        assert memory.agent_id == "test-agent"
         assert memory.content == "Test memory content"
         assert memory.metadata == {}
         assert memory.created_at is None
         assert memory.updated_at is None
 
-    def test_memory_to_dict(self):
-        """Test converting Memory to dictionary"""
+    def test_memory_response_to_dict(self):
+        """Test converting MemoryResponse to dictionary"""
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         updated_at = datetime(2024, 1, 2, 12, 0, 0)
 
-        memory = Memory(
+        memory = MemoryResponse(
             id="memory-123",
-            agent_id="test-agent",
             content="Test memory content",
             metadata={"test": "value"},
             created_at=created_at,
             updated_at=updated_at,
+            collection_ids=["collection-1"],
         )
 
         data = memory.to_dict()
 
         assert data["id"] == "memory-123"
-        assert data["agent_id"] == "test-agent"
         assert data["content"] == "Test memory content"
         assert data["metadata"] == {"test": "value"}
         assert data["created_at"] == "2024-01-01T12:00:00"
         assert data["updated_at"] == "2024-01-02T12:00:00"
+        assert data["collection_ids"] == ["collection-1"]
 
-    def test_memory_to_dict_with_none_dates(self):
-        """Test converting Memory to dictionary with None dates"""
-        memory = Memory(
+    def test_memory_response_to_dict_with_none_dates(self):
+        """Test converting MemoryResponse to dictionary with None dates"""
+        memory = MemoryResponse(
             id="memory-123",
-            agent_id="test-agent",
             content="Test memory content",
         )
 
@@ -227,14 +253,14 @@ class TestSearchResult:
             content="Search result content",
             score=0.95,
             metadata={"test": "value"},
-            source="memory-123",
+            memory_id="memory-123",
         )
 
         assert result.id == "result-123"
         assert result.content == "Search result content"
         assert result.score == 0.95
         assert result.metadata == {"test": "value"}
-        assert result.source == "memory-123"
+        assert result.memory_id == "memory-123"
 
     def test_search_result_from_dict(self):
         """Test creating SearchResult from dictionary"""
@@ -243,7 +269,7 @@ class TestSearchResult:
             "content": "Search result content",
             "score": 0.95,
             "metadata": {"test": "value"},
-            "source": "memory-123",
+            "memory_id": "memory-123",
         }
 
         result = SearchResult.from_dict(data)
@@ -252,7 +278,7 @@ class TestSearchResult:
         assert result.content == "Search result content"
         assert result.score == 0.95
         assert result.metadata == {"test": "value"}
-        assert result.source == "memory-123"
+        assert result.memory_id == "memory-123"
 
     def test_search_result_from_dict_without_optional_fields(self):
         """Test creating SearchResult from dictionary without optional fields"""
@@ -267,7 +293,7 @@ class TestSearchResult:
         assert result.content == "Search result content"
         assert result.score == 0.0
         assert result.metadata == {}
-        assert result.source is None
+        assert result.memory_id is None
 
 
 class TestAgentResponse:
@@ -330,21 +356,15 @@ class TestRetrievalType:
     def test_retrieval_type_values(self):
         """Test RetrievalType enum values"""
         assert RetrievalType.SIMPLE == "simple"
-        assert RetrievalType.PLANNING == "planning"
-        assert RetrievalType.REASONING == "reasoning"
-        assert RetrievalType.DEEP_RESEARCH == "deep_research"
+        assert RetrievalType.ADVANCED == "advanced"
 
     def test_retrieval_type_creation(self):
         """Test creating RetrievalType instances"""
         simple = RetrievalType("simple")
-        planning = RetrievalType("planning")
-        reasoning = RetrievalType("reasoning")
-        deep_research = RetrievalType("deep_research")
+        advanced = RetrievalType("advanced")
 
         assert simple == RetrievalType.SIMPLE
-        assert planning == RetrievalType.PLANNING
-        assert reasoning == RetrievalType.REASONING
-        assert deep_research == RetrievalType.DEEP_RESEARCH
+        assert advanced == RetrievalType.ADVANCED
 
     def test_retrieval_type_invalid_value(self):
         """Test creating RetrievalType with invalid value raises error"""

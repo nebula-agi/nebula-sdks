@@ -7,16 +7,13 @@ from unittest.mock import Mock, patch
 import pytest
 
 from nebula import (
-    AgentResponse,
     Collection,
-    Memory,
     Nebula,
     NebulaAuthenticationException,
     NebulaClientException,
     NebulaException,
     NebulaRateLimitException,
     NebulaValidationException,
-    RetrievalType,
     SearchResult,
 )
 
@@ -85,56 +82,53 @@ class TestNebula:
         assert headers["Content-Type"] == "application/json"
 
     @patch("httpx.Client.request")
-    def test_create_cluster(self, mock_request):
-        """Test creating a cluster"""
+    def test_create_collection(self, mock_request):
+        """Test creating a collection"""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "cluster-123",
             "name": "Test Collection",
             "description": "Test Description",
-            "metadata": {"test": "value"},
+            "engram_count": 0,
             "created_at": "2024-01-01T00:00:00Z",
-            "memory_count": 0,
         }
         mock_request.return_value = mock_response
 
-        cluster = self.client.create_cluster(
+        collection = self.client.create_collection(
             name="Test Collection",
             description="Test Description",
             metadata={"test": "value"},
         )
 
-        assert isinstance(cluster, Collection)
-        assert cluster.id == "cluster-123"
-        assert cluster.name == "Test Collection"
-        assert cluster.description == "Test Description"
-        assert cluster.metadata == {"test": "value"}
+        assert isinstance(collection, Collection)
+        assert collection.id == "cluster-123"
+        assert collection.name == "Test Collection"
+        assert collection.description == "Test Description"
 
     @patch("httpx.Client.request")
-    def test_get_cluster(self, mock_request):
-        """Test getting a cluster"""
+    def test_get_collection(self, mock_request):
+        """Test getting a collection"""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "cluster-123",
             "name": "Test Collection",
             "description": "Test Description",
-            "metadata": {},
+            "engram_count": 5,
             "created_at": "2024-01-01T00:00:00Z",
-            "memory_count": 5,
         }
         mock_request.return_value = mock_response
 
-        cluster = self.client.get_cluster("cluster-123")
+        collection = self.client.get_collection("cluster-123")
 
-        assert isinstance(cluster, Collection)
-        assert cluster.id == "cluster-123"
-        assert cluster.memory_count == 5
+        assert isinstance(collection, Collection)
+        assert collection.id == "cluster-123"
+        assert collection.memory_count == 5
 
     @patch("httpx.Client.request")
-    def test_list_clusters(self, mock_request):
-        """Test listing clusters"""
+    def test_list_collections(self, mock_request):
+        """Test listing collections"""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = [
@@ -142,27 +136,25 @@ class TestNebula:
                 "id": "cluster-1",
                 "name": "Collection 1",
                 "description": "First cluster",
-                "metadata": {},
+                "engram_count": 2,
                 "created_at": "2024-01-01T00:00:00Z",
-                "memory_count": 2,
             },
             {
                 "id": "cluster-2",
                 "name": "Collection 2",
                 "description": "Second cluster",
-                "metadata": {},
+                "engram_count": 3,
                 "created_at": "2024-01-02T00:00:00Z",
-                "memory_count": 3,
             },
         ]
         mock_request.return_value = mock_response
 
-        clusters = self.client.list_clusters(limit=10, offset=0)
+        collections = self.client.list_collections(limit=10, offset=0)
 
-        assert len(clusters) == 2
-        assert all(isinstance(cluster, Collection) for cluster in clusters)
-        assert clusters[0].name == "Collection 1"
-        assert clusters[1].name == "Collection 2"
+        assert len(collections) == 2
+        assert all(isinstance(collection, Collection) for collection in collections)
+        assert collections[0].name == "Collection 1"
+        assert collections[1].name == "Collection 2"
 
     @patch("httpx.Client.request")
     def test_store_memory(self, mock_request):
@@ -170,52 +162,55 @@ class TestNebula:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "id": "memory-123",
-            "content": "Test memory content",
-            "metadata": {"test": "value"},
-            "created_at": "2024-01-01T00:00:00Z",
+            "results": {
+                "engram_id": "memory-123",
+                "id": "memory-123",
+            }
         }
         mock_request.return_value = mock_response
 
-        memory = self.client.store(
+        memory_id = self.client.store_memory(
+            collection_id="cluster-123",
             content="Test memory content",
             metadata={"test": "value"},
-            collection_id="cluster-123",
         )
 
-        assert isinstance(memory, Memory)
-        assert memory.id == "memory-123"
-        assert memory.content == "Test memory content"
-        assert memory.metadata == {"test": "value"}
+        assert isinstance(memory_id, str)
+        assert memory_id == "memory-123"
 
     @patch("httpx.Client.request")
-    def test_retrieve_memories(self, mock_request):
-        """Test retrieving memories"""
+    def test_search_memories(self, mock_request):
+        """Test searching memories"""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = [
-            {
-                "id": "memory-1",
-                "content": "First memory content",
-                "score": 0.95,
-                "metadata": {"agent_id": "test-agent"},
-            },
-            {
-                "id": "memory-2",
-                "content": "Second memory content",
-                "score": 0.87,
-                "metadata": {"agent_id": "test-agent"},
-            },
-        ]
+        mock_response.json.return_value = {
+            "results": {
+                "chunk_search_results": [
+                    {
+                        "id": "chunk-1",
+                        "content": "First memory content",
+                        "score": 0.95,
+                        "metadata": {},
+                        "memory_id": "memory-1",
+                    },
+                    {
+                        "id": "chunk-2",
+                        "content": "Second memory content",
+                        "score": 0.87,
+                        "metadata": {},
+                        "memory_id": "memory-2",
+                    },
+                ],
+                "graph_search_results": [],
+            }
+        }
         mock_request.return_value = mock_response
 
-        results = self.client.retrieve(
-            agent_id="test-agent",
+        results = self.client.search(
             query="test query",
+            collection_ids=["cluster-123"],
             limit=5,
-            retrieval_type=RetrievalType.SIMPLE,
             filters={"test": "filter"},
-            collection_id="cluster-123",
         )
 
         assert len(results) == 2
@@ -223,99 +218,6 @@ class TestNebula:
         assert results[0].score == 0.95
         assert results[1].score == 0.87
 
-    @patch("httpx.Client.request")
-    def test_retrieve_with_string_retrieval_type(self, mock_request):
-        """Test retrieving memories with string retrieval type"""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = []
-        mock_request.return_value = mock_response
-
-        results = self.client.retrieve(
-            agent_id="test-agent",
-            query="test query",
-            retrieval_type="reasoning",
-        )
-
-        assert len(results) == 0
-
-    @patch("httpx.Client.request")
-    def test_chat(self, mock_request):
-        """Test chatting with an agent"""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "content": "Hello! How can I help you?",
-            "agent_id": "test-agent",
-            "conversation_id": "conv-123",
-            "metadata": {"model": "gpt-4"},
-            "citations": [{"id": "memory-1", "content": "Cited content"}],
-        }
-        mock_request.return_value = mock_response
-
-        response = self.client.chat(
-            agent_id="test-agent",
-            message="Hello",
-            conversation_id="conv-123",
-            model="gpt-4",
-            temperature=0.7,
-            max_tokens=100,
-            retrieval_type=RetrievalType.SIMPLE,
-            collection_id="cluster-123",
-        )
-
-        assert isinstance(response, AgentResponse)
-        assert response.content == "Hello! How can I help you?"
-        assert response.agent_id == "test-agent"
-        assert response.conversation_id == "conv-123"
-        assert len(response.citations) == 1
-
-    @patch("httpx.Client.request")
-    def test_chat_with_string_retrieval_type(self, mock_request):
-        """Test chatting with string retrieval type"""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "content": "Response",
-            "agent_id": "test-agent",
-            "metadata": {},
-            "citations": [],
-        }
-        mock_request.return_value = mock_response
-
-        response = self.client.chat(
-            agent_id="test-agent",
-            message="Hello",
-            retrieval_type="planning",
-        )
-
-        assert isinstance(response, AgentResponse)
-
-    @patch("httpx.Client.request")
-    def test_search(self, mock_request):
-        """Test searching across all memories"""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = [
-            {
-                "id": "memory-1",
-                "content": "Search result content",
-                "score": 0.92,
-                "metadata": {},
-            }
-        ]
-        mock_request.return_value = mock_response
-
-        results = self.client.search(
-            query="search query",
-            limit=10,
-            filters={"test": "filter"},
-            collection_id="cluster-123",
-        )
-
-        assert len(results) == 1
-        assert isinstance(results[0], SearchResult)
-        assert results[0].score == 0.92
 
     @patch("httpx.Client.request")
     def test_health_check(self, mock_request):
@@ -391,24 +293,24 @@ class TestNebula:
         assert exc_info.value.status_code == 500
 
     @patch("httpx.Client.request")
-    def test_get_cluster_by_name(self, mock_request):
+    def test_get_collection_by_name(self, mock_request):
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "cluster-xyz",
             "name": "longmemeval_local",
             "description": None,
-            "metadata": {},
+            "engram_count": 0,
         }
         mock_request.return_value = mock_response
 
-        cluster = self.client.get_cluster_by_name("longmemeval_local")
-        assert isinstance(cluster, Collection)
-        assert cluster.id == "cluster-xyz"
-        assert cluster.name == "longmemeval_local"
+        collection = self.client.get_collection_by_name("longmemeval_local")
+        assert isinstance(collection, Collection)
+        assert collection.id == "cluster-xyz"
+        assert collection.name == "longmemeval_local"
 
     @patch("httpx.Client.request")
-    def test_get_cluster_by_name_not_found(self, mock_request):
+    def test_get_collection_by_name_not_found(self, mock_request):
         mock_response = Mock()
         mock_response.status_code = 500
         mock_response.content = b'{"message": "Not found"}'
@@ -416,7 +318,7 @@ class TestNebula:
         mock_request.return_value = mock_response
 
         with pytest.raises(NebulaException):
-            self.client.get_cluster_by_name("does-not-exist")
+            self.client.get_collection_by_name("does-not-exist")
 
     def test_context_manager(self):
         """Test client as context manager"""
@@ -428,37 +330,3 @@ class TestNebula:
         """Test client close method"""
         self.client.close()
         # Should not raise any exception
-
-
-class TestBackwardCompatibility:
-    """Test backward compatibility aliases"""
-
-    def setup_method(self):
-        """Set up test fixtures"""
-        self.client = Nebula(api_key="test-api-key")
-
-    def test_chunk_aliases(self):
-        """Test chunk terminology aliases"""
-        # These should be the same methods
-        assert self.client.store == self.client.store_chunk
-        assert self.client.retrieve == self.client.retrieve_chunks
-        assert self.client.delete == self.client.delete_chunk
-        assert self.client.get == self.client.get_chunk
-        assert self.client.list_agent_memories == self.client.list_agent_chunks
-        assert self.client.search == self.client.search_chunks
-        assert self.client.chat == self.client.chat_with_chunks
-
-    def test_collection_aliases(self):
-        """Test collection terminology aliases"""
-        # These should be the same methods
-        assert self.client.create_cluster == self.client.create_collection
-        assert self.client.get_cluster == self.client.get_collection
-        assert self.client.list_clusters == self.client.list_collections
-        assert self.client.update_cluster == self.client.update_collection
-        assert self.client.delete_cluster == self.client.delete_collection
-        assert self.client.add_memory_to_cluster == self.client.add_memory_to_collection
-        assert (
-            self.client.remove_memory_from_cluster
-            == self.client.remove_memory_from_collection
-        )
-        assert self.client.get_cluster_memories == self.client.get_collection_memories

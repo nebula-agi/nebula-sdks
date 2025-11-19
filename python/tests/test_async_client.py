@@ -17,6 +17,9 @@ class _DummyResponse:
     def __init__(self, status_code: int, payload: dict[str, Any]):
         self.status_code = status_code
         self._payload = payload
+        import json as _json
+        self.content = _json.dumps(payload).encode('utf-8')
+        self.text = _json.dumps(payload)
 
     def json(self) -> dict[str, Any]:
         return self._payload
@@ -31,10 +34,16 @@ class _DummyHttpClient:
         url: str,
         data: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
+        files: dict[str, Any] | None = None,
     ):
-        self.posts.append({"url": url, "data": data, "headers": headers})
-        # Default successful create with engram id
-        return _DummyResponse(200, {"results": {"engram_id": "doc_123"}})
+        self.posts.append({"url": url, "data": data, "headers": headers, "files": files})
+        # Check if this is a conversation creation (has engram_type in files)
+        if files and files.get("engram_type"):
+            engram_type_val = files["engram_type"][1] if isinstance(files["engram_type"], tuple) else files["engram_type"]
+            if engram_type_val == "conversation":
+                return _DummyResponse(200, {"results": {"engram_id": "conv_123", "id": "conv_123"}})
+        # Default successful create with document id
+        return _DummyResponse(200, {"results": {"engram_id": "doc_123", "id": "doc_123"}})
 
     async def aclose(self) -> None:
         return None
@@ -51,7 +60,7 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
     dummy = _DummyHttpClient()
     client._client = dummy  # type: ignore[attr-defined]
 
-    # Track calls to _make_request_async
+    # Track calls to _make_request_async for append operations
     calls: list[dict[str, Any]] = []
 
     async def _fake_request(
@@ -68,9 +77,8 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
                 "params": params,
             }
         )
-        if endpoint == "/v1/conversations" and method == "POST":
-            return {"results": {"id": "conv_abc"}}
-        if endpoint.startswith("/v1/conversations/") and endpoint.endswith("/messages"):
+        # Handle append operations
+        if endpoint.startswith("/v1/memories/") and endpoint.endswith("/append"):
             return {"ok": True}
         raise AssertionError(f"Unexpected call: {method} {endpoint}")
 
@@ -81,9 +89,11 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
     )
     conv_id = run(client.store_memory(mem))
 
-    assert conv_id == "conv_abc"
-    # Ensure messages endpoint was hit once
-    assert any(c["endpoint"].endswith("/messages") for c in calls)
+    assert conv_id == "conv_123"
+    # Ensure conversation was created via direct HTTP POST
+    assert any(p["url"].endswith("/v1/memories") for p in dummy.posts)
+    # Ensure append was called for initial message
+    assert any(c["endpoint"].endswith("/append") for c in calls)
 
 
 def test_store_memory_text_engram_posts(monkeypatch):
@@ -123,9 +133,8 @@ def test_store_memories_mixed_batch(monkeypatch):
                 "params": params,
             }
         )
-        if endpoint == "/v1/conversations" and method == "POST":
-            return {"results": {"id": "conv_new"}}
-        if endpoint.startswith("/v1/conversations/") and endpoint.endswith("/messages"):
+        # Handle append operations
+        if endpoint.startswith("/v1/memories/") and endpoint.endswith("/append"):
             return {"ok": True}
         raise AssertionError(f"Unexpected call: {method} {endpoint}")
 
@@ -133,43 +142,31 @@ def test_store_memories_mixed_batch(monkeypatch):
 
     memories = [
         Memory(collection_id="c1", content="hi", role="user"),  # conversation (new)
-        Memory(collection_id="c1", content="there"),  # engram
+        Memory(collection_id="c1", content="there"),  # document
         Memory(
             collection_id="c1",
             content="again",
             role="assistant",
-            parent_id="conv_existing",
-        ),  # conversation (existing)
+            memory_id="conv_existing",
+        ),  # conversation (existing - append)
     ]
 
     results = run(client.store_memories(memories))
 
-    # We expect 3 ids back containing both conversation ids and one engram id
+    # We expect 3 ids back: new conversation, document, and existing conversation
     assert len(results) == 3
-    assert "conv_new" in results
-    assert "conv_existing" in results
-    assert any(r.startswith("doc_") or r == "doc_123" for r in results)
-    # Messages endpoint should be called twice (two conversation groups)
-    msg_calls = [c for c in calls if c["endpoint"].endswith("/messages")]
-    assert len(msg_calls) == 2
+    assert "conv_123" in results  # New conversation created via HTTP POST
+    assert "conv_existing" in results  # Existing conversation (appended)
+    assert "doc_123" in results  # Document created via HTTP POST
+    # Append endpoint should be called twice: once for new conversation initial message, once for existing
+    append_calls = [c for c in calls if c["endpoint"].endswith("/append")]
+    assert len(append_calls) == 2
 
 
 def test_store_memory_conversation_includes_authority(monkeypatch):
     client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
 
-    # Dummy HTTP client for form POST to /v1/memories
-    class _DummyHttpClientWithConv(_DummyHttpClient):
-        async def post(
-            self,
-            url: str,
-            data: dict[str, Any] | None = None,
-            headers: dict[str, str] | None = None,
-        ):
-            self.posts.append({"url": url, "data": data, "headers": headers})
-            # Simulate conversation create response
-            return _DummyResponse(200, {"results": {"engram_id": "conv_42"}})
-
-    dummy = _DummyHttpClientWithConv()
+    dummy = _DummyHttpClient()
     client._client = dummy  # type: ignore[attr-defined]
 
     calls: list[dict[str, Any]] = []
@@ -188,14 +185,10 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
                 "params": params,
             }
         )
-        # Accept append endpoint
-        if (
-            endpoint.startswith("/v1/memories/")
-            and endpoint.endswith("/append")
-            and method == "POST"
-        ):
+        # Handle append operations
+        if endpoint.startswith("/v1/memories/") and endpoint.endswith("/append"):
             return {"ok": True}
-        return {"ok": True}
+        raise AssertionError(f"Unexpected call: {method} {endpoint}")
 
     client._make_request_async = _fake_request  # type: ignore[assignment]
 
@@ -208,8 +201,8 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
     )
     conv_id = run(client.store_memory(mem))
 
-    assert conv_id == "conv_42"
-    # Find append payload and verify authority in messages
+    assert conv_id == "conv_123"
+    # Find append calls and verify authority in messages
     append_calls = [c for c in calls if c["endpoint"].endswith("/append")]
     assert append_calls, "No append call made"
     msg_payload = append_calls[0]["json"]
@@ -233,13 +226,16 @@ def test_store_memory_document_metadata_includes_authority(monkeypatch):
     doc_id = run(client.store_memory(mem))
 
     assert doc_id == "doc_123"
-    # Inspect form-data sent; metadata field should include authority
+    # Inspect form-data sent via files parameter; metadata field should include authority
     posted = next((p for p in dummy.posts if p["url"].endswith("/v1/memories")), None)
     assert posted is not None
-    metadata_json = (
-        posted["data"].get("metadata") if isinstance(posted["data"], dict) else None
-    )
-    assert metadata_json is not None
+    # Documents use files parameter for multipart form-data
+    files_data = posted.get("files")
+    assert files_data is not None
+    metadata_tuple = files_data.get("metadata")
+    assert metadata_tuple is not None
+    # The tuple is (None, json_string)
+    metadata_json = metadata_tuple[1]
     import json as _json
 
     md = _json.loads(metadata_json)
