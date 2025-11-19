@@ -112,15 +112,21 @@ jobs:
 
           # Check for pyproject.toml changes excluding just the version line
           git show HEAD^:python/pyproject.toml > /tmp/prev_pyproject.toml
-          python -c "
-import tomllib
-prev = tomllib.load(open('/tmp/prev_pyproject.toml', 'rb'))
-curr = tomllib.load(open('pyproject.toml', 'rb'))
-prev['project'].pop('version', None)
-curr['project'].pop('version', None)
-import sys
-sys.exit(0 if prev == curr else 1)
-          " && TOML_CHANGED=false || TOML_CHANGED=true
+          python << 'PYEOF'
+          import tomllib
+          prev = tomllib.load(open('/tmp/prev_pyproject.toml', 'rb'))
+          curr = tomllib.load(open('pyproject.toml', 'rb'))
+          prev['project'].pop('version', None)
+          curr['project'].pop('version', None)
+          import sys
+          sys.exit(0 if prev == curr else 1)
+          PYEOF
+
+          if [ $? -eq 0 ]; then
+            TOML_CHANGED=false
+          else
+            TOML_CHANGED=true
+          fi
 
           if [ ! -s /tmp/code_changes.diff ] && [ "$TOML_CHANGED" = "false" ]; then
             echo "No SDK changes detected"
