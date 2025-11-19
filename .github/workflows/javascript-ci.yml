@@ -72,14 +72,13 @@ jobs:
     environment: npm-publish
     permissions:
       id-token: write
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -87,48 +86,19 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Check for SDK changes and auto-bump version
+      - name: Check if version changed
         id: version-check
         run: |
-          cd javascript
+          CURRENT_VERSION=$(node -p "require('./javascript/package.json').version")
+          PREVIOUS_VERSION=$(git show HEAD^:javascript/package.json | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version")
 
-          # Get current version
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-
-          # Check if there are code changes in javascript/src (excluding package.json version-only changes)
-          if git diff --quiet HEAD^ HEAD -- ../javascript/src; then
-            echo "No code changes detected in SDK"
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-          else
-            echo "SDK code changes detected, auto-bumping patch version"
-
-            # Parse version and bump patch
-            IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-            NEW_VERSION="${major}.${minor}.$((patch + 1))"
-
-            echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION"
-
-            # Update version in package.json using npm
-            npm version $NEW_VERSION --no-git-tag-version
-
-            # Configure git
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-
-            # Commit and push version bump with retry
-            git add package.json
-            git commit -m "chore(javascript): bump version to $NEW_VERSION [skip ci]"
-
-            # Pull with rebase and push (retry up to 3 times)
-            for i in {1..3}; do
-              git pull --rebase origin main && git push && break || {
-                echo "Push attempt $i failed, retrying..."
-                sleep 2
-              }
-            done
-
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
             echo "should_publish=true" >> $GITHUB_OUTPUT
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "Version unchanged: $CURRENT_VERSION"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Download build artifacts

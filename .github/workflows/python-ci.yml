@@ -81,86 +81,32 @@ jobs:
     environment: pypi-publish
     permissions:
       id-token: write
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install tomlkit
-        run: pip install tomlkit
-
-      - name: Check for SDK changes and auto-bump version
+      - name: Check if version changed
         id: version-check
         run: |
-          cd python
+          CURRENT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('python/pyproject.toml', 'rb'))['project']['version'])")
+          PREVIOUS_VERSION=$(git show HEAD^:python/pyproject.toml | python -c "import tomllib, sys; print(tomllib.load(sys.stdin.buffer)['project']['version'])")
 
-          # Get current version
-          CURRENT_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
-
-          # Check if there are changes to SDK code or dependencies
-          # Check: nebula/ source, tests/, or pyproject.toml (excluding version field)
-          git diff HEAD^ HEAD -- ../python/nebula ../python/tests > /tmp/code_changes.diff
-
-          # Check for pyproject.toml changes excluding just the version line
-          git show HEAD^:python/pyproject.toml > /tmp/prev_pyproject.toml
-          python << 'PYEOF'
-          import tomllib
-          prev = tomllib.load(open('/tmp/prev_pyproject.toml', 'rb'))
-          curr = tomllib.load(open('pyproject.toml', 'rb'))
-          prev['project'].pop('version', None)
-          curr['project'].pop('version', None)
-          import sys
-          sys.exit(0 if prev == curr else 1)
-          PYEOF
-
-          if [ $? -eq 0 ]; then
-            TOML_CHANGED=false
-          else
-            TOML_CHANGED=true
-          fi
-
-          if [ ! -s /tmp/code_changes.diff ] && [ "$TOML_CHANGED" = "false" ]; then
-            echo "No SDK changes detected"
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-          else
-            echo "SDK changes detected, auto-bumping patch version"
-
-            # Parse version and bump patch
-            IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-            NEW_VERSION="${major}.${minor}.$((patch + 1))"
-
-            echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION"
-
-            # Update version in pyproject.toml
-            python -c "import tomlkit; d=tomlkit.parse(open('pyproject.toml').read()); d['project']['version']='$NEW_VERSION'; open('pyproject.toml','w').write(tomlkit.dumps(d))"
-
-            # Configure git
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-
-            # Commit and push version bump with retry
-            git add pyproject.toml
-            git commit -m "chore(python): bump version to $NEW_VERSION [skip ci]"
-
-            # Pull with rebase and push (retry up to 3 times)
-            for i in {1..3}; do
-              git pull --rebase origin main && git push && break || {
-                echo "Push attempt $i failed, retrying..."
-                sleep 2
-              }
-            done
-
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
             echo "should_publish=true" >> $GITHUB_OUTPUT
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "Version unchanged: $CURRENT_VERSION"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Download build artifacts

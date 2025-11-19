@@ -118,6 +118,9 @@ We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md)
 git clone https://github.com/nebula-cloud/nebula-sdks.git
 cd nebula-sdks
 
+# IMPORTANT: Install git hooks (required for all developers)
+npm install
+
 # JavaScript SDK
 cd javascript
 npm install
@@ -128,6 +131,14 @@ cd python
 pip install -e ".[dev]"
 pytest
 ```
+
+**⚠️ Important for Contributors:**
+After cloning, you **must** run `npm install` in the root directory. This installs git hooks that automatically bump SDK versions when you commit changes. If you skip this step, your commits won't include version bumps and CI will fail to publish.
+
+**Why npm for a Python/JS monorepo?**
+- Git hooks are managed by Husky (requires npm)
+- The JavaScript SDK requires Node.js anyway
+- Ensures consistent version management across the team
 
 ## Community & Support
 

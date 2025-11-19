@@ -1,0 +1,59 @@
+#!/bin/sh
+# Auto-bump SDK versions when code changes
+
+# Check Python SDK
+if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^python/pyproject.toml"; then
+  echo "Python SDK changes detected, bumping version..."
+  cd python || exit 1
+
+  # Ensure tomlkit is available
+  python3 -c "import tomlkit" 2>/dev/null || {
+    echo "Installing tomlkit..."
+    pip3 install -q tomlkit || exit 1
+  }
+
+  CURRENT_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+
+  # Parse and bump patch version
+  IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+  NEW_VERSION="${major}.${minor}.$((patch + 1))"
+
+  echo "Bumping Python SDK: $CURRENT_VERSION -> $NEW_VERSION"
+
+  # Update version using tomlkit (write script to temp file to avoid quote issues)
+  cat > /tmp/bump_version.py << 'EOF'
+import sys
+import tomlkit
+
+new_version = sys.argv[1]
+d = tomlkit.parse(open('pyproject.toml').read())
+d['project']['version'] = new_version
+open('pyproject.toml', 'w').write(tomlkit.dumps(d))
+EOF
+
+  python3 /tmp/bump_version.py "$NEW_VERSION"
+  rm /tmp/bump_version.py
+
+  git add pyproject.toml
+  cd ..
+fi
+
+# Check JavaScript SDK
+if git diff --cached --name-only | grep -q "^javascript/src/"; then
+  echo "JavaScript SDK changes detected, bumping version..."
+  cd javascript || exit 1
+
+  CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+  # Parse and bump patch version
+  IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+  NEW_VERSION="${major}.${minor}.$((patch + 1))"
+
+  echo "Bumping JavaScript SDK: $CURRENT_VERSION -> $NEW_VERSION"
+
+  # Update version
+  npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
+
+  git add package.json
+  cd ..
+fi

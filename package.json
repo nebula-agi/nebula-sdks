@@ -1,0 +1,13 @@
+{
+  "name": "nebula-sdks",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nebula AI SDKs monorepo",
+  "scripts": {
+    "prepare": "husky",
+    "postinstall": "echo '\n✓ Git hooks installed via Husky\n'"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0"
+  }
+}
