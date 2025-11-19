@@ -72,7 +72,7 @@ jobs:
     environment: npm-publish
     permissions:
       id-token: write
-      contents: read
+      contents: write  # Required to push git tags
 
     steps:
       - name: Checkout code
