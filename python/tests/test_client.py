@@ -360,13 +360,18 @@ class TestNebula:
         """Test validation error handling"""
         mock_response = Mock()
         mock_response.status_code = 400
-        mock_response.content = b'{"message": "Validation error", "details": {"field": "required"}}'
-        mock_response.json.return_value = {"message": "Validation error", "details": {"field": "required"}}
+        mock_response.content = (
+            b'{"message": "Validation error", "details": {"field": "required"}}'
+        )
+        mock_response.json.return_value = {
+            "message": "Validation error",
+            "details": {"field": "required"},
+        }
         mock_request.return_value = mock_response
 
         with pytest.raises(NebulaValidationException) as exc_info:
             self.client.health_check()
-        
+
         assert "Validation error" in str(exc_info.value)
         assert exc_info.value.details == {"field": "required"}
 
@@ -381,7 +386,7 @@ class TestNebula:
 
         with pytest.raises(NebulaException) as exc_info:
             self.client.health_check()
-        
+
         assert "Internal server error" in str(exc_info.value)
         assert exc_info.value.status_code == 500
 
@@ -452,5 +457,8 @@ class TestBackwardCompatibility:
         assert self.client.update_cluster == self.client.update_collection
         assert self.client.delete_cluster == self.client.delete_collection
         assert self.client.add_memory_to_cluster == self.client.add_memory_to_collection
-        assert self.client.remove_memory_from_cluster == self.client.remove_memory_from_collection
-        assert self.client.get_cluster_memories == self.client.get_collection_memories 
+        assert (
+            self.client.remove_memory_from_cluster
+            == self.client.remove_memory_from_collection
+        )
+        assert self.client.get_cluster_memories == self.client.get_collection_memories

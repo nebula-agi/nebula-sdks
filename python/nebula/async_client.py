@@ -29,10 +29,10 @@ from .models import (
 class AsyncNebula:
     """
     Async client for interacting with Nebula API
-    
+
     Mirrors the public API of `Nebula`, implemented using httpx.AsyncClient.
     """
-    
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -52,27 +52,27 @@ class AsyncNebula:
             raise NebulaClientException(
                 "API key is required. Pass it to the constructor or set NEBULA_API_KEY environment variable."
             )
-        
+
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client = httpx.AsyncClient(timeout=timeout)
         # Lazily initialized tokenizer encoder for token counting
         self._token_encoder = None  # type: ignore[var-annotated]
-    
+
     async def __aenter__(self) -> "AsyncNebula":
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.aclose()
-    
+
     async def aclose(self) -> None:
         """Close the underlying async HTTP client"""
         await self._client.aclose()
-    
+
     # Compatibility alias
     async def close(self) -> None:
         await self.aclose()
-    
+
     def _is_nebula_api_key(self, token: Optional[str] = None) -> bool:
         """Detect if a token looks like a Nebula API key (public.raw)."""
         candidate = token or self.api_key
@@ -82,10 +82,10 @@ class AsyncNebula:
             return False
         public_part, raw_part = candidate.split(".", 1)
         return public_part.startswith("key_") and len(raw_part) > 0
-    
+
     def _build_auth_headers(self, include_content_type: bool = True) -> Dict[str, str]:
         """Build authentication headers.
-        
+
         - If the provided credential looks like a Nebula API key, send it via X-API-Key
           to avoid JWT parsing on Supabase-auth deployments.
         - Otherwise, send it as a Bearer token.
@@ -99,7 +99,7 @@ class AsyncNebula:
         if include_content_type:
             headers["Content-Type"] = "application/json"
         return headers
-    
+
     async def _make_request_async(
         self,
         method: str,
@@ -109,12 +109,12 @@ class AsyncNebula:
     ) -> Dict[str, Any]:
         """
         Make an async HTTP request to the Nebula API
-        
+
         Returns response JSON on 200, maps error codes to SDK exceptions.
         """
         url = urljoin(self.base_url, endpoint)
         headers = self._build_auth_headers(include_content_type=True)
-        
+
         try:
             response = await self._client.request(
                 method=method,
@@ -123,7 +123,7 @@ class AsyncNebula:
                 json=json_data,
                 params=params,
             )
-            
+
             if response.status_code in (200, 202):
                 return response.json()
             elif response.status_code == 401:
@@ -155,9 +155,9 @@ class AsyncNebula:
             ) from e
         except httpx.RequestError as e:
             raise NebulaClientException(f"Request failed: {str(e)}", e) from e
-    
+
     # Collection Management Methods
-    
+
     async def create_collection(
         self,
         name: str,
@@ -169,31 +169,37 @@ class AsyncNebula:
             data["description"] = description
         if metadata:
             data["metadata"] = metadata
-        
-        response = await self._make_request_async("POST", "/v1/collections", json_data=data)
+
+        response = await self._make_request_async(
+            "POST", "/v1/collections", json_data=data
+        )
         if isinstance(response, dict) and "results" in response:
             response = response["results"]
         return Collection.from_dict(response)
-    
+
     async def get_collection(self, collection_id: str) -> Collection:
-        response = await self._make_request_async("GET", f"/v1/collections/{collection_id}")
+        response = await self._make_request_async(
+            "GET", f"/v1/collections/{collection_id}"
+        )
         if isinstance(response, dict) and "results" in response:
             response = response["results"]
         return Collection.from_dict(response)
-    
+
     async def get_collection_by_name(self, name: str) -> Collection:
         response = await self._make_request_async("GET", f"/v1/collections/name/{name}")
         if isinstance(response, dict) and "results" in response:
             response = response["results"]
         return Collection.from_dict(response)
-    
+
     async def list_collections(
         self,
         limit: int = 100,
         offset: int = 0,
     ) -> List[Collection]:
         params = {"limit": limit, "offset": offset}
-        response = await self._make_request_async("GET", "/v1/collections", params=params)
+        response = await self._make_request_async(
+            "GET", "/v1/collections", params=params
+        )
         if isinstance(response, dict) and "results" in response:
             collections: List[Dict[str, Any]] = response["results"]
         elif isinstance(response, list):
@@ -201,7 +207,7 @@ class AsyncNebula:
         else:
             collections = [response]
         return [Collection.from_dict(collection) for collection in collections]
-    
+
     async def update_collection(
         self,
         collection_id: str,
@@ -216,15 +222,17 @@ class AsyncNebula:
             data["description"] = description
         if metadata is not None:
             data["metadata"] = metadata
-        response = await self._make_request_async("POST", f"/v1/collections/{collection_id}", json_data=data)
+        response = await self._make_request_async(
+            "POST", f"/v1/collections/{collection_id}", json_data=data
+        )
         if isinstance(response, dict) and "results" in response:
             response = response["results"]
         return Collection.from_dict(response)
-    
+
     async def delete_collection(self, collection_id: str) -> bool:
         await self._make_request_async("DELETE", f"/v1/collections/{collection_id}")
         return True
-    
+
     # Unified write APIs (mirror sync client)
     async def create_conversation(
         self,
@@ -264,13 +272,13 @@ class AsyncNebula:
             payload["name"] = name
 
         response = await self._make_request_async(
-            "POST",
-            "/v1/memories",
-            json_data=payload
+            "POST", "/v1/memories", json_data=payload
         )
 
         if isinstance(response, dict) and "results" in response:
-            return str(response["results"].get("id") or response["results"].get("engram_id"))
+            return str(
+                response["results"].get("id") or response["results"].get("engram_id")
+            )
         raise NebulaClientException("Failed to create conversation: invalid response")
 
     async def create_document_text(
@@ -307,13 +315,13 @@ class AsyncNebula:
         }
 
         response = await self._make_request_async(
-            "POST",
-            "/v1/memories",
-            json_data=payload
+            "POST", "/v1/memories", json_data=payload
         )
 
         if isinstance(response, dict) and "results" in response:
-            return str(response["results"].get("id") or response["results"].get("engram_id"))
+            return str(
+                response["results"].get("id") or response["results"].get("engram_id")
+            )
         raise NebulaClientException("Failed to create document: invalid response")
 
     async def create_document_chunks(
@@ -344,20 +352,20 @@ class AsyncNebula:
         }
 
         response = await self._make_request_async(
-            "POST",
-            "/v1/memories",
-            json_data=payload
+            "POST", "/v1/memories", json_data=payload
         )
 
         if isinstance(response, dict) and "results" in response:
-            return str(response["results"].get("id") or response["results"].get("engram_id"))
+            return str(
+                response["results"].get("id") or response["results"].get("engram_id")
+            )
         raise NebulaClientException("Failed to create document: invalid response")
 
     async def store_memory(
         self,
         memory: Union[Memory, Dict[str, Any]] = None,
         name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         """Store or append memory using the unified memory API.
 
@@ -411,6 +419,7 @@ class AsyncNebula:
             # Note: Parse UUID from string if needed
             try:
                 from uuid import UUID
+
                 collection_uuid = UUID(memory.collection_id)
             except (ValueError, TypeError):
                 collection_uuid = memory.collection_id
@@ -426,41 +435,59 @@ class AsyncNebula:
             headers = self._build_auth_headers(include_content_type=False)
             # Debug logging
             import logging
+
             logger = logging.getLogger(__name__)
             logger.info(f"Creating conversation with files: {files}")
             response = await self._client.post(url, files=files, headers=headers)
-            logger.info(f"Response status: {response.status_code}, content: {response.text if response.content else 'empty'}")
+            logger.info(
+                f"Response status: {response.status_code}, content: {response.text if response.content else 'empty'}"
+            )
             if response.status_code not in (200, 202):
                 error_data = response.json() if response.content else {}
                 logger.error(f"Failed to create conversation. Error data: {error_data}")
                 raise NebulaException(
-                    error_data.get("message", f"Failed to create conversation: {response.status_code}"),
+                    error_data.get(
+                        "message",
+                        f"Failed to create conversation: {response.status_code}",
+                    ),
                     response.status_code,
-                    error_data
+                    error_data,
                 )
             resp_data = response.json()
             if isinstance(resp_data, dict) and "results" in resp_data:
-                conv_id = resp_data["results"].get("engram_id") or resp_data["results"].get("id")
+                conv_id = resp_data["results"].get("engram_id") or resp_data[
+                    "results"
+                ].get("id")
                 if not conv_id:
-                    raise NebulaClientException("Failed to create conversation: no id returned")
+                    raise NebulaClientException(
+                        "Failed to create conversation: no id returned"
+                    )
 
                 # If content and role provided, append initial message
                 if memory.content and memory.role:
                     append_memory = Memory(
                         collection_id=memory.collection_id,
-                        content=[{
-                            "content": str(memory.content),
-                            "role": memory.role,
-                            "metadata": memory.metadata,
-                            **({"authority": float(memory.authority)} if memory.authority is not None else {})
-                        }],
+                        content=[
+                            {
+                                "content": str(memory.content),
+                                "role": memory.role,
+                                "metadata": memory.metadata,
+                                **(
+                                    {"authority": float(memory.authority)}
+                                    if memory.authority is not None
+                                    else {}
+                                ),
+                            }
+                        ],
                         memory_id=conv_id,
-                        metadata={}
+                        metadata={},
                     )
                     await self._append_to_memory(conv_id, append_memory)
 
                 return str(conv_id)
-            raise NebulaClientException("Failed to create conversation: invalid response format")
+            raise NebulaClientException(
+                "Failed to create conversation: invalid response format"
+            )
 
         # Handle document/text memory
         content_text = str(memory.content or "")
@@ -493,7 +520,9 @@ class AsyncNebula:
         if response.status_code not in (200, 202):
             error_data = response.json() if response.content else {}
             raise NebulaException(
-                error_data.get("message", f"Failed to create engram: {response.status_code}"),
+                error_data.get(
+                    "message", f"Failed to create engram: {response.status_code}"
+                ),
                 response.status_code,
                 error_data,
             )
@@ -549,9 +578,7 @@ class AsyncNebula:
         # Call the unified append endpoint
         try:
             await self._make_request_async(
-                "POST",
-                f"/v1/memories/{memory_id}/append",
-                json_data=payload
+                "POST", f"/v1/memories/{memory_id}/append", json_data=payload
             )
             return memory_id
         except NebulaException as e:
@@ -591,7 +618,7 @@ class AsyncNebula:
                     collection_id=collection_id,
                     content="",
                     role="assistant",  # Placeholder role to infer conversation type
-                    name="Conversation"
+                    name="Conversation",
                 )
             else:
                 conv_id = key
@@ -607,7 +634,7 @@ class AsyncNebula:
                 collection_id=collection_id,
                 content=messages,
                 memory_id=conv_id,
-                metadata={}
+                metadata={},
             )
             await self._append_to_memory(conv_id, append_mem)
             results.extend([str(conv_id)] * len(group))
@@ -616,8 +643,10 @@ class AsyncNebula:
         for m in others:
             results.append(await self.store_memory(m))
         return results
-    
-    async def delete(self, memory_ids: Union[str, List[str]]) -> Union[bool, Dict[str, Any]]:
+
+    async def delete(
+        self, memory_ids: Union[str, List[str]]
+    ) -> Union[bool, Dict[str, Any]]:
         """
         Delete one or more memories.
 
@@ -638,19 +667,19 @@ class AsyncNebula:
                 # Try new unified endpoint
                 try:
                     response = await self._make_request_async(
-                        "POST",
-                        "/v1/memories/delete",
-                        json_data={"ids": memory_ids}
+                        "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
                     )
-                    return response.get("success", False) if isinstance(response, dict) else True
+                    return (
+                        response.get("success", False)
+                        if isinstance(response, dict)
+                        else True
+                    )
                 except Exception as e:
                     raise
         else:
             # Batch deletion
             response = await self._make_request_async(
-                "POST",
-                "/v1/memories/delete",
-                json_data={"ids": memory_ids}
+                "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
             )
             return response
 
@@ -675,7 +704,9 @@ class AsyncNebula:
                 raise NebulaNotFoundException(chunk_id, "Chunk") from e
             raise
 
-    async def update_chunk(self, chunk_id: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def update_chunk(
+        self, chunk_id: str, content: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
         Update a specific chunk or message within a memory.
 
@@ -695,7 +726,9 @@ class AsyncNebula:
             payload["metadata"] = metadata
 
         try:
-            await self._make_request_async("PATCH", f"/v1/chunks/{chunk_id}", json_data=payload)
+            await self._make_request_async(
+                "PATCH", f"/v1/chunks/{chunk_id}", json_data=payload
+            )
             return True
         except NebulaException as e:
             if e.status_code == 404:
@@ -710,7 +743,9 @@ class AsyncNebula:
         offset: int = 0,
     ) -> List[MemoryResponse]:
         if not collection_ids:
-            raise NebulaClientException("collection_ids must be provided to list_memories().")
+            raise NebulaClientException(
+                "collection_ids must be provided to list_memories()."
+            )
         params = {"limit": limit, "offset": offset, "collection_ids": collection_ids}
         response = await self._make_request_async("GET", "/v1/memories", params=params)
         if isinstance(response, dict) and "results" in response:
@@ -724,7 +759,7 @@ class AsyncNebula:
             # Let the model map fields appropriately
             memories.append(MemoryResponse.from_dict(doc))
         return memories
-    
+
     async def get_memory(self, memory_id: str) -> MemoryResponse:
         """
         Get a specific memory by memory ID
@@ -737,7 +772,7 @@ class AsyncNebula:
         """
         response = await self._make_request_async("GET", f"/v1/memories/{memory_id}")
         return MemoryResponse.from_dict(response)
-    
+
     async def search(
         self,
         query: str,
@@ -833,7 +868,9 @@ class AsyncNebula:
         # Add cluster filter if collection_ids provided (supports both UUIDs and names)
         if collection_ids:
             # Filter out empty/invalid collection IDs
-            valid_collection_ids = [cid for cid in collection_ids if cid and str(cid).strip()]
+            valid_collection_ids = [
+                cid for cid in collection_ids if cid and str(cid).strip()
+            ]
             if valid_collection_ids:
                 user_filters["collection_ids"] = {"$overlap": valid_collection_ids}
         effective_settings["filters"] = user_filters
@@ -843,7 +880,9 @@ class AsyncNebula:
             "search_mode": search_mode,
             "search_settings": effective_settings,
         }
-        response = await self._make_request_async("POST", "/v1/retrieval/search", json_data=data)
+        response = await self._make_request_async(
+            "POST", "/v1/retrieval/search", json_data=data
+        )
         if isinstance(response, dict) and "results" in response:
             agg = response["results"]
             chunk_results = agg.get("chunk_search_results", [])
@@ -883,7 +922,9 @@ class AsyncNebula:
         if collection_ids and len(collection_ids) > 0:
             params["collection_ids"] = collection_ids
 
-        response = await self._make_request_async("GET", "/v1/conversations", params=params)
+        response = await self._make_request_async(
+            "GET", "/v1/conversations", params=params
+        )
 
         if isinstance(response, dict) and "results" in response:
             conversations = response["results"]
@@ -894,7 +935,9 @@ class AsyncNebula:
 
         return conversations
 
-    async def get_conversation_messages(self, conversation_id: str) -> List[MemoryResponse]:
+    async def get_conversation_messages(
+        self, conversation_id: str
+    ) -> List[MemoryResponse]:
         """
         Get conversation messages directly from the conversations API (async version)
 
@@ -915,7 +958,9 @@ class AsyncNebula:
         if not conversation_id:
             raise NebulaClientException("conversation_id must be provided")
 
-        response = await self._make_request_async("GET", f"/v1/conversations/{conversation_id}")
+        response = await self._make_request_async(
+            "GET", f"/v1/conversations/{conversation_id}"
+        )
 
         # Extract results from response
         if isinstance(response, dict) and "results" in response:
@@ -944,12 +989,20 @@ class AsyncNebula:
                 content = raw_content
             elif isinstance(raw_content, dict):
                 # Handle structured content
-                content = raw_content.get("content") or raw_content.get("text") or str(raw_content)
+                content = (
+                    raw_content.get("content")
+                    or raw_content.get("text")
+                    or str(raw_content)
+                )
             else:
                 content = str(raw_content) if raw_content is not None else ""
 
             # Extract role from nested message
-            role = nested_msg.get("role") or msg_resp.get("metadata", {}).get("role") or "user"
+            role = (
+                nested_msg.get("role")
+                or msg_resp.get("metadata", {}).get("role")
+                or "user"
+            )
 
             # Merge metadata from both response and nested message
             resp_metadata = msg_resp.get("metadata", {})

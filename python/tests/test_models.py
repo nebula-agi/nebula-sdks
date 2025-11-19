@@ -1,6 +1,7 @@
 """
 Tests for the data models
 """
+
 from datetime import datetime
 
 import pytest
@@ -57,7 +58,7 @@ class TestMemory:
         """Test creating Memory from dictionary with datetime objects"""
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         updated_at = datetime(2024, 1, 2, 12, 0, 0)
-        
+
         data = {
             "id": "memory-123",
             "agent_id": "test-agent",
@@ -93,7 +94,7 @@ class TestMemory:
         """Test converting Memory to dictionary"""
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         updated_at = datetime(2024, 1, 2, 12, 0, 0)
-        
+
         memory = Memory(
             id="memory-123",
             agent_id="test-agent",
@@ -195,7 +196,7 @@ class TestCluster:
         """Test converting Cluster to dictionary"""
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         updated_at = datetime(2024, 1, 2, 12, 0, 0)
-        
+
         cluster = Cluster(
             id="cluster-123",
             name="Test Cluster",
@@ -351,4 +352,4 @@ class TestRetrievalType:
     def test_retrieval_type_invalid_value(self):
         """Test creating RetrievalType with invalid value raises error"""
         with pytest.raises(ValueError):
-            RetrievalType("invalid_type") 
+            RetrievalType("invalid_type")

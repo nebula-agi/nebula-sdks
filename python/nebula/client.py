@@ -23,11 +23,11 @@ from .models import Collection, Memory, MemoryResponse, SearchResult
 class Nebula:
     """
     Simple client for interacting with Nebula API
-    
+
     This client provides a clean interface to Nebula's memory and retrieval capabilities,
     focusing on the core functionality without the complexity of the underlying Nebula system.
     """
-    
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -36,7 +36,7 @@ class Nebula:
     ):
         """
         Initialize the Nebula client
-        
+
         Args:
             api_key: Your Nebula API key. If not provided, will look for NEBULA_API_KEY env var
             base_url: Base URL for the Nebula API
@@ -47,28 +47,26 @@ class Nebula:
             raise NebulaClientException(
                 "API key is required. Pass it to the constructor or set NEBULA_API_KEY environment variable."
             )
-        
+
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client = httpx.Client(timeout=timeout)
         # Lazily initialized tokenizer encoder for token counting
         self._token_encoder = None  # type: ignore[var-annotated]
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-    
+
     def close(self):
         """Close the HTTP client"""
         self._client.close()
-    
-    
-    
+
     def _is_nebula_api_key(self, token: Optional[str] = None) -> bool:
         """Detect if a token looks like an Nebula API key (public.raw).
-        
+
         Heuristic:
         - Exactly one dot
         - Public part starts with "key_"
@@ -83,7 +81,7 @@ class Nebula:
 
     def _build_auth_headers(self, include_content_type: bool = True) -> Dict[str, str]:
         """Build authentication headers.
-        
+
         - If the provided credential looks like an Nebula API key, send it via X-API-Key
           to avoid JWT parsing on Supabase-auth deployments.
         - Otherwise, send it as a Bearer token.
@@ -97,7 +95,7 @@ class Nebula:
         if include_content_type:
             headers["Content-Type"] = "application/json"
         return headers
-    
+
     def _make_request(
         self,
         method: str,
@@ -107,23 +105,23 @@ class Nebula:
     ) -> Dict[str, Any]:
         """
         Make an HTTP request to the Nebula API
-        
+
         Args:
             method: HTTP method (GET, POST, etc.)
             endpoint: API endpoint (e.g., "/v1/memories")
             json_data: JSON data to send in request body
             params: Query parameters
-            
+
         Returns:
             Response data as dictionary
-            
+
         Raises:
             NebulaException: For API errors
             NebulaClientException: For client errors
         """
         url = urljoin(self.base_url, endpoint)
         headers = self._build_auth_headers(include_content_type=True)
-        
+
         try:
             response = self._client.request(
                 method=method,
@@ -132,7 +130,7 @@ class Nebula:
                 json=json_data,
                 params=params,
             )
-            
+
             # Handle different response status codes
             if response.status_code in (200, 202):
                 return response.json()
@@ -144,29 +142,28 @@ class Nebula:
                 error_data = response.json() if response.content else {}
                 raise NebulaValidationException(
                     error_data.get("message", "Validation error"),
-                    error_data.get("details")
+                    error_data.get("details"),
                 )
             else:
                 error_data = response.json() if response.content else {}
                 raise NebulaException(
                     error_data.get("message", f"API error: {response.status_code}"),
                     response.status_code,
-                    error_data
+                    error_data,
                 )
-                
+
         except httpx.ConnectError as e:
             raise NebulaClientException(
                 f"Failed to connect to {self.base_url}. Check your internet connection.",
-                e
+                e,
             ) from e
         except httpx.TimeoutException as e:
             raise NebulaClientException(
-                f"Request timed out after {self.timeout} seconds",
-                e
+                f"Request timed out after {self.timeout} seconds", e
             ) from e
         except httpx.RequestError as e:
             raise NebulaClientException(f"Request failed: {str(e)}", e) from e
-    
+
     # Collection Management Methods
 
     def create_collection(
@@ -185,7 +182,7 @@ class Nebula:
             data["description"] = description
         if metadata:
             data["metadata"] = metadata
-        
+
         response = self._make_request("POST", "/v1/collections", json_data=data)
         # Unwrap 'results' if present
         if isinstance(response, dict) and "results" in response:
@@ -277,7 +274,9 @@ class Nebula:
         if metadata is not None:
             data["metadata"] = metadata
 
-        response = self._make_request("POST", f"/v1/collections/{collection_id}", json_data=data)
+        response = self._make_request(
+            "POST", f"/v1/collections/{collection_id}", json_data=data
+        )
         # Unwrap 'results' if present
         if isinstance(response, dict) and "results" in response:
             response = response["results"]
@@ -299,7 +298,7 @@ class Nebula:
         return True
 
     # MemoryResponse Management Methods
-    
+
     # def store(
     #     self,
     #     content: str,
@@ -404,7 +403,7 @@ class Nebula:
     #     # Prepare metadata
     #     doc_metadata = metadata or {}
     #     doc_metadata["memory_type"] = "memory"
-        
+
     #     # Generate deterministic engram ID for deduplication
     #     if has_content:
     #         content_text_for_hash = content or ""
@@ -413,7 +412,7 @@ class Nebula:
     #         content_text_for_hash = "\n".join(chunks or [])
     #     content_hash = hashlib.sha256(content_text_for_hash.encode("utf-8")).hexdigest()
     #     deterministic_doc_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, content_hash))
-        
+
     #     # Use form data for engram creation (like the original Nebula SDK)
     #     # Prefer sending explicit chunks when provided to avoid server-side partitioning
     #     data: Dict[str, Any] = {
@@ -425,15 +424,15 @@ class Nebula:
     #         data["chunks"] = json.dumps(chunks)
     #     else:
     #         data["raw_text"] = content or ""
-        
+
     #     # Create memory using the memories endpoint with form data
     #     url = f"{self.base_url}/v1/memories"
     #     # For form-data, let httpx set the Content-Type; just add auth header
     #     headers = self._build_auth_headers(include_content_type=False)
-        
+
     #     try:
     #         response = self._client.post(url, data=data, headers=headers)
-            
+
     #         if response.status_code not in (200, 202):
     #             error_data = response.json() if response.content else {}
     #             raise NebulaException(
@@ -441,9 +440,9 @@ class Nebula:
     #                 response.status_code,
     #                 error_data
     #             )
-            
+
     #         response_data = response.json()
-            
+
     #         # Extract engram ID from response
     #         if isinstance(response_data, dict) and "results" in response_data:
     #             # Try to get the actual engram ID from the response
@@ -455,7 +454,7 @@ class Nebula:
     #                 doc_id = deterministic_doc_id
     #         else:
     #             doc_id = deterministic_doc_id
-                
+
     #     except Exception as e:
     #         # If duplicate (HTTP 409 or similar) just skip
     #         err_msg = str(e).lower()
@@ -471,7 +470,7 @@ class Nebula:
     #             return MemoryResponse.from_dict(memory_data)
     #         # For other errors, re-raise
     #         raise
-        
+
     #     # Return a memory object
     #     memory_data = {
     #         "id": doc_id,
@@ -520,14 +519,12 @@ class Nebula:
         if name:
             payload["name"] = name
 
-        response = self._make_request(
-            "POST",
-            "/v1/memories",
-            json_data=payload
-        )
+        response = self._make_request("POST", "/v1/memories", json_data=payload)
 
         if isinstance(response, dict) and "results" in response:
-            return str(response["results"].get("id") or response["results"].get("engram_id"))
+            return str(
+                response["results"].get("id") or response["results"].get("engram_id")
+            )
         raise NebulaClientException("Failed to create conversation: invalid response")
 
     def create_document_text(
@@ -563,14 +560,12 @@ class Nebula:
             "ingestion_mode": ingestion_mode,
         }
 
-        response = self._make_request(
-            "POST",
-            "/v1/memories",
-            json_data=payload
-        )
+        response = self._make_request("POST", "/v1/memories", json_data=payload)
 
         if isinstance(response, dict) and "results" in response:
-            return str(response["results"].get("id") or response["results"].get("engram_id"))
+            return str(
+                response["results"].get("id") or response["results"].get("engram_id")
+            )
         raise NebulaClientException("Failed to create document: invalid response")
 
     def create_document_chunks(
@@ -600,21 +595,19 @@ class Nebula:
             "ingestion_mode": ingestion_mode,
         }
 
-        response = self._make_request(
-            "POST",
-            "/v1/memories",
-            json_data=payload
-        )
+        response = self._make_request("POST", "/v1/memories", json_data=payload)
 
         if isinstance(response, dict) and "results" in response:
-            return str(response["results"].get("id") or response["results"].get("engram_id"))
+            return str(
+                response["results"].get("id") or response["results"].get("engram_id")
+            )
         raise NebulaClientException("Failed to create document: invalid response")
 
     def store_memory(
         self,
         memory: Union[Memory, Dict[str, Any]] = None,
         name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> str:
         """Store or append memory using the unified memory API.
 
@@ -674,7 +667,7 @@ class Nebula:
                 msg = {
                     "role": memory.role,
                     "content": str(memory.content),
-                    "metadata": memory.metadata or {}
+                    "metadata": memory.metadata or {},
                 }
                 if memory.authority is not None:
                     msg["authority"] = float(memory.authority)
@@ -689,18 +682,20 @@ class Nebula:
             if name:
                 payload["name"] = name
 
-            response = self._make_request(
-                "POST",
-                "/v1/memories",
-                json_data=payload
-            )
+            response = self._make_request("POST", "/v1/memories", json_data=payload)
 
             if isinstance(response, dict) and "results" in response:
-                conv_id = response["results"].get("id") or response["results"].get("engram_id")
+                conv_id = response["results"].get("id") or response["results"].get(
+                    "engram_id"
+                )
                 if not conv_id:
-                    raise NebulaClientException("Failed to create conversation: no id returned")
+                    raise NebulaClientException(
+                        "Failed to create conversation: no id returned"
+                    )
                 return str(conv_id)
-            raise NebulaClientException("Failed to create conversation: invalid response format")
+            raise NebulaClientException(
+                "Failed to create conversation: invalid response format"
+            )
 
         # Handle document/text memory
         content_text = str(memory.content or "")
@@ -729,11 +724,7 @@ class Nebula:
             "ingestion_mode": "fast",
         }
 
-        response = self._make_request(
-            "POST",
-            "/v1/memories",
-            json_data=payload
-        )
+        response = self._make_request("POST", "/v1/memories", json_data=payload)
 
         if isinstance(response, dict) and "results" in response:
             if "engram_id" in response["results"]:
@@ -786,9 +777,7 @@ class Nebula:
         # Call the unified append endpoint
         try:
             self._make_request(
-                "POST",
-                f"/v1/memories/{memory_id}/append",
-                json_data=payload
+                "POST", f"/v1/memories/{memory_id}/append", json_data=payload
             )
             return memory_id
         except NebulaException as e:
@@ -830,7 +819,7 @@ class Nebula:
                     collection_id=collection_id,
                     content="",
                     role="assistant",  # Placeholder role to infer conversation type
-                    name="Conversation"
+                    name="Conversation",
                 )
             else:
                 conv_id = key
@@ -846,7 +835,7 @@ class Nebula:
                 collection_id=collection_id,
                 content=messages,
                 memory_id=conv_id,
-                metadata={}
+                metadata={},
             )
             self._append_to_memory(conv_id, append_mem)
             results.extend([str(conv_id)] * len(group))
@@ -855,7 +844,7 @@ class Nebula:
         for m in others:
             results.append(self.store_memory(m))
         return results
-    
+
     def delete(self, memory_ids: Union[str, List[str]]) -> Union[bool, Dict[str, Any]]:
         """
         Delete one or more memories.
@@ -877,20 +866,20 @@ class Nebula:
                 # Try new unified endpoint
                 try:
                     response = self._make_request(
-                        "POST",
-                        "/v1/memories/delete",
-                        json_data={"ids": memory_ids}
+                        "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
                     )
-                    return response.get("success", False) if isinstance(response, dict) else True
+                    return (
+                        response.get("success", False)
+                        if isinstance(response, dict)
+                        else True
+                    )
                 except Exception as e:
                     raise
         else:
             # Batch deletion
             try:
                 response = self._make_request(
-                    "POST",
-                    "/v1/memories/delete",
-                    json_data={"ids": memory_ids}
+                    "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
                 )
                 return response
             except Exception as e:
@@ -917,7 +906,9 @@ class Nebula:
                 raise NebulaNotFoundException(chunk_id, "Chunk") from e
             raise
 
-    def update_chunk(self, chunk_id: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+    def update_chunk(
+        self, chunk_id: str, content: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
         Update a specific chunk or message within a memory.
 
@@ -1038,7 +1029,9 @@ class Nebula:
         # Collection existence is validated by the backend when filtering by collection
 
         if not collection_ids:
-            raise NebulaClientException("collection_ids must be provided to list_memories().")
+            raise NebulaClientException(
+                "collection_ids must be provided to list_memories()."
+            )
 
         params = {
             "limit": limit,
@@ -1049,17 +1042,18 @@ class Nebula:
         # Add metadata_filters if provided (serialize to JSON string for query parameter)
         if metadata_filters:
             import json
+
             params["metadata_filters"] = json.dumps(metadata_filters)
 
         response = self._make_request("GET", "/v1/memories", params=params)
-        
+
         if isinstance(response, dict) and "results" in response:
             engrams = response["results"]
         elif isinstance(response, list):
             engrams = response
         else:
             engrams = [response]
-        
+
         # Convert all engrams to memories (handle text or chunks)
         memories: List[MemoryResponse] = []
         for doc in engrams:
@@ -1074,7 +1068,7 @@ class Nebula:
                 "collection_ids": doc.get("collection_ids", collection_ids),
             }
             memories.append(MemoryResponse.from_dict(memory_data))
-        
+
         return memories
 
     def get_memory(self, memory_id: str) -> MemoryResponse:
@@ -1088,10 +1082,12 @@ class Nebula:
             MemoryResponse object
         """
         response = self._make_request("GET", f"/v1/memories/{memory_id}")
-        
+
         # Handle either a single text or chunks array from the backend
         content = response.get("text") or response.get("content")
-        chunks = response.get("chunks") if isinstance(response.get("chunks"), list) else None
+        chunks = (
+            response.get("chunks") if isinstance(response.get("chunks"), list) else None
+        )
         memory_data = {
             "id": response.get("id"),
             "content": content,
@@ -1100,7 +1096,7 @@ class Nebula:
             "collection_ids": response.get("collection_ids", []),
         }
         return MemoryResponse.from_dict(memory_data)
-        
+
     def search(
         self,
         query: str,
@@ -1204,7 +1200,9 @@ class Nebula:
         # Add collection filter if collection_ids provided (supports both UUIDs and names)
         if collection_ids:
             # Filter out empty/invalid collection IDs
-            valid_collection_ids = [cid for cid in collection_ids if cid and str(cid).strip()]
+            valid_collection_ids = [
+                cid for cid in collection_ids if cid and str(cid).strip()
+            ]
             if valid_collection_ids:
                 user_filters["collection_ids"] = {"$overlap": valid_collection_ids}
 
@@ -1215,7 +1213,7 @@ class Nebula:
             "search_mode": search_mode,
             "search_settings": effective_settings,
         }
-        
+
         response = self._make_request("POST", "/v1/retrieval/search", json_data=data)
 
         # Extract aggregated results from the response
@@ -1236,7 +1234,7 @@ class Nebula:
             out.append(SearchResult.from_graph_dict(g))
 
         return out
-    
+
     # def chat(
     #     self,
     #     agent_id: str,
@@ -1251,7 +1249,7 @@ class Nebula:
     # ) -> AgentResponse:
     #     """
     #     Chat with an agent using its memories for context
-    #     
+    #
     #     Args:
     #         agent_id: Unique identifier for the agent
     #         message: User message to send to the agent
@@ -1262,14 +1260,14 @@ class Nebula:
     #         retrieval_type: Type of retrieval to use for context
     #         collection_id: Optional collection ID to search within
     #         stream: Whether to enable streaming response
-    #         
+    #
     #     Returns:
     #         AgentResponse object with the agent's response
     #     """
     #     # Convert string to enum if needed
     #     if isinstance(retrieval_type, str):
     #         retrieval_type = RetrievalType(retrieval_type)
-    #     
+    #
     #     data = {
     #         "query": message,
     #         "rag_generation_config": {
@@ -1278,21 +1276,21 @@ class Nebula:
     #             "stream": stream,
     #         }
     #     }
-    #     
+    #
     #     if max_tokens:
     #         data["rag_generation_config"]["max_tokens"] = max_tokens
-    #     
+    #
     #     if conversation_id:
     #         data["conversation_id"] = conversation_id
-    #     
+    #
     #     # Note: Skipping collection_id filter for now due to API issue
-    #     
+    #
     #     if stream:
     #         # For streaming, we need to handle the response differently
     #         return self._make_streaming_generator("POST", "/v1/retrieval/rag", json_data=data, agent_id=agent_id, conversation_id=conversation_id)
     #     else:
     #         response = self._make_request("POST", "/v1/retrieval/rag", json_data=data)
-    #     
+    #
     #     # Extract the response from the API format
     #     if isinstance(response, dict) and "results" in response:
     #         # The RAG endpoint returns the answer in "generated_answer" field
@@ -1305,7 +1303,7 @@ class Nebula:
     #                     metadata={},
     #                     citations=[]
     #                 )
-    #         
+    #
     #         # Fallback to completion format if generated_answer is not available
     #         completion = response["results"].get("completion", {})
     #         if completion and "choices" in completion:
@@ -1317,7 +1315,7 @@ class Nebula:
     #                 metadata={},
     #                 citations=[]
     #             )
-    #     
+    #
     #     # Fallback
     #     return AgentResponse(
     #         content="No response received",
@@ -1373,6 +1371,7 @@ class Nebula:
         # Add metadata_filters if provided (serialize to JSON string for query parameter)
         if metadata_filters:
             import json
+
             params["metadata_filters"] = json.dumps(metadata_filters)
 
         response = self._make_request("GET", "/v1/conversations", params=params)
@@ -1436,12 +1435,20 @@ class Nebula:
                 content = raw_content
             elif isinstance(raw_content, dict):
                 # Handle structured content
-                content = raw_content.get("content") or raw_content.get("text") or str(raw_content)
+                content = (
+                    raw_content.get("content")
+                    or raw_content.get("text")
+                    or str(raw_content)
+                )
             else:
                 content = str(raw_content) if raw_content is not None else ""
 
             # Extract role from nested message
-            role = nested_msg.get("role") or msg_resp.get("metadata", {}).get("role") or "user"
+            role = (
+                nested_msg.get("role")
+                or msg_resp.get("metadata", {}).get("role")
+                or "user"
+            )
 
             # Merge metadata from both response and nested message
             resp_metadata = msg_resp.get("metadata", {})
@@ -1475,4 +1482,4 @@ class Nebula:
         Returns:
             Health status information
         """
-        return self._make_request("GET", "/health") 
+        return self._make_request("GET", "/health")

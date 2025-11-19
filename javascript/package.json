@@ -51,7 +51,7 @@
   },
   "homepage": "https://github.com/nebula-agi/nebula-sdks/tree/main/javascript#readme",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

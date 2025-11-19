@@ -8,10 +8,12 @@ from nebula import Nebula
 
 API_KEY = os.environ.get("NEBULA_API_KEY")
 
+
 @pytest.fixture(scope="module")
 def client():
     assert API_KEY, "NEBULA_API_KEY must be set"
     return Nebula(api_key=API_KEY)
+
 
 @pytest.fixture(scope="module")
 def test_collection(client):
@@ -26,6 +28,7 @@ def test_collection(client):
     except Exception:
         pass
 
+
 @pytest.fixture(scope="module")
 def other_collection(client):
     name = f"test_sdk_other_collection_{uuid.uuid4()}"
@@ -37,6 +40,7 @@ def other_collection(client):
     except Exception:
         pass
 
+
 def test_collection_creation_and_listing(client, test_collection):
     # List collections and verify the test collection exists
     collections = client.list_clusters()
@@ -44,6 +48,7 @@ def test_collection_creation_and_listing(client, test_collection):
     assert test_collection.id in ids
     found = [c for c in collections if c.id == test_collection.id][0]
     assert found.name == test_collection.name
+
 
 def test_memory_isolation(client, test_collection, other_collection):
     # Store a memory in test_collection
@@ -53,16 +58,23 @@ def test_memory_isolation(client, test_collection, other_collection):
         agent_id=agent_id,
         content=content,
         collection_id=test_collection.id,
-        metadata={"purpose": "isolation-test"}
+        metadata={"purpose": "isolation-test"},
     )
     # Wait for ingestion (if async)
     time.sleep(2)
     # Retrieve memories for test_collection
     memories = client.get_cluster_memories(collection_id=test_collection.id, limit=10)
-    assert any(content in m.content for m in memories), "Memory not found in correct collection"
+    assert any(content in m.content for m in memories), (
+        "Memory not found in correct collection"
+    )
     # Retrieve memories for other_collection (should NOT find the above)
-    other_memories = client.get_cluster_memories(collection_id=other_collection.id, limit=10)
-    assert all(content not in m.content for m in other_memories), "Memory leaked to other collection!"
+    other_memories = client.get_cluster_memories(
+        collection_id=other_collection.id, limit=10
+    )
+    assert all(content not in m.content for m in other_memories), (
+        "Memory leaked to other collection!"
+    )
+
 
 def test_memory_search(client, test_collection):
     # Store a unique memory
@@ -72,7 +84,7 @@ def test_memory_search(client, test_collection):
         agent_id=agent_id,
         content=f"This memory contains {unique_phrase}",
         collection_id=test_collection.id,
-        metadata={"purpose": "search-test"}
+        metadata={"purpose": "search-test"},
     )
     time.sleep(2)
     # Search for the unique phrase
@@ -80,9 +92,12 @@ def test_memory_search(client, test_collection):
         agent_id=agent_id,  # Add the required agent_id parameter
         query=unique_phrase,
         collection_id=test_collection.id,
-        limit=5
+        limit=5,
     )
-    assert any(unique_phrase in r.content for r in results), "Search did not return expected memory"
+    assert any(unique_phrase in r.content for r in results), (
+        "Search did not return expected memory"
+    )
+
 
 def test_cleanup(client, test_collection, other_collection):
     # Delete collections and verify they're gone

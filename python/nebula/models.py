@@ -43,20 +43,24 @@ class MemoryResponse:
         created_at = None
         if data.get("created_at"):
             if isinstance(data["created_at"], str):
-                created_at = datetime.fromisoformat(data["created_at"].replace("Z", "+00:00"))
+                created_at = datetime.fromisoformat(
+                    data["created_at"].replace("Z", "+00:00")
+                )
             elif isinstance(data["created_at"], datetime):
                 created_at = data["created_at"]
 
         updated_at = None
         if data.get("updated_at"):
             if isinstance(data["updated_at"], str):
-                updated_at = datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00"))
+                updated_at = datetime.fromisoformat(
+                    data["updated_at"].replace("Z", "+00:00")
+                )
             elif isinstance(data["updated_at"], datetime):
                 updated_at = data["updated_at"]
 
         # Handle chunk response format (API returns chunks, not memories)
         memory_id = str(data.get("id", ""))
-        
+
         # Prefer explicit chunks if present; otherwise map 'text'/'content' → content
         content: Optional[str] = data.get("content") or data.get("text")
         chunks: Optional[List[Chunk]] = None
@@ -69,17 +73,19 @@ class MemoryResponse:
                     chunk_content = item.get("content") or item.get("text", "")
                     chunk_metadata = item.get("metadata", {})
                     chunk_role = item.get("role")
-                    chunk_list.append(Chunk(
-                        id=chunk_id,
-                        content=chunk_content,
-                        metadata=chunk_metadata,
-                        role=chunk_role
-                    ))
+                    chunk_list.append(
+                        Chunk(
+                            id=chunk_id,
+                            content=chunk_content,
+                            metadata=chunk_metadata,
+                            role=chunk_role,
+                        )
+                    )
                 elif isinstance(item, str):
                     # Legacy: plain string chunks without IDs
                     chunk_list.append(Chunk(id="", content=item))
             chunks = chunk_list if chunk_list else None
-        
+
         # API returns 'collection_ids'
         metadata = data.get("metadata", {})
         collection_ids = data.get("collection_ids", [])
@@ -101,7 +107,7 @@ class MemoryResponse:
             metadata=metadata,
             collection_ids=collection_ids,
             created_at=created_at,
-            updated_at=updated_at
+            updated_at=updated_at,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -159,14 +165,18 @@ class Collection:
         created_at = None
         if data.get("created_at"):
             if isinstance(data["created_at"], str):
-                created_at = datetime.fromisoformat(data["created_at"].replace("Z", "+00:00"))
+                created_at = datetime.fromisoformat(
+                    data["created_at"].replace("Z", "+00:00")
+                )
             elif isinstance(data["created_at"], datetime):
                 created_at = data["created_at"]
 
         updated_at = None
         if data.get("updated_at"):
             if isinstance(data["updated_at"], str):
-                updated_at = datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00"))
+                updated_at = datetime.fromisoformat(
+                    data["updated_at"].replace("Z", "+00:00")
+                )
             elif isinstance(data["updated_at"], datetime):
                 updated_at = data["updated_at"]
 
@@ -174,7 +184,9 @@ class Collection:
         collection_id = str(data.get("id", ""))  # Convert UUID to string
         collection_name = data.get("name", "")
         collection_description = data.get("description")
-        collection_owner_id = str(data.get("owner_id", "")) if data.get("owner_id") else None
+        collection_owner_id = (
+            str(data.get("owner_id", "")) if data.get("owner_id") else None
+        )
 
         # Map API fields to SDK fields
         # API has engram_count, SDK expects memory_count
@@ -185,7 +197,7 @@ class Collection:
             "graph_collection_status": data.get("graph_collection_status", ""),
             "graph_sync_status": data.get("graph_sync_status", ""),
             "user_count": data.get("user_count", 0),
-            "engram_count": data.get("engram_count", 0)
+            "engram_count": data.get("engram_count", 0),
         }
 
         return cls(
@@ -196,7 +208,7 @@ class Collection:
             created_at=created_at,
             updated_at=updated_at,
             memory_count=memory_count,
-            owner_id=collection_owner_id
+            owner_id=collection_owner_id,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -264,7 +276,7 @@ class SearchResult:
 
     # Document/source information
     memory_id: Optional[str] = None  # Parent memory/conversation container
-    owner_id: Optional[str] = None     # Owner UUID
+    owner_id: Optional[str] = None  # Owner UUID
 
     # Chunk fields
     content: Optional[str] = None
@@ -277,9 +289,11 @@ class SearchResult:
     chunk_ids: Optional[List[str]] = None
 
     # Utterance-specific fields
-    source_role: Optional[str] = None     # Speaker role for conversations: "user", "assistant", etc.
+    source_role: Optional[str] = (
+        None  # Speaker role for conversations: "user", "assistant", etc.
+    )
     timestamp: Optional[datetime] = None
-    display_name: Optional[str] = None    # Human-readable: "user on 2025-01-15"
+    display_name: Optional[str] = None  # Human-readable: "user on 2025-01-15"
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SearchResult":
@@ -308,13 +322,17 @@ class SearchResult:
         content = data.get("content", {}) or {}
         score = float(data.get("score", 0.0)) if data.get("score") is not None else 0.0
         metadata = data.get("metadata", {}) or {}
-        chunk_ids = data.get("chunk_ids") if isinstance(data.get("chunk_ids"), list) else None
+        chunk_ids = (
+            data.get("chunk_ids") if isinstance(data.get("chunk_ids"), list) else None
+        )
 
         # Parse temporal and source fields (for utterance entities)
         timestamp = None
         if data.get("timestamp"):
             if isinstance(data["timestamp"], str):
-                timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+                timestamp = datetime.fromisoformat(
+                    data["timestamp"].replace("Z", "+00:00")
+                )
             elif isinstance(data["timestamp"], datetime):
                 timestamp = data["timestamp"]
 
@@ -343,8 +361,12 @@ class SearchResult:
                 subject=content.get("subject", ""),
                 predicate=content.get("predicate", ""),
                 object=content.get("object", ""),
-                subject_id=str(content.get("subject_id")) if content.get("subject_id") else None,
-                object_id=str(content.get("object_id")) if content.get("object_id") else None,
+                subject_id=str(content.get("subject_id"))
+                if content.get("subject_id")
+                else None,
+                object_id=str(content.get("object_id"))
+                if content.get("object_id")
+                else None,
                 description=content.get("description"),
                 metadata=content.get("metadata", {}) or {},
             )
@@ -392,7 +414,7 @@ class AgentResponse:
             agent_id=data["agent_id"],
             conversation_id=data.get("conversation_id"),
             metadata=data.get("metadata", {}),
-            citations=data.get("citations", [])
+            citations=data.get("citations", []),
         )
 
 
@@ -419,8 +441,8 @@ class RetrievalType(str, Enum):
 # @dataclass
 # class AgentOptions:
 #     """Options for agent operations"""
-# 
+#
 #     model: str = "gpt-4"
 #     temperature: float = 0.7
 #     max_tokens: Optional[int] = None
-#     retrieval_type: RetrievalType = RetrievalType.SIMPLE 
+#     retrieval_type: RetrievalType = RetrievalType.SIMPLE

@@ -26,7 +26,12 @@ class _DummyHttpClient:
     def __init__(self):
         self.posts: List[Dict[str, Any]] = []
 
-    async def post(self, url: str, data: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None):
+    async def post(
+        self,
+        url: str,
+        data: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ):
         self.posts.append({"url": url, "data": data, "headers": headers})
         # Default successful create with engram id
         return _DummyResponse(200, {"results": {"engram_id": "doc_123"}})
@@ -49,8 +54,20 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
     # Track calls to _make_request_async
     calls: List[Dict[str, Any]] = []
 
-    async def _fake_request(method: str, endpoint: str, json_data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None):
-        calls.append({"method": method, "endpoint": endpoint, "json": json_data, "params": params})
+    async def _fake_request(
+        method: str,
+        endpoint: str,
+        json_data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+    ):
+        calls.append(
+            {
+                "method": method,
+                "endpoint": endpoint,
+                "json": json_data,
+                "params": params,
+            }
+        )
         if endpoint == "/v1/conversations" and method == "POST":
             return {"results": {"id": "conv_abc"}}
         if endpoint.startswith("/v1/conversations/") and endpoint.endswith("/messages"):
@@ -59,7 +76,9 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
 
     client._make_request_async = _fake_request  # type: ignore[assignment]
 
-    mem = Memory(collection_id="cluster_1", content="hello", role="user", metadata={"x": 1})
+    mem = Memory(
+        collection_id="cluster_1", content="hello", role="user", metadata={"x": 1}
+    )
     conv_id = run(client.store_memory(mem))
 
     assert conv_id == "conv_abc"
@@ -73,7 +92,9 @@ def test_store_memory_text_engram_posts(monkeypatch):
     client._client = dummy  # type: ignore[attr-defined]
 
     # No _make_request_async used in engram path
-    mem = Memory(collection_id="cluster_1", content="some text", metadata={"foo": "bar"})
+    mem = Memory(
+        collection_id="cluster_1", content="some text", metadata={"foo": "bar"}
+    )
     doc_id = run(client.store_memory(mem))
 
     assert doc_id == "doc_123"
@@ -88,8 +109,20 @@ def test_store_memories_mixed_batch(monkeypatch):
 
     calls: List[Dict[str, Any]] = []
 
-    async def _fake_request(method: str, endpoint: str, json_data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None):
-        calls.append({"method": method, "endpoint": endpoint, "json": json_data, "params": params})
+    async def _fake_request(
+        method: str,
+        endpoint: str,
+        json_data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+    ):
+        calls.append(
+            {
+                "method": method,
+                "endpoint": endpoint,
+                "json": json_data,
+                "params": params,
+            }
+        )
         if endpoint == "/v1/conversations" and method == "POST":
             return {"results": {"id": "conv_new"}}
         if endpoint.startswith("/v1/conversations/") and endpoint.endswith("/messages"):
@@ -100,8 +133,13 @@ def test_store_memories_mixed_batch(monkeypatch):
 
     memories = [
         Memory(collection_id="c1", content="hi", role="user"),  # conversation (new)
-        Memory(collection_id="c1", content="there"),              # engram
-        Memory(collection_id="c1", content="again", role="assistant", parent_id="conv_existing"),  # conversation (existing)
+        Memory(collection_id="c1", content="there"),  # engram
+        Memory(
+            collection_id="c1",
+            content="again",
+            role="assistant",
+            parent_id="conv_existing",
+        ),  # conversation (existing)
     ]
 
     results = run(client.store_memories(memories))
@@ -121,7 +159,12 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
 
     # Dummy HTTP client for form POST to /v1/memories
     class _DummyHttpClientWithConv(_DummyHttpClient):
-        async def post(self, url: str, data: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None):
+        async def post(
+            self,
+            url: str,
+            data: Optional[Dict[str, Any]] = None,
+            headers: Optional[Dict[str, str]] = None,
+        ):
             self.posts.append({"url": url, "data": data, "headers": headers})
             # Simulate conversation create response
             return _DummyResponse(200, {"results": {"engram_id": "conv_42"}})
@@ -131,16 +174,38 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
 
     calls: List[Dict[str, Any]] = []
 
-    async def _fake_request(method: str, endpoint: str, json_data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None):
-        calls.append({"method": method, "endpoint": endpoint, "json": json_data, "params": params})
+    async def _fake_request(
+        method: str,
+        endpoint: str,
+        json_data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+    ):
+        calls.append(
+            {
+                "method": method,
+                "endpoint": endpoint,
+                "json": json_data,
+                "params": params,
+            }
+        )
         # Accept append endpoint
-        if endpoint.startswith("/v1/memories/") and endpoint.endswith("/append") and method == "POST":
+        if (
+            endpoint.startswith("/v1/memories/")
+            and endpoint.endswith("/append")
+            and method == "POST"
+        ):
             return {"ok": True}
         return {"ok": True}
 
     client._make_request_async = _fake_request  # type: ignore[assignment]
 
-    mem = Memory(collection_id="c1", content="hi", role="assistant", metadata={"foo": 1}, authority=0.9)
+    mem = Memory(
+        collection_id="c1",
+        content="hi",
+        role="assistant",
+        metadata={"foo": 1},
+        authority=0.9,
+    )
     conv_id = run(client.store_memory(mem))
 
     assert conv_id == "conv_42"
@@ -159,16 +224,23 @@ def test_store_memory_document_metadata_includes_authority(monkeypatch):
     dummy = _DummyHttpClient()
     client._client = dummy  # type: ignore[attr-defined]
 
-    mem = Memory(collection_id="cluster_docs", content="some text", metadata={"bar": True}, authority=0.8)
+    mem = Memory(
+        collection_id="cluster_docs",
+        content="some text",
+        metadata={"bar": True},
+        authority=0.8,
+    )
     doc_id = run(client.store_memory(mem))
 
     assert doc_id == "doc_123"
     # Inspect form-data sent; metadata field should include authority
     posted = next((p for p in dummy.posts if p["url"].endswith("/v1/memories")), None)
     assert posted is not None
-    metadata_json = posted["data"].get("metadata") if isinstance(posted["data"], dict) else None
+    metadata_json = (
+        posted["data"].get("metadata") if isinstance(posted["data"], dict) else None
+    )
     assert metadata_json is not None
     import json as _json
+
     md = _json.loads(metadata_json)
     assert md.get("authority") == 0.8
-

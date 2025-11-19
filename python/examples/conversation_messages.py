@@ -44,37 +44,28 @@ def sync_example():
 
         # Create a conversation by storing the first message
         messages = [
-            {
-                "content": "Hello! How can I help you today?",
-                "role": "assistant"
-            },
-            {
-                "content": "I need help with my account settings",
-                "role": "user"
-            },
+            {"content": "Hello! How can I help you today?", "role": "assistant"},
+            {"content": "I need help with my account settings", "role": "user"},
             {
                 "content": "I'd be happy to help with your account settings. What specific issue are you experiencing?",
-                "role": "assistant"
+                "role": "assistant",
             },
-            {
-                "content": "I can't seem to update my profile picture",
-                "role": "user"
-            }
+            {"content": "I can't seem to update my profile picture", "role": "user"},
         ]
 
         # Store messages using store_memories (batches conversation messages)
-        conversation_ids = nebula.store_memories([
-            {
-                "collection_id": cluster.id,
-                "content": msg["content"],
-                "role": msg["role"],
-                "parent_id": None,  # First message creates new conversation
-                "metadata": {
-                    "conversation_type": "support",
-                    "priority": "medium"
+        conversation_ids = nebula.store_memories(
+            [
+                {
+                    "collection_id": cluster.id,
+                    "content": msg["content"],
+                    "role": msg["role"],
+                    "parent_id": None,  # First message creates new conversation
+                    "metadata": {"conversation_type": "support", "priority": "medium"},
                 }
-            } for msg in messages
-        ])
+                for msg in messages
+            ]
+        )
 
         conversation_id = conversation_ids[0]  # All messages go to same conversation
         print(f"✅ Stored {len(messages)} messages in conversation: {conversation_id}")
@@ -88,7 +79,9 @@ def sync_example():
         # Display messages in chronological order
         for i, msg in enumerate(retrieved_messages, 1):
             role = msg.metadata.get("source_role", msg.metadata.get("role", "unknown"))
-            content_preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
+            content_preview = (
+                msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
+            )
             print(f"  {i}. [{role.upper()}] {content_preview}")
             print(f"     ID: {msg.id}")
             print(f"     Created: {msg.created_at}")
@@ -100,27 +93,27 @@ def sync_example():
         additional_messages = [
             {
                 "content": "Let me guide you through updating your profile picture. First, go to your account settings.",
-                "role": "assistant"
+                "role": "assistant",
             },
-            {
-                "content": "Okay, I'm in my account settings now.",
-                "role": "user"
-            }
+            {"content": "Okay, I'm in my account settings now.", "role": "user"},
         ]
 
         # Store additional messages with the existing conversation_id
-        more_ids = nebula.store_memories([
-            {
-                "collection_id": cluster.id,
-                "content": msg["content"],
-                "role": msg["role"],
-                "parent_id": conversation_id,  # Append to existing conversation
-                "metadata": {
-                    "conversation_type": "support",
-                    "step": "profile_update_guidance"
+        more_ids = nebula.store_memories(
+            [
+                {
+                    "collection_id": cluster.id,
+                    "content": msg["content"],
+                    "role": msg["role"],
+                    "parent_id": conversation_id,  # Append to existing conversation
+                    "metadata": {
+                        "conversation_type": "support",
+                        "step": "profile_update_guidance",
+                    },
                 }
-            } for msg in additional_messages
-        ])
+                for msg in additional_messages
+            ]
+        )
 
         print(f"✅ Added {len(additional_messages)} more messages to conversation")
 
@@ -130,9 +123,14 @@ def sync_example():
         print(f"✅ Conversation now has {len(updated_messages)} total messages")
 
         # Show only the new messages
-        for i, msg in enumerate(updated_messages[-len(additional_messages):], len(updated_messages)-len(additional_messages)+1):
+        for i, msg in enumerate(
+            updated_messages[-len(additional_messages) :],
+            len(updated_messages) - len(additional_messages) + 1,
+        ):
             role = msg.metadata.get("source_role", msg.metadata.get("role", "unknown"))
-            content_preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
+            content_preview = (
+                msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
+            )
             print(f"  {i}. [{role.upper()}] {content_preview}")
 
         print("\n🎉 Conversation messages example completed successfully!")
@@ -170,12 +168,18 @@ async def async_example():
             print(f"✅ Retrieved {len(messages)} messages asynchronously")
 
             for i, msg in enumerate(messages[:3], 1):  # Show first 3 messages
-                role = msg.metadata.get("source_role", msg.metadata.get("role", "unknown"))
-                content_preview = msg.content[:60] + "..." if len(msg.content) > 60 else msg.content
+                role = msg.metadata.get(
+                    "source_role", msg.metadata.get("role", "unknown")
+                )
+                content_preview = (
+                    msg.content[:60] + "..." if len(msg.content) > 60 else msg.content
+                )
                 print(f"  {i}. [{role.upper()}] {content_preview}")
 
         except Exception as e:
-            print("ℹ️  Note: Replace 'your-conversation-id-here' with an actual conversation ID to test async retrieval")
+            print(
+                "ℹ️  Note: Replace 'your-conversation-id-here' with an actual conversation ID to test async retrieval"
+            )
             print(f"    Error: {e}")
 
         print("\n🎉 Async conversation messages example completed!")
@@ -207,5 +211,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
