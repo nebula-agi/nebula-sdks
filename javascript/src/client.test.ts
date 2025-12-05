@@ -178,10 +178,14 @@ describe('Nebula', () => {
         status: 200,
         json: () => Promise.resolve({
           results: {
-            chunk_search_results: [
+            graph_search_results: [
               {
-                id: 'chunk-1',
-                text: 'Test content',
+                id: 'graph-1',
+                content: {
+                  name: 'Entity 1',
+                  description: 'Test content'
+                },
+                result_type: 'entity',
                 score: 0.95,
                 metadata: {},
                 engram_id: 'doc-123'
@@ -271,7 +275,7 @@ describe('Nebula', () => {
         status: 200,
         json: () => Promise.resolve({
           results: {
-            chunk_search_results: []
+            graph_search_results: []
           }
         })
       };

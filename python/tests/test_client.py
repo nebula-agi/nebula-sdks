@@ -185,23 +185,28 @@ class TestNebula:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "results": {
-                "chunk_search_results": [
+                "graph_search_results": [
                     {
-                        "id": "chunk-1",
-                        "content": "First memory content",
+                        "id": "graph-1",
+                        "content": {
+                            "name": "Entity 1",
+                            "description": "First memory content",
+                        },
+                        "result_type": "entity",
                         "score": 0.95,
                         "metadata": {},
-                        "memory_id": "memory-1",
                     },
                     {
-                        "id": "chunk-2",
-                        "content": "Second memory content",
+                        "id": "graph-2",
+                        "content": {
+                            "name": "Entity 2",
+                            "description": "Second memory content",
+                        },
+                        "result_type": "entity",
                         "score": 0.87,
                         "metadata": {},
-                        "memory_id": "memory-2",
                     },
                 ],
-                "graph_search_results": [],
             }
         }
         mock_request.return_value = mock_response

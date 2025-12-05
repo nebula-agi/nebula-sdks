@@ -21,6 +21,7 @@ from .exceptions import (
 from .models import (
     Collection,
     Memory,
+    MemoryRecall,
     MemoryResponse,
     SearchResult,
 )
@@ -786,7 +787,7 @@ class AsyncNebula:
         filters: dict[str, Any] | None = None,
         search_mode: str = "super",
         search_settings: dict[str, Any] | None = None,
-    ) -> list[SearchResult]:
+    ) -> MemoryRecall:
         """
         Search your memory collections with optional metadata filtering (async version).
 
@@ -860,7 +861,8 @@ class AsyncNebula:
             Logical: $and, $or
 
         Returns:
-            List of SearchResult objects containing both vector/chunk and graph search results
+            MemoryRecall object containing hierarchical memory structure with entities, facts,
+            and utterances
         """
         # Build effective search settings with simplified structure
         effective_settings: dict[str, Any] = dict(search_settings or {})
@@ -887,18 +889,21 @@ class AsyncNebula:
         response = await self._make_request_async(
             "POST", "/v1/retrieval/search", json_data=data
         )
+
+        # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
         if isinstance(response, dict) and "results" in response:
-            agg = response["results"]
-            chunk_results = agg.get("chunk_search_results", [])
-            graph_results = agg.get("graph_search_results", [])
-        else:
-            chunk_results = []
-            graph_results = []
-        out: list[SearchResult] = []
-        out.extend(SearchResult.from_dict(result) for result in chunk_results)
-        for g in graph_results:
-            out.append(SearchResult.from_graph_dict(g))
-        return out
+            return MemoryRecall.from_dict(response["results"], query)
+
+        # Fallback to empty MemoryRecall
+        return MemoryRecall(
+            query=query,
+            entities=[],
+            facts=[],
+            utterances=[],
+            fact_to_chunks={},
+            entity_to_facts={},
+            retrieved_at="",
+        )
 
     async def list_conversations(
         self,

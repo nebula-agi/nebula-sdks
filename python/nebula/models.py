@@ -438,11 +438,49 @@ class RetrievalType(str, Enum):
     ADVANCED = "advanced"
 
 
-# @dataclass
-# class AgentOptions:
-#     """Options for agent operations"""
-#
-#     model: str = "gpt-4"
-#     temperature: float = 0.7
-#     max_tokens: Optional[int] = None
-#     retrieval_type: RetrievalType = RetrievalType.SIMPLE
+# Hierarchical Memory Recall types (matches backend MemoryRecall structure)
+
+
+@dataclass
+class MemoryRecall:
+    """Hierarchical memory recall result containing entities, facts, and utterances.
+
+    Nested data (entities, facts, utterances, focus) are stored as raw dicts
+    for performance - no parsing overhead.
+
+    Entity dict keys: entity_id, entity_name, entity_category, activation_score,
+                      activation_reason, traversal_depth, profile
+    Fact dict keys: fact_id, entity_id, entity_name, facet_name, subject, predicate,
+                    object_value, activation_score, extraction_confidence,
+                    corroboration_count, source_chunk_ids
+    Utterance dict keys: chunk_id, text, activation_score, speaker_name, source_role,
+                         timestamp, display_name, supporting_fact_ids, metadata
+    Focus dict keys: schema_weight, fact_weight, episodic_weight
+    """
+
+    query: str
+    entities: list[dict[str, Any]]
+    facts: list[dict[str, Any]]
+    utterances: list[dict[str, Any]]
+    fact_to_chunks: dict[str, list[str]]
+    entity_to_facts: dict[str, list[str]]
+    retrieved_at: str
+    focus: dict[str, Any] | None = None
+    total_traversal_time_ms: float | None = None
+    query_intent: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any], query: str) -> "MemoryRecall":
+        """Create a MemoryRecall from a dictionary response."""
+        return cls(
+            query=data.get("query", query),
+            entities=data.get("entities", []),
+            facts=data.get("facts", []),
+            utterances=data.get("utterances", []),
+            focus=data.get("focus"),
+            fact_to_chunks=data.get("fact_to_chunks", {}),
+            entity_to_facts=data.get("entity_to_facts", {}),
+            retrieved_at=data.get("retrieved_at", ""),
+            total_traversal_time_ms=data.get("total_traversal_time_ms"),
+            query_intent=data.get("query_intent"),
+        )

@@ -3,6 +3,7 @@ import {
   MemoryResponse,
   Collection,
   SearchResult,
+  MemoryRecall,
   GraphSearchResultType,
   GraphEntityResult,
   GraphRelationshipResult,
@@ -1039,7 +1040,7 @@ export class Nebula {
     filters?: Record<string, any>;
     search_mode?: 'fast' | 'super';
     searchSettings?: Record<string, any>;
-  }): Promise<SearchResult[]> {
+  }): Promise<MemoryRecall> {
     const collectionIds = Array.isArray(options.collection_ids) ? options.collection_ids : [options.collection_ids];
     // Filter out empty/invalid collection IDs
     const validCollectionIds = collectionIds.filter(id => id && id.trim() !== '');
@@ -1071,21 +1072,18 @@ export class Nebula {
 
     const response = await this._makeRequest('POST', '/v1/retrieval/search', data);
 
-    let chunkResults: any[] = [];
-    let graphResults: any[] = [];
+    // Backend returns MemoryRecall wrapped in { results: MemoryRecall }
+    const memoryRecall: MemoryRecall = response.results || {
+      query: options.query,
+      entities: [],
+      facts: [],
+      utterances: [],
+      fact_to_chunks: {},
+      entity_to_facts: {},
+      retrieved_at: new Date().toISOString(),
+    };
 
-    if (response.results) {
-      chunkResults = response.results.chunk_search_results || [];
-      graphResults = response.results.graph_search_results || [];
-    }
-
-    const out: SearchResult[] = [];
-    out.push(...chunkResults.map((result) => this._searchResultFromDict(result)));
-    for (const g of graphResults) {
-      out.push(this._searchResultFromGraphDict(g));
-    }
-
-    return out;
+    return memoryRecall;
   }
 
   /**
@@ -1104,13 +1102,14 @@ export class Nebula {
 
   /**
    * Legacy wrapper: search conversations optionally scoped by session
+   * Now returns MemoryRecall with hierarchical memory structure
    */
   async searchConversations(
     query: string,
     collectionId: string,
     sessionId?: string,
     includeAllSessions: boolean = true
-  ): Promise<SearchResult[]> {
+  ): Promise<MemoryRecall> {
     const filters: Record<string, any> = { 'metadata.content_type': 'conversation' };
     if (sessionId && !includeAllSessions) {
       (filters as any)['metadata.session_id'] = sessionId;

@@ -17,7 +17,7 @@ from .exceptions import (
     NebulaRateLimitException,
     NebulaValidationException,
 )
-from .models import Collection, Memory, MemoryResponse, SearchResult
+from .models import Collection, Memory, MemoryRecall, MemoryResponse, SearchResult
 
 
 class Nebula:
@@ -1112,7 +1112,7 @@ class Nebula:
         filters: dict[str, Any] | None = None,
         search_mode: str = "super",
         search_settings: dict[str, Any] | None = None,
-    ) -> list[SearchResult]:
+    ) -> MemoryRecall:
         """
         Search your memory collections with optional metadata filtering.
 
@@ -1186,7 +1186,8 @@ class Nebula:
             Logical: $and, $or
 
         Returns:
-            List of SearchResult objects containing both vector/chunk and graph search results
+            MemoryRecall object containing hierarchical memory structure with entities, facts,
+            and utterances
         """
         # Collection existence is validated by the backend when applying collection filters
 
@@ -1222,24 +1223,20 @@ class Nebula:
 
         response = self._make_request("POST", "/v1/retrieval/search", json_data=data)
 
-        # Extract aggregated results from the response
+        # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
         if isinstance(response, dict) and "results" in response:
-            agg = response["results"]
-            chunk_results = agg.get("chunk_search_results", [])
-            graph_results = agg.get("graph_search_results", [])
-        else:
-            chunk_results = []
-            graph_results = []
+            return MemoryRecall.from_dict(response["results"], query)
 
-        out: list[SearchResult] = []
-        # 1) Vector chunk results
-        out.extend(SearchResult.from_dict(result) for result in chunk_results)
-
-        # 2) Graph results mapped to unified SearchResult with typed graph payloads (no legacy fallback)
-        for g in graph_results:
-            out.append(SearchResult.from_graph_dict(g))
-
-        return out
+        # Fallback to empty MemoryRecall
+        return MemoryRecall(
+            query=query,
+            entities=[],
+            facts=[],
+            utterances=[],
+            fact_to_chunks={},
+            entity_to_facts={},
+            retrieved_at="",
+        )
 
     # def chat(
     #     self,

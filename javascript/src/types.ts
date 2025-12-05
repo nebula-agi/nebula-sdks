@@ -116,6 +116,62 @@ export interface SearchOptions {
   search_mode?: 'fast' | 'super';
 }
 
+// Hierarchical Memory Recall types (matches backend MemoryRecall structure)
+export interface RecallFocus {
+  schema_weight: number;
+  fact_weight: number;
+  episodic_weight: number;
+}
+
+export interface ActivatedEntity {
+  entity_id: string;
+  entity_name: string;
+  entity_category?: string;
+  activation_score: number;
+  activation_reason?: string;
+  traversal_depth: number;
+  profile?: Record<string, any>;
+}
+
+export interface ActivatedFact {
+  fact_id: string;
+  entity_id?: string;
+  entity_name?: string;
+  facet_name?: string;
+  subject: string;
+  predicate: string;
+  object_value: string;
+  activation_score: number;
+  extraction_confidence: number;
+  corroboration_count: number;
+  source_chunk_ids: string[];
+}
+
+export interface GroundedUtterance {
+  chunk_id: string;
+  text: string;
+  activation_score: number;
+  speaker_name?: string;
+  source_role?: string;
+  timestamp?: string;
+  display_name?: string;
+  supporting_fact_ids: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface MemoryRecall {
+  query: string;
+  entities: ActivatedEntity[];
+  facts: ActivatedFact[];
+  utterances: GroundedUtterance[];
+  focus?: RecallFocus;
+  fact_to_chunks: Record<string, string[]>;
+  entity_to_facts: Record<string, string[]>;
+  retrieved_at: string;
+  total_traversal_time_ms?: number;
+  query_intent?: string;
+}
+
 // Configuration interface
 export interface NebulaClientConfig {
   apiKey: string;
