@@ -8,13 +8,13 @@ import pytest
 
 from nebula import (
     Collection,
+    MemoryRecall,
     Nebula,
     NebulaAuthenticationException,
     NebulaClientException,
     NebulaException,
     NebulaRateLimitException,
     NebulaValidationException,
-    SearchResult,
 )
 
 
@@ -185,28 +185,32 @@ class TestNebula:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "results": {
-                "graph_search_results": [
+                "query": "test query",
+                "entities": [
                     {
-                        "id": "graph-1",
-                        "content": {
-                            "name": "Entity 1",
-                            "description": "First memory content",
-                        },
-                        "result_type": "entity",
-                        "score": 0.95,
-                        "metadata": {},
+                        "entity_id": "entity-1",
+                        "entity_name": "Entity 1",
+                        "entity_category": "person",
+                        "activation_score": 0.95,
+                        "activation_reason": "direct match",
+                        "traversal_depth": 0,
+                        "profile": {},
                     },
+                ],
+                "facts": [],
+                "utterances": [
                     {
-                        "id": "graph-2",
-                        "content": {
-                            "name": "Entity 2",
-                            "description": "Second memory content",
-                        },
-                        "result_type": "entity",
-                        "score": 0.87,
+                        "chunk_id": "chunk-1",
+                        "text": "First memory content",
+                        "activation_score": 0.87,
+                        "speaker_name": "User",
+                        "supporting_fact_ids": [],
                         "metadata": {},
                     },
                 ],
+                "fact_to_chunks": {},
+                "entity_to_facts": {},
+                "retrieved_at": "2024-01-01T00:00:00Z",
             }
         }
         mock_request.return_value = mock_response
@@ -218,10 +222,13 @@ class TestNebula:
             filters={"test": "filter"},
         )
 
-        assert len(results) == 2
-        assert all(isinstance(result, SearchResult) for result in results)
-        assert results[0].score == 0.95
-        assert results[1].score == 0.87
+        assert isinstance(results, MemoryRecall)
+        assert results.query == "test query"
+        assert len(results.entities) == 1
+        assert results.entities[0]["entity_name"] == "Entity 1"
+        assert results.entities[0]["activation_score"] == 0.95
+        assert len(results.utterances) == 1
+        assert results.utterances[0]["text"] == "First memory content"
 
     @patch("httpx.Client.request")
     def test_health_check(self, mock_request):
