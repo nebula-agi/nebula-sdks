@@ -17,7 +17,7 @@ from .exceptions import (
     NebulaRateLimitException,
     NebulaValidationException,
 )
-from .models import Collection, Memory, MemoryRecall, MemoryResponse, SearchResult
+from .models import Collection, Memory, MemoryRecall, MemoryResponse
 
 
 class Nebula:

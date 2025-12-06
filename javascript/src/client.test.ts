@@ -178,19 +178,32 @@ describe('Nebula', () => {
         status: 200,
         json: () => Promise.resolve({
           results: {
-            graph_search_results: [
+            query: 'test query',
+            entities: [
               {
-                id: 'graph-1',
-                content: {
-                  name: 'Entity 1',
-                  description: 'Test content'
-                },
-                result_type: 'entity',
-                score: 0.95,
-                metadata: {},
-                engram_id: 'doc-123'
+                entity_id: 'entity-1',
+                entity_name: 'Entity 1',
+                entity_category: 'person',
+                activation_score: 0.95,
+                activation_reason: 'direct match',
+                traversal_depth: 0,
+                profile: {}
               }
-            ]
+            ],
+            facts: [],
+            utterances: [
+              {
+                chunk_id: 'chunk-1',
+                text: 'Test content',
+                activation_score: 0.9,
+                speaker_name: 'User',
+                supporting_fact_ids: [],
+                metadata: {}
+              }
+            ],
+            fact_to_chunks: {},
+            entity_to_facts: {},
+            retrieved_at: '2024-01-01T00:00:00Z'
           }
         })
       };
@@ -202,8 +215,11 @@ describe('Nebula', () => {
         limit: 5
       });
 
-      expect(results).toHaveLength(1);
-      expect(results[0].content).toBe('Test content');
+      expect(results.query).toBe('test query');
+      expect(results.entities).toHaveLength(1);
+      expect(results.entities[0].entity_name).toBe('Entity 1');
+      expect(results.utterances).toHaveLength(1);
+      expect(results.utterances[0].text).toBe('Test content');
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/v1/retrieval/search'),
         expect.objectContaining({

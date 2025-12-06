@@ -23,7 +23,6 @@ from .models import (
     Memory,
     MemoryRecall,
     MemoryResponse,
-    SearchResult,
 )
 
 
