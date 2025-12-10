@@ -26,7 +26,7 @@ from .models import (
     SearchResult,
 )
 
-__version__ = "3.0.0"
+__version__ = "2.1.4"
 __all__ = [
     "Nebula",
     "AsyncNebula",
