@@ -3,8 +3,8 @@
 Conversation Messages Example for the Nebula Client SDK
 
 This example demonstrates how to work with conversation messages using the
-new get_conversation_messages method, which retrieves messages directly
-from the conversations API for accurate chronological ordering.
+unified memories API (store_memory/list_memories/get_memory) so conversations
+and documents share the same surface area.
 """
 
 import asyncio
@@ -73,18 +73,19 @@ def sync_example():
         # Example 3: Retrieve conversation messages
         print("\n🔍 Retrieving conversation messages...")
 
-        retrieved_messages = nebula.get_conversation_messages(conversation_id)
+        conversation = nebula.get_memory(conversation_id)
+        retrieved_messages = conversation.chunks or []
         print(f"✅ Retrieved {len(retrieved_messages)} messages from conversation")
 
         # Display messages in chronological order
         for i, msg in enumerate(retrieved_messages, 1):
-            role = msg.metadata.get("source_role", msg.metadata.get("role", "unknown"))
+            role = msg.role or msg.metadata.get("source_role", "unknown")
             content_preview = (
                 msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
             )
             print(f"  {i}. [{role.upper()}] {content_preview}")
             print(f"     ID: {msg.id}")
-            print(f"     Created: {msg.created_at}")
+            print(f"     Created: {msg.metadata.get('created_at')}")
             print()
 
         # Example 4: Add more messages to the conversation
@@ -119,7 +120,8 @@ def sync_example():
 
         # Example 5: Retrieve updated conversation
         print("\n🔄 Retrieving updated conversation...")
-        updated_messages = nebula.get_conversation_messages(conversation_id)
+        updated_conversation = nebula.get_memory(conversation_id)
+        updated_messages = updated_conversation.chunks or []
         print(f"✅ Conversation now has {len(updated_messages)} total messages")
 
         # Show only the new messages
@@ -127,7 +129,7 @@ def sync_example():
             updated_messages[-len(additional_messages) :],
             len(updated_messages) - len(additional_messages) + 1,
         ):
-            role = msg.metadata.get("source_role", msg.metadata.get("role", "unknown"))
+            role = msg.role or msg.metadata.get("source_role", "unknown")
             content_preview = (
                 msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
             )
@@ -164,11 +166,12 @@ async def async_example():
         example_conversation_id = "your-conversation-id-here"  # Replace with actual ID
 
         try:
-            messages = await client.get_conversation_messages(example_conversation_id)
+            conversation = await client.get_memory(example_conversation_id)
+            messages = conversation.chunks or []
             print(f"✅ Retrieved {len(messages)} messages asynchronously")
 
             for i, msg in enumerate(messages[:3], 1):  # Show first 3 messages
-                role = msg.metadata.get(
+                role = msg.role or msg.metadata.get(
                     "source_role", msg.metadata.get("role", "unknown")
                 )
                 content_preview = (

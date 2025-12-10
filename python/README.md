@@ -125,7 +125,8 @@ result = client.delete(["id1", "id2", "id3"])  # Returns detailed results
 user_msg = Memory(
     collection_id=collection.id,
     content="What is machine learning?",
-    role="user"
+    role="user",
+    metadata={"content_type": "conversation"},
 )
 conv_id = client.store_memory(user_msg)
 
@@ -133,15 +134,20 @@ assistant_msg = Memory(
     collection_id=collection.id,
     content="Machine learning is a subset of AI...",
     role="assistant",
-    parent_id=conv_id
+    parent_id=conv_id,
+    metadata={"content_type": "conversation"},
 )
 client.store_memory(assistant_msg)
 
-# List conversations
-conversations = client.list_conversations(collection_ids=[collection.id])
+# List conversation memories (filtering by metadata set above)
+conversations = client.list_memories(
+    collection_ids=[collection.id],
+    metadata_filters={"metadata.content_type": {"$eq": "conversation"}},
+)
 
-# Get messages
-messages = client.get_conversation_messages(conv_id)
+# Get messages from a conversation memory
+conversation = client.get_memory(conv_id)
+messages = conversation.chunks or []
 ```
 
 ## Async Client

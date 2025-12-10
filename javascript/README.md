@@ -137,23 +137,27 @@ const result = await client.delete(['id1', 'id2', 'id3']); // Returns detailed r
 const conversationId = await client.storeMemory({
   collection_id: collection.id,
   content: 'What is machine learning?',
-  role: 'user'
+  role: 'user',
+  metadata: { content_type: 'conversation' }
 });
 
 await client.storeMemory({
   collection_id: collection.id,
   content: 'Machine learning is a subset of AI...',
   role: 'assistant',
-  parent_id: conversationId
+  parent_id: conversationId,
+  metadata: { content_type: 'conversation' }
 });
 
-// List conversations
-const conversations = await client.listConversations({
-  collection_ids: [collection.id]
+// List conversation memories
+const conversations = await client.listMemories({
+  collection_ids: [collection.id],
+  metadata_filters: { 'metadata.content_type': { $eq: 'conversation' } }
 });
 
-// Get messages
-const messages = await client.getConversationMessages(conversationId);
+// Get messages from a conversation memory
+const conversation = await client.getMemory(conversationId);
+const messages = conversation.chunks ?? [];
 ```
 
 ## Error Handling

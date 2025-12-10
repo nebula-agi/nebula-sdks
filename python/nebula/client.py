@@ -486,51 +486,6 @@ class Nebula:
     #     return str(doc_id)
 
     # New unified write APIs
-    def create_conversation(
-        self,
-        collection_ref: str,
-        messages: list[dict[str, Any]],
-        name: str | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> str:
-        """
-        Create a new conversation with messages.
-
-        Args:
-            collection_ref: Collection UUID or name
-            messages: List of message dicts with 'role' and 'content' keys
-            name: Optional name for the conversation
-            metadata: Optional conversation-level metadata
-
-        Returns:
-            Conversation ID (UUID string)
-
-        Example:
-            >>> conv_id = client.create_conversation(
-            ...     collection_ref="my-collection",
-            ...     messages=[
-            ...         {"role": "user", "content": "Hello!"},
-            ...         {"role": "assistant", "content": "Hi there!"}
-            ...     ]
-            ... )
-        """
-        payload = {
-            "collection_ref": collection_ref,
-            "engram_type": "conversation",
-            "messages": messages,
-            "metadata": metadata or {},
-        }
-        if name:
-            payload["name"] = name
-
-        response = self._make_request("POST", "/v1/memories", json_data=payload)
-
-        if isinstance(response, dict) and "results" in response:
-            return str(
-                response["results"].get("id") or response["results"].get("engram_id")
-            )
-        raise NebulaClientException("Failed to create conversation: invalid response")
-
     def create_document_text(
         self,
         collection_ref: str,
@@ -1110,7 +1065,6 @@ class Nebula:
         collection_ids: list[str] | None = None,
         limit: int = 10,
         filters: dict[str, Any] | None = None,
-        search_mode: str = "super",
         search_settings: dict[str, Any] | None = None,
     ) -> MemoryRecall:
         """
@@ -1121,10 +1075,14 @@ class Nebula:
             collection_ids: Optional list of collection IDs or names to search within.
                         Can be UUIDs or collection names.
                         If not provided, searches across all your accessible collections.
-            limit: Maximum number of results to return
+            limit: Maximum number of results to return (default: 10, max: 1000)
             filters: Optional filters to apply to the search. Supports comprehensive metadata filtering
                     with MongoDB-like operators for both vector/chunk search and graph search.
-            search_settings: Optional search configuration including search_mode ('basic'|'advanced')
+            search_settings: Optional advanced search settings including:
+                - semantic_weight: Weight for semantic search (0-1, default: 0.8)
+                - fulltext_weight: Weight for fulltext search (0-1, default: 0.2)
+                - include_metadatas: Whether to include metadata in results (default: True)
+                - include_scores: Whether to include scores in results (default: True)
 
         Filter Examples:
             Basic equality:
@@ -1144,37 +1102,11 @@ class Nebula:
                 filters={"metadata.skills": {"$contains": ["python", "go"]}} # Has all of these
                 filters={"metadata.categories": {"$in": ["tech", "science"]}}
 
-            Nested paths:
-                filters={"metadata.user.preferences.theme": {"$eq": "dark"}}
-                filters={"metadata.settings.notifications.email": True}
-
             Logical operators:
                 filters={
                     "$and": [
                         {"metadata.verified": True},
-                        {"metadata.score": {"$gte": 80}},
-                        {"metadata.tags": {"$overlap": ["important"]}}
-                    ]
-                }
-
-                filters={
-                    "$or": [
-                        {"metadata.priority": {"$eq": "high"}},
-                        {"metadata.urgent": True}
-                    ]
-                }
-
-            Complex combinations:
-                filters={
-                    "$and": [
-                        {"metadata.department": {"$eq": "engineering"}},
-                        {"metadata.level": {"$gte": 5}},
-                        {
-                            "$or": [
-                                {"metadata.skills": {"$overlap": ["python", "go"]}},
-                                {"metadata.years_experience": {"$gte": 10}}
-                            ]
-                        }
+                        {"metadata.score": {"$gte": 80}}
                     ]
                 }
 
@@ -1182,44 +1114,32 @@ class Nebula:
             Comparison: $eq, $ne, $lt, $lte, $gt, $gte
             String: $like (case-sensitive), $ilike (case-insensitive)
             Array: $in, $nin, $overlap, $contains
-            JSONB: $json_contains
             Logical: $and, $or
 
         Returns:
             MemoryRecall object containing hierarchical memory structure with entities, facts,
             and utterances
         """
-        # Collection existence is validated by the backend when applying collection filters
+        # Build request data - pass params directly to API (no wrapping needed)
+        data: dict[str, Any] = {
+            "query": query,
+            "limit": limit,
+        }
 
-        # Build effective search settings with simplified structure
-        effective_settings: dict[str, Any] = dict(search_settings or {})
-
-        # Set limit
-        effective_settings["limit"] = limit
-
-        # Retrieval type is now handled internally by the backend
-
-        # Merge filters: caller-provided search_settings.filters first, then explicit filters arg
-        user_filters: dict[str, Any] = dict(effective_settings.get("filters", {}))
-        if filters:
-            user_filters.update(filters)
-
-        # Add collection filter if collection_ids provided (supports both UUIDs and names)
+        # Add optional params only if provided
         if collection_ids:
             # Filter out empty/invalid collection IDs
             valid_collection_ids = [
                 cid for cid in collection_ids if cid and str(cid).strip()
             ]
             if valid_collection_ids:
-                user_filters["collection_ids"] = {"$overlap": valid_collection_ids}
+                data["collection_ids"] = valid_collection_ids
 
-        effective_settings["filters"] = user_filters
+        if filters:
+            data["filters"] = filters
 
-        data = {
-            "query": query,
-            "search_mode": search_mode,
-            "search_settings": effective_settings,
-        }
+        if search_settings:
+            data["search_settings"] = search_settings
 
         response = self._make_request("POST", "/v1/retrieval/search", json_data=data)
 
@@ -1327,157 +1247,6 @@ class Nebula:
     #         metadata={},
     #         citations=[]
     #     )
-
-    def list_conversations(
-        self,
-        limit: int = 100,
-        offset: int = 0,
-        collection_ids: list[str] | None = None,
-        metadata_filters: dict | None = None,
-    ) -> list[dict[str, Any]]:
-        """
-        List conversations for the authenticated user with optional metadata filtering.
-
-        Args:
-            limit: Maximum number of conversations to return (default: 100)
-            offset: Number of conversations to skip for pagination (default: 0)
-            collection_ids: Optional list of collection IDs to filter conversations by
-            metadata_filters: Optional metadata filters using MongoDB-like operators.
-                Supported operators: $eq, $ne, $in, $nin, $exists, $and, $or
-                Examples:
-                    - Filter playground conversations: {"metadata.playground": {"$eq": True}}
-                    - Filter by session ID: {"metadata.session_id": {"$eq": "session-123"}}
-                    - Complex filter: {"$and": [
-                        {"metadata.playground": {"$eq": True}},
-                        {"metadata.content_type": {"$eq": "conversation"}}
-                      ]}
-
-        Returns:
-            List of conversation dictionaries with fields: id, created_at, user_id, name, collection_ids
-
-        Example:
-            # Get all playground conversations
-            conversations = client.list_conversations(
-                collection_ids=["collection-id"],
-                metadata_filters={"metadata.playground": {"$eq": True}}
-            )
-        """
-        params: dict[str, Any] = {
-            "limit": limit,
-            "offset": offset,
-        }
-
-        # Convert collection_ids for the API
-        if collection_ids and len(collection_ids) > 0:
-            params["collection_ids"] = collection_ids
-
-        # Add metadata_filters if provided (serialize to JSON string for query parameter)
-        if metadata_filters:
-            import json
-
-            params["metadata_filters"] = json.dumps(metadata_filters)
-
-        response = self._make_request("GET", "/v1/conversations", params=params)
-
-        conversations: list[dict[str, Any]]
-        if isinstance(response, dict) and "results" in response:
-            conversations = response["results"]
-        elif isinstance(response, list):
-            conversations = response
-        else:
-            conversations = [response] if response else []
-
-        return conversations
-
-    def get_conversation_messages(self, conversation_id: str) -> list[MemoryResponse]:
-        """
-        Get conversation messages directly from the conversations API
-
-        This method retrieves messages from a specific conversation using the dedicated
-        conversations API endpoint, which provides accurate chronological ordering
-        and preserves conversation context.
-
-        Args:
-            conversation_id: ID of the conversation to retrieve messages from
-
-        Returns:
-            List of MemoryResponse objects containing the conversation messages
-
-        Raises:
-            NebulaClientException: If conversation_id is empty
-            NebulaException: For API errors
-        """
-        if not conversation_id:
-            raise NebulaClientException("conversation_id must be provided")
-
-        response = self._make_request("GET", f"/v1/conversations/{conversation_id}")
-
-        # Extract results from response
-        if isinstance(response, dict) and "results" in response:
-            messages_data = response["results"]
-        elif isinstance(response, list):
-            messages_data = response
-        else:
-            messages_data = []
-
-        # Convert to MemoryResponse objects
-        messages: list[MemoryResponse] = []
-
-        for msg_resp in messages_data:
-            if not isinstance(msg_resp, dict):
-                continue
-
-            # Extract message ID
-            msg_id = str(msg_resp.get("id", ""))
-
-            # Extract nested message content (API returns MessageResponse with nested message object)
-            nested_msg = msg_resp.get("message", {})
-
-            # Handle content - could be string or structured object
-            raw_content = nested_msg.get("content")
-            if isinstance(raw_content, str):
-                content = raw_content
-            elif isinstance(raw_content, dict):
-                # Handle structured content
-                content = (
-                    raw_content.get("content")
-                    or raw_content.get("text")
-                    or str(raw_content)
-                )
-            else:
-                content = str(raw_content) if raw_content is not None else ""
-
-            # Extract role from nested message
-            role = (
-                nested_msg.get("role")
-                or msg_resp.get("metadata", {}).get("role")
-                or "user"
-            )
-
-            # Merge metadata from both response and nested message
-            resp_metadata = msg_resp.get("metadata", {})
-            msg_metadata = nested_msg.get("metadata", {})
-
-            # Combine metadata with role information
-            combined_metadata = {
-                **resp_metadata,
-                **msg_metadata,
-                "source_role": role,  # Preserve original role from message
-                "role": role,  # Ensure role is in metadata for UI compatibility
-            }
-
-            # Create MemoryResponse object
-            memory_data = {
-                "id": msg_id,
-                "content": content,
-                "metadata": combined_metadata,
-                "created_at": msg_resp.get("created_at"),
-                "collection_ids": msg_resp.get("collection_ids", []),
-            }
-
-            messages.append(MemoryResponse.from_dict(memory_data))
-
-        return messages
 
     def health_check(self) -> dict[str, Any]:
         """

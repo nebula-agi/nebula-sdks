@@ -15,7 +15,6 @@ import {
   NebulaRateLimitException,
   NebulaValidationException,
   NebulaNotFoundException,
-    StructuredChunk,
 } from './types';
 
 /**
@@ -217,151 +216,6 @@ export class Nebula {
     }
 
     return collections.map((collection) => this._collectionFromDict(collection));
-  }
-
-  // Conversations Methods
-
-  /**
-   * List conversations for the authenticated user with optional metadata filtering
-   *
-   * @param options - Configuration for listing conversations
-   * @param options.limit - Maximum number of conversations to return (default: 100)
-   * @param options.offset - Number of conversations to skip for pagination (default: 0)
-   * @param options.collection_ids - Optional list of collection IDs to filter conversations by
-   * @param options.metadata_filters - Optional metadata filters using MongoDB-like operators.
-   *   Supported operators: $eq, $ne, $in, $nin, $exists, $and, $or
-   *
-   * @returns Promise resolving to array of conversation objects with fields: id, created_at, user_id, name, collection_ids
-   *
-   * @example
-   * // Get all playground conversations
-   * const conversations = await client.listConversations({
-   *   collection_ids: ['collection-id'],
-   *   metadata_filters: {
-   *     'metadata.playground': { $eq: true }
-   *   }
-   * });
-   *
-   * @example
-   * // Filter by session ID
-   * const conversations = await client.listConversations({
-   *   metadata_filters: {
-   *     'metadata.session_id': { $eq: 'session-123' }
-   *   }
-   * });
-   */
-  async listConversations(options?: {
-    limit?: number;
-    offset?: number;
-    collection_ids?: string[];
-    metadata_filters?: Record<string, any>;
-  }): Promise<any[]> {
-    const params: Record<string, any> = {
-      limit: options?.limit ?? 100,
-      offset: options?.offset ?? 0
-    };
-    // Convert collection_ids to collection_ids for the API
-    if (options?.collection_ids && options.collection_ids.length > 0) {
-      params.collection_ids = options.collection_ids;
-    }
-    // Add metadata_filters if provided (serialize to JSON string for query parameter)
-    if (options?.metadata_filters) {
-      params.metadata_filters = JSON.stringify(options.metadata_filters);
-    }
-    const response = await this._makeRequest('GET', '/v1/memories', undefined, params);
-
-    let conversations: any[];
-    if (response && response.results) {
-      conversations = response.results;
-    } else if (Array.isArray(response)) {
-      conversations = response;
-    } else {
-      conversations = response ? [response] : [];
-    }
-
-    return conversations;
-  }
-
-  /**
-   * Get conversation messages from the engrams API.
-   *
-   * This method retrieves conversation engrams and parses their chunks into structured messages.
-   * Expects conversation engrams to contain structured chunks with role metadata:
-   * `{text: string, role: 'user'|'assistant'|'system'}`.
-   * Converts chunks to `MemoryResponse` objects with proper role metadata.
-   *
-   * @param conversationId - Single conversation ID (returns array of messages)
-   * @param conversationIds - Multiple conversation IDs (returns map of conversation_id -> messages)
-   * @returns Messages for the requested conversation(s)
-   */
-  async getConversationMessages(conversationId: string): Promise<MemoryResponse[]>;
-  async getConversationMessages(conversationIds: string[]): Promise<Record<string, MemoryResponse[]>>;
-  async getConversationMessages(conversationIdOrIds: string | string[]): Promise<MemoryResponse[] | Record<string, MemoryResponse[]>> {
-    // Handle single conversation ID (backward compatibility)
-    if (typeof conversationIdOrIds === 'string') {
-      // Use batch retrieval with single ID for consistency
-      const batchResults = await this.getConversationMessages([conversationIdOrIds]);
-      return batchResults[conversationIdOrIds] || [];
-    }
-
-    // Handle multiple conversation IDs
-    if (!Array.isArray(conversationIdOrIds) || conversationIdOrIds.length === 0) {
-      return {};
-    }
-
-    // Use GET request with ids query parameter for batch retrieval
-    const params = { ids: conversationIdOrIds };
-    const response = await this._makeRequest('GET', '/v1/memories', undefined, params);
-
-    const results: Record<string, MemoryResponse[]> = {};
-
-    if (response && response.results && Array.isArray(response.results)) {
-      // Backend returns array of conversation engram documents with structured chunks
-      for (const doc of response.results) {
-        // Use engram ID as key (this matches what frontend expects from listConversations)
-        const conversationId = doc.id;
-        if (!conversationId) {
-          continue;
-        }
-
-        // Extract chunks (conversation messages with role info)
-        if (Array.isArray(doc.chunks) && doc.chunks.length > 0) {
-          const messages: MemoryResponse[] = [];
-          for (let i = 0; i < doc.chunks.length; i++) {
-            const structuredChunk = doc.chunks[i] as StructuredChunk;
-            if (!structuredChunk || typeof structuredChunk.text !== 'string' || structuredChunk.text.length === 0) {
-              continue;
-            }
-
-            const text = structuredChunk.text;
-            const role: 'user' | 'assistant' | 'system' = structuredChunk.role ?? 'user';
-
-            messages.push({
-              id: `${doc.id}-${i}`,
-              content: text,
-              metadata: {
-                ...doc.metadata,  // Copy engram metadata (playground, session_id, etc.)
-                role,             // Add/override role for this specific message
-              },
-              created_at: doc.created_at,
-              collection_ids: doc.collection_ids || [],
-            });
-          }
-          results[conversationId] = messages;
-        } else {
-          results[conversationId] = [];
-        }
-      }
-    }
-
-    // Ensure all requested conversation IDs are present in results (even if empty)
-    for (const conversationId of conversationIdOrIds) {
-      if (!(conversationId in results)) {
-        results[conversationId] = [];
-      }
-    }
-
-    return results;
   }
 
   /** Update a collection */
@@ -835,19 +689,6 @@ export class Nebula {
     }
   }
 
-  /** Delete a conversation and all its messages */
-  async deleteConversation(conversationId: string): Promise<boolean> {
-    try {
-      await this._makeRequest('DELETE', `/v1/memories/${conversationId}`);
-      return true;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new NebulaClientException(`Unknown error: ${String(error)}`);
-    }
-  }
-
   /**
    * Get all memories from specific collections with optional metadata filtering
    *
@@ -1035,40 +876,35 @@ export class Nebula {
    */
   async search(options: {
     query: string;
-    collection_ids: string | string[];
+    collection_ids?: string | string[];
     limit?: number;
     filters?: Record<string, any>;
-    search_mode?: 'fast' | 'super';
     searchSettings?: Record<string, any>;
   }): Promise<MemoryRecall> {
-    const collectionIds = Array.isArray(options.collection_ids) ? options.collection_ids : [options.collection_ids];
-    // Filter out empty/invalid collection IDs
-    const validCollectionIds = collectionIds.filter(id => id && id.trim() !== '');
-    if (!validCollectionIds.length) {
-      throw new NebulaClientException('collection_ids must be provided to search().');
-    }
-
-    const limit = options.limit ?? 10;
-    const searchMode = options.search_mode ?? 'super';
-
-    // Build effective search settings with simplified structure
-    const effectiveSettings: Record<string, any> = {
-      ...options.searchSettings
-    };
-    effectiveSettings.limit = limit;
-
-    const userFilters = { ...effectiveSettings.filters } as Record<string, any>;
-    if (options.filters) {
-      Object.assign(userFilters, options.filters);
-    }
-    userFilters.collection_ids = { $overlap: validCollectionIds };
-    effectiveSettings.filters = userFilters;
-
-    const data = {
+    // Build request data - pass params directly to API (no wrapping needed)
+    const data: Record<string, any> = {
       query: options.query,
-      search_mode: searchMode,
-      search_settings: effectiveSettings,
+      limit: options.limit ?? 10,
     };
+
+    // Add collection_ids if provided
+    if (options.collection_ids) {
+      const collectionIds = Array.isArray(options.collection_ids) ? options.collection_ids : [options.collection_ids];
+      const validCollectionIds = collectionIds.filter(id => id && id.trim() !== '');
+      if (validCollectionIds.length) {
+        data.collection_ids = validCollectionIds;
+      }
+    }
+
+    // Add filters if provided
+    if (options.filters) {
+      data.filters = options.filters;
+    }
+
+    // Add advanced search settings if provided
+    if (options.searchSettings) {
+      data.search_settings = options.searchSettings;
+    }
 
     const response = await this._makeRequest('POST', '/v1/retrieval/search', data);
 
@@ -1084,42 +920,6 @@ export class Nebula {
     };
 
     return memoryRecall;
-  }
-
-  /**
-   * Legacy wrapper: store a two-message conversation turn as a document
-   */
-  async storeConversation(
-    userMessage: string,
-    assistantMessage: string,
-    collectionId: string,
-    sessionId: string
-  ): Promise<MemoryResponse> {
-    const content = `User: ${String(userMessage || '')}\nAssistant: ${String(assistantMessage || '')}`;
-    const metadata = { session_id: sessionId, content_type: 'conversation' } as Record<string, any>;
-    return this.store(content, collectionId, metadata);
-  }
-
-  /**
-   * Legacy wrapper: search conversations optionally scoped by session
-   * Now returns MemoryRecall with hierarchical memory structure
-   */
-  async searchConversations(
-    query: string,
-    collectionId: string,
-    sessionId?: string,
-    includeAllSessions: boolean = true
-  ): Promise<MemoryRecall> {
-    const filters: Record<string, any> = { 'metadata.content_type': 'conversation' };
-    if (sessionId && !includeAllSessions) {
-      (filters as any)['metadata.session_id'] = sessionId;
-    }
-    return this.search({
-      query,
-      collection_ids: [collectionId],
-      limit: 10,
-      filters
-    });
   }
 
   // Health Check

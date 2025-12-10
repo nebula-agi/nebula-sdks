@@ -101,11 +101,12 @@ client.append_memory(
 )
 
 # Retrieve conversation messages
-messages = client.get_conversation_messages(conversation.id)
+conversation_memory = client.get_memory(conversation.id)
+messages = conversation_memory.chunks or []
 
 for msg in messages:
-    role = msg.metadata.get("source_role", msg.metadata.get("role"))
-    print(f"[{role.upper()}] {msg.content}")
+    role = msg.role or msg.metadata.get("source_role") or msg.metadata.get("role")
+    print(f"[{(role or 'unknown').upper()}] {msg.content}")
     print(f"Created: {msg.created_at}")
 ```
 
@@ -135,7 +136,8 @@ async def main():
     )
 
     # Retrieve messages
-    messages = await client.get_conversation_messages(conversation.id)
+    conversation_memory = await client.get_memory(conversation.id)
+    messages = conversation_memory.chunks or []
     print(f"Retrieved {len(messages)} messages")
 
 asyncio.run(main())
@@ -338,7 +340,7 @@ Chunks (Internal)
 SDK Operations
 ├── Create: store_memory(memory_type=...)
 ├── Append: append_memory(memory_id=..., messages=... or raw_text=...)
-├── Retrieve: retrieve(...) or get_conversation_messages(...)
+├── Retrieve: retrieve(...) or get_memory(...)
 └── Delete: delete(memory_id=...)
 
 Backend Endpoints (abstracted by SDK)
