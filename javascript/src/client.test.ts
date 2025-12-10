@@ -262,47 +262,61 @@ describe('Nebula', () => {
     });
   });
 
-  describe('Conversation Operations', () => {
+  describe('Conversation via memories', () => {
     it('should store conversation with correct format', async () => {
       const mockResponse = {
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          results: { engram_id: 'conv-123' }
-        })
+        json: () =>
+          Promise.resolve({
+            results: { id: 'conv-123' }
+          })
       };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const result = await client.storeConversation(
-        'User question',
-        'Assistant answer',
-        'collection-123',
-        'session-456'
-      );
+      const conversationId = await client.storeMemory({
+        collection_id: 'collection-123',
+        content: 'User question',
+        role: 'user',
+        metadata: { content_type: 'conversation', session_id: 'session-456' }
+      });
 
-      expect(result.content).toContain('User: User question');
-      expect(result.content).toContain('Assistant: Assistant answer');
-      expect(result.metadata.session_id).toBe('session-456');
+      expect(conversationId).toBe('conv-123');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/v1/memories'),
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"engram_type":"conversation"')
+        })
+      );
     });
 
-    it('should search conversations with filters', async () => {
+    it('should search conversations using filters', async () => {
       const mockResponse = {
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          results: {
-            graph_search_results: []
-          }
-        })
+        json: () =>
+          Promise.resolve({
+            results: {
+              graph_search_results: []
+            }
+          })
       };
       (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      await client.searchConversations('test', 'collection-123', 'session-456', false);
+      await client.search({
+        query: 'test',
+        collection_ids: ['collection-123'],
+        filters: {
+          'metadata.content_type': { $eq: 'conversation' },
+          'metadata.session_id': { $eq: 'session-456' }
+        }
+      });
 
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/v1/retrieval/search'),
         expect.objectContaining({
-          body: expect.stringContaining('"metadata.session_id":"session-456"')
+          body: expect.stringContaining('"metadata.content_type":{"$eq":"conversation"}')
         })
       );
     });
