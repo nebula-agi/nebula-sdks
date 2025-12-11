@@ -1081,7 +1081,7 @@ class Nebula:
             search_settings: Optional advanced search settings including:
                 - semantic_weight: Weight for semantic search (0-1, default: 0.8)
                 - fulltext_weight: Weight for fulltext search (0-1, default: 0.2)
-                - include_metadatas: Whether to include metadata in results (default: True)
+                - include_metadata: Whether to include metadata in results (default: False)
                 - include_scores: Whether to include scores in results (default: True)
 
         Filter Examples:
