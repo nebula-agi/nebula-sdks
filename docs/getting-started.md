@@ -59,7 +59,7 @@ export NEBULA_API_KEY=your_api_key_here
 3. **Create your first collection**
 
 ```python
-from nebula import NebulaClient
+from nebula import Nebula
 import os
 
 client = Nebula(api_key=os.getenv('NEBULA_API_KEY'))

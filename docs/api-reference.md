@@ -30,7 +30,7 @@ const client = new Nebula({
 ### Python
 
 ```python
-from nebula import NebulaClient
+from nebula import Nebula
 
 client = Nebula(
     api_key='your-api-key',        # Required
