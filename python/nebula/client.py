@@ -657,14 +657,9 @@ class Nebula:
             )
 
         # Handle document/text memory
-        content_text = str(memory.content or "")
-        if not content_text:
-            raise NebulaClientException("Content is required for document memories")
-
-        content_hash = hashlib.sha256(content_text.encode("utf-8")).hexdigest()
         doc_metadata = dict(memory.metadata or {})
         doc_metadata["memory_type"] = "memory"
-        doc_metadata["content_hash"] = content_hash
+        
         # If authority provided for document, persist in metadata for chunk ranking
         if memory.authority is not None:
             try:
@@ -675,13 +670,45 @@ class Nebula:
                 pass
 
         # Use JSON format matching the backend CreateMemoryRequest model
-        payload = {
+        payload: dict[str, Any] = {
             "collection_ref": memory.collection_id,
             "engram_type": "document",
-            "raw_text": content_text,
             "metadata": doc_metadata,
             "ingestion_mode": "fast",
         }
+        
+        # Check if content is multimodal (list of content parts)
+        if isinstance(memory.content, list):
+            # Convert content parts to API format
+            content_parts = []
+            for part in memory.content:
+                if hasattr(part, "__dataclass_fields__"):
+                    # Dataclass - convert to dict
+                    part_dict = {
+                        k: getattr(part, k) 
+                        for k in part.__dataclass_fields__.keys()
+                    }
+                    content_parts.append(part_dict)
+                elif isinstance(part, dict):
+                    content_parts.append(part)
+                else:
+                    # Assume it's text
+                    content_parts.append({"type": "text", "text": str(part)})
+            
+            payload["content_parts"] = content_parts
+            
+            # Add vision model if specified
+            if memory.vision_model:
+                payload["vision_model"] = memory.vision_model
+        else:
+            # Plain text content
+            content_text = str(memory.content or "")
+            if not content_text:
+                raise NebulaClientException("Content is required for document memories")
+            
+            content_hash = hashlib.sha256(content_text.encode("utf-8")).hexdigest()
+            doc_metadata["content_hash"] = content_hash
+            payload["raw_text"] = content_text
 
         response = self._make_request("POST", "/v1/memories", json_data=payload)
 
@@ -1256,3 +1283,65 @@ class Nebula:
             Health status information
         """
         return self._make_request("GET", "/v1/health")
+
+    def get_upload_url(
+        self,
+        filename: str,
+        content_type: str,
+        file_size: int,
+    ) -> dict[str, Any]:
+        """
+        Get a presigned URL for uploading large files directly to S3.
+        
+        Use this for files larger than 5MB that cannot be sent inline as base64.
+        After uploading, reference the file in memory creation using S3FileRef.
+        
+        Args:
+            filename: Original filename (e.g., "image.jpg")
+            content_type: MIME type (e.g., "image/jpeg", "application/pdf")
+            file_size: File size in bytes (max 100MB)
+            
+        Returns:
+            dict with:
+            - upload_url: Presigned URL for PUT request (expires in 1 hour)
+            - s3_key: The S3 key to use in S3FileRef
+            - bucket: S3 bucket name
+            - expires_in: Seconds until URL expires
+            - max_size: Maximum allowed file size
+            
+        Example:
+            # Get upload URL
+            result = client.get_upload_url(
+                filename="large_image.jpg",
+                content_type="image/jpeg",
+                file_size=10_000_000  # 10MB
+            )
+            
+            # Upload file directly to S3
+            import requests
+            with open("large_image.jpg", "rb") as f:
+                requests.put(
+                    result["upload_url"],
+                    data=f,
+                    headers={"Content-Type": "image/jpeg"}
+                )
+            
+            # Use s3_key in memory creation
+            from nebula import Memory, S3FileRef
+            client.store_memory(Memory(
+                collection_id="my-collection",
+                content=[S3FileRef(s3_key=result["s3_key"], media_type="image/jpeg")]
+            ))
+        """
+        response = self._make_request(
+            "POST",
+            "/v1/upload-url",
+            params={
+                "filename": filename,
+                "content_type": content_type,
+                "file_size": file_size,
+            }
+        )
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response

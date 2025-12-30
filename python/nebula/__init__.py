@@ -19,14 +19,17 @@ from .models import (
     AgentResponse,
     Chunk,
     Collection,
+    ImageContent,
     Memory,
     MemoryRecall,
     MemoryResponse,
     RetrievalType,
+    S3FileRef,
     SearchResult,
+    TextContent,
 )
 
-__version__ = "2.1.4"
+__version__ = "2.1.5"
 __all__ = [
     "Nebula",
     "AsyncNebula",
@@ -44,4 +47,8 @@ __all__ = [
     "AgentResponse",
     "Chunk",
     "RetrievalType",
+    # Multimodal content types
+    "ImageContent",
+    "S3FileRef",
+    "TextContent",
 ]

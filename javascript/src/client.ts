@@ -332,8 +332,14 @@ export class Nebula {
 
       // If content and role provided, include as initial message
       if (mem.content && mem.role) {
+        // Check if content is multimodal (array of content parts)
+        const isMultimodal = Array.isArray(mem.content) && 
+          mem.content.length > 0 && 
+          typeof mem.content[0] === 'object' && 
+          'type' in mem.content[0];
+        
         messages.push({
-          content: String(mem.content),
+          content: isMultimodal ? mem.content : String(mem.content),
           role: mem.role,
           metadata: mem.metadata || {},
           ...(typeof (mem as any).authority === 'number' ? { authority: Number((mem as any).authority) } : {})
@@ -345,13 +351,18 @@ export class Nebula {
         throw new NebulaClientException('Cannot create conversation without messages. Provide content and role.');
       }
 
-      const data = {
+      const data: Record<string, any> = {
         engram_type: 'conversation',
         collection_ref: mem.collection_id,
         name: name || 'Conversation',
         messages: messages,
         metadata: mem.metadata || {},
       };
+      
+      // Add vision model if specified
+      if ((mem as any).vision_model) {
+        data.vision_model = (mem as any).vision_model;
+      }
 
       const response = await this._makeRequest('POST', '/v1/memories', data);
 
@@ -366,15 +377,15 @@ export class Nebula {
     }
 
     // Handle document/text memory
-    const contentText = String(mem.content || '');
-    if (!contentText) {
-      throw new NebulaClientException('Content is required for document memories');
-    }
-
-    const contentHash = await this._sha256(contentText);
+    // Check if content is multimodal (array of content parts)
+    const isMultimodal = Array.isArray(mem.content) && 
+      mem.content.length > 0 && 
+      typeof mem.content[0] === 'object' && 
+      'type' in mem.content[0];
+    
     const docMetadata = { ...mem.metadata } as Record<string, any>;
     docMetadata.memory_type = 'memory';
-    docMetadata.content_hash = contentHash;
+    
     // If authority provided for document, persist in metadata for ranking
     if (typeof (mem as any).authority === 'number') {
       const v = Number((mem as any).authority);
@@ -382,6 +393,39 @@ export class Nebula {
         (docMetadata as any).authority = v;
       }
     }
+    
+    if (isMultimodal) {
+      // Use JSON format for multimodal content
+      const data: Record<string, any> = {
+        engram_type: 'document',
+        collection_ref: mem.collection_id,
+        content_parts: mem.content,
+        metadata: docMetadata,
+        ingestion_mode: 'fast',
+      };
+      
+      // Add vision model if specified
+      if ((mem as any).vision_model) {
+        data.vision_model = (mem as any).vision_model;
+      }
+      
+      const response = await this._makeRequest('POST', '/v1/memories', data);
+      
+      if (response.results) {
+        if (response.results.engram_id) return String(response.results.engram_id);
+        if (response.results.id) return String(response.results.id);
+      }
+      return '';
+    }
+    
+    // Plain text content
+    const contentText = String(mem.content || '');
+    if (!contentText) {
+      throw new NebulaClientException('Content is required for document memories');
+    }
+
+    const contentHash = await this._sha256(contentText);
+    docMetadata.content_hash = contentHash;
 
     const data = {
       metadata: JSON.stringify(docMetadata),

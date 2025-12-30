@@ -35,13 +35,35 @@ export interface MemoryResponse {
   updated_at?: string;
 }
 
+// Multimodal content part types
+export interface TextContentPart {
+  type: 'text';
+  text: string;
+}
+
+export interface ImageContentPart {
+  type: 'image';
+  data: string;  // Base64 encoded image data
+  media_type: string;  // MIME type (e.g., 'image/jpeg')
+}
+
+export interface S3FileReferencePart {
+  type: 's3_file';
+  s3_key: string;
+  media_type: string;
+  file_size: number;
+}
+
+export type MultimodalContentPart = TextContentPart | ImageContentPart | S3FileReferencePart;
+
 export interface Memory {
   collection_id: string;
-  content: string | string[] | Array<{content: string; role: string; metadata?: Record<string, any>; authority?: number}>;
+  content: string | string[] | MultimodalContentPart[] | Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, any>; authority?: number}>;
   role?: string; // user, assistant, or custom
   memory_id?: string; // ID of existing memory to append to
   metadata: Record<string, any>;
   authority?: number; // Optional authority score (0.0 - 1.0)
+  vision_model?: string; // Optional vision model for multimodal processing
 }
 
 export interface Collection {

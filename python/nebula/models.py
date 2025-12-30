@@ -125,6 +125,37 @@ class MemoryResponse:
 
 
 @dataclass
+class ImageContent:
+    """Image content for multimodal messages."""
+    data: str  # Base64 encoded image data
+    media_type: str = "image/jpeg"  # MIME type
+    filename: str | None = None
+    type: str = "image"
+
+
+@dataclass
+class S3FileRef:
+    """Reference to a file uploaded to S3 (for large files >5MB)."""
+    s3_key: str  # S3 object key
+    bucket: str | None = None  # Uses default bucket if not specified
+    media_type: str = "application/octet-stream"
+    filename: str | None = None
+    size_bytes: int | None = None
+    type: str = "s3_ref"
+
+
+@dataclass  
+class TextContent:
+    """Text content block for multimodal messages."""
+    text: str
+    type: str = "text"
+
+
+# Union type for content parts
+ContentPart = ImageContent | S3FileRef | TextContent | dict[str, Any]
+
+
+@dataclass
 class Memory:
     """Unified input model for writing memories via store_memory/store_memories.
 
@@ -136,14 +167,40 @@ class Memory:
       - For conversations: appends to conversation
       - For documents: appends content to document
       - Returns the same memory_id
+    
+    Multimodal Support:
+    - content can be a string (text-only) or list of ContentPart objects
+    - For images, use ImageContent or S3FileRef
+    - Images are processed with a vision model (Qwen3-VL by default)
+    - For files >5MB, upload to S3 first using client.get_upload_url()
+    
+    Examples:
+        # Text-only memory
+        Memory(collection_id="...", content="Hello world")
+        
+        # Multimodal with image (base64)
+        Memory(
+            collection_id="...",
+            content=[
+                TextContent(text="What's in this image?"),
+                ImageContent(data="base64...", media_type="image/jpeg")
+            ]
+        )
+        
+        # Large file via S3
+        Memory(
+            collection_id="...",
+            content=[S3FileRef(s3_key="multimodal/abc/image.jpg")]
+        )
     """
 
     collection_id: str
-    content: str
+    content: str | list[ContentPart]
     role: str | None = None  # user, assistant, or custom
     memory_id: str | None = None  # ID of existing memory to append to
     metadata: dict[str, Any] = field(default_factory=dict)
     authority: float | None = None  # Optional authority score (0.0 - 1.0)
+    vision_model: str | None = None  # Vision model for image processing (default: modal/qwen3-vl-thinking)
 
 
 @dataclass
