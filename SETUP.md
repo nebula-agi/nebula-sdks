@@ -17,7 +17,7 @@ This guide walks you through setting up the Nebula SDKs monorepo on GitHub and c
 ### Option B: Via GitHub CLI
 
 ```bash
-cd /Users/phytal/Projects/nebula/nebula-sdks
+cd nebula-sdks
 gh repo create nebula-agi/nebula-sdks --public --source=. --remote=origin --push
 ```
 
@@ -26,7 +26,7 @@ gh repo create nebula-agi/nebula-sdks --public --source=. --remote=origin --push
 If you created via web interface:
 
 ```bash
-cd /Users/phytal/Projects/nebula/nebula-sdks
+cd nebula-sdks
 
 # Add the remote
 git remote add origin https://github.com/nebula-agi/nebula-sdks.git
@@ -174,14 +174,14 @@ If you want to develop both the backend and SDKs simultaneously:
 
 ```bash
 # JavaScript - use npm link
-cd /Users/phytal/Projects/nebula/nebula-sdks/javascript
+cd nebula-sdks/javascript
 npm link
 
-cd /Users/phytal/Projects/nebula/backend
+cd ../../backend
 npm link @nebula-ai/sdk
 
 # Python - use editable install
-pip install -e /Users/phytal/Projects/nebula/nebula-sdks/python
+pip install -e nebula-sdks/python
 ```
 
 ### Add Deprecation Notice to Old SDK Locations
