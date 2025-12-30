@@ -15,6 +15,7 @@ import {
   NebulaRateLimitException,
   NebulaValidationException,
   NebulaNotFoundException,
+  MultimodalContentPart,
 } from './types';
 
 /**
@@ -532,25 +533,51 @@ export class Nebula {
     for (const [key, group] of Object.entries(convGroups)) {
       const collectionId = group[0].collection_id;
       let convId: string;
+      
+      // Check if any message has multimodal content
+      const hasMultimodalContent = group.some((m) => 
+        Array.isArray(m.content) && 
+        m.content.length > 0 && 
+        typeof m.content[0] === 'object' && 
+        'type' in m.content[0]
+      );
 
       // Prepare messages for the conversation
-      const messages = group.map((m) => ({
-        content: String(m.content || ''),
-        role: m.role!,
-        metadata: m.metadata || {},
-        ...(typeof (m as any).authority === 'number' ? { authority: Number((m as any).authority) } : {})
-      }));
+      const messages = group.map((m) => {
+        // Check if this message has multimodal content
+        const isMultimodal = Array.isArray(m.content) && 
+          m.content.length > 0 && 
+          typeof m.content[0] === 'object' && 
+          'type' in m.content[0];
+        
+        return {
+          // Preserve multimodal content as-is, only stringify plain text
+          content: isMultimodal ? m.content : String(m.content || ''),
+          role: m.role!,
+          metadata: m.metadata || {},
+          ...(typeof (m as any).authority === 'number' ? { authority: Number((m as any).authority) } : {})
+        };
+      });
 
       // Create conversation if needed
       if (key.startsWith('__new__::')) {
         // Create conversation with initial messages using JSON body
-        const data = {
+        const data: Record<string, any> = {
           engram_type: 'conversation',
           collection_ref: collectionId,
           name: 'Conversation',
           messages: messages,
           metadata: {},
         };
+        
+        // Add vision_model if any message has multimodal content
+        if (hasMultimodalContent) {
+          // Check if any memory in group has vision_model specified
+          const visionModel = group.find((m) => (m as any).vision_model)?.vision_model as string | undefined;
+          if (visionModel) {
+            data.vision_model = visionModel;
+          }
+        }
 
         const response = await this._makeRequest('POST', '/v1/memories', data);
 
@@ -565,9 +592,11 @@ export class Nebula {
       } else {
         // Append to existing conversation
         convId = key;
+        // Cast messages to the expected type for _appendToMemory
+        // The method will handle this as an array of message objects
         const appendMem: Memory = {
           collection_id: collectionId,
-          content: messages,
+          content: messages as Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, any>; authority?: number}>,
           memory_id: convId,
           metadata: {},
         };

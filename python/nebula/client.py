@@ -620,19 +620,28 @@ class Nebula:
             # Use JSON format matching the backend CreateMemoryRequest model
             doc_metadata = dict(memory.metadata or {})
 
+            # Check if content is multimodal (list of content parts)
+            is_multimodal = (
+                isinstance(memory.content, list) and
+                len(memory.content) > 0 and
+                isinstance(memory.content[0], dict) and
+                "type" in memory.content[0]
+            )
+
             # Build messages array if content and role are provided
             messages = []
             if memory.content and memory.role:
                 msg: dict[str, Any] = {
                     "role": memory.role,
-                    "content": str(memory.content),
+                    # Preserve multimodal content as-is, only stringify plain text
+                    "content": memory.content if is_multimodal else str(memory.content),
                     "metadata": memory.metadata or {},
                 }
                 if memory.authority is not None:
                     msg["authority"] = float(memory.authority)
                 messages.append(msg)
 
-            payload = {
+            payload: dict[str, Any] = {
                 "collection_ref": memory.collection_id,
                 "engram_type": "conversation",
                 "messages": messages,
@@ -640,6 +649,10 @@ class Nebula:
             }
             if name:
                 payload["name"] = name
+            
+            # Add vision model if specified and content is multimodal
+            if is_multimodal and memory.vision_model:
+                payload["vision_model"] = memory.vision_model
 
             response = self._make_request("POST", "/v1/memories", json_data=payload)
 
@@ -796,6 +809,15 @@ class Nebula:
         # Process conversation groups using new unified API
         for key, group in conv_groups.items():
             collection_id = group[0].collection_id
+            
+            # Check if any message has multimodal content
+            has_multimodal_content = any(
+                isinstance(m.content, list) and
+                len(m.content) > 0 and
+                isinstance(m.content[0], dict) and
+                "type" in m.content[0]
+                for m in group
+            )
 
             # Create conversation if needed
             if key.startswith("__new__::"):
@@ -813,9 +835,17 @@ class Nebula:
             # Append messages using new unified API
             messages = []
             for m in group:
-                text = str(m.content or "")
+                # Check if this message has multimodal content
+                is_multimodal = (
+                    isinstance(m.content, list) and
+                    len(m.content) > 0 and
+                    isinstance(m.content[0], dict) and
+                    "type" in m.content[0]
+                )
+                # Preserve multimodal content as-is, only stringify plain text
+                content = m.content if is_multimodal else str(m.content or "")
                 msg_meta = dict(m.metadata or {})
-                messages.append({"content": text, "role": m.role, "metadata": msg_meta})
+                messages.append({"content": content, "role": m.role, "metadata": msg_meta})
 
             append_mem = Memory(
                 collection_id=collection_id,
