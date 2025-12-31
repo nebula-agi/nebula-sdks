@@ -1314,6 +1314,97 @@ class Nebula:
         """
         return self._make_request("GET", "/v1/health")
 
+    def process_multimodal_content(
+        self,
+        content_parts: list[dict[str, Any]],
+        vision_model: str | None = None,
+        audio_model: str | None = None,
+        fast_mode: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Process multimodal content (audio, documents, images) and return extracted text.
+        
+        This method processes files on-the-fly without saving to memory. Useful for:
+        - Pre-processing files before sending to an LLM in chat
+        - Extracting text from PDFs/documents
+        - Transcribing audio files
+        - Analyzing images with vision models
+        
+        Args:
+            content_parts: List of content part dicts with keys:
+                - type: 'image' | 'audio' | 'document'
+                - data: Base64 encoded file data
+                - media_type: MIME type (e.g., 'application/pdf', 'audio/mp3')
+                - filename: Optional filename
+            vision_model: Optional vision model for images/documents (default: modal/qwen3-vl-thinking)
+            audio_model: Optional audio transcription model (default: whisper-1)
+            fast_mode: Use fast text extraction for PDFs (pypdf) instead of VLM OCR (default: True)
+                       Fast mode is much faster but less accurate for scanned/image PDFs.
+            
+        Returns:
+            dict with:
+            - extracted_text: The processed/extracted text content
+            - content_parts_count: Number of parts processed
+            - vision_model: Vision model used (if any)
+            - audio_model: Audio model used (if any)
+            - fast_mode: Whether fast mode was used
+            
+        Example:
+            import base64
+            from nebula import Nebula
+            
+            client = Nebula(api_key="your-key")
+            
+            # Process a PDF document
+            with open("report.pdf", "rb") as f:
+                pdf_data = base64.b64encode(f.read()).decode()
+            
+            result = client.process_multimodal_content([
+                {
+                    "type": "document",
+                    "data": pdf_data,
+                    "media_type": "application/pdf",
+                    "filename": "report.pdf"
+                }
+            ])
+            print(result["extracted_text"])
+            
+            # Transcribe audio
+            with open("recording.mp3", "rb") as f:
+                audio_data = base64.b64encode(f.read()).decode()
+            
+            result = client.process_multimodal_content([
+                {
+                    "type": "audio",
+                    "data": audio_data,
+                    "media_type": "audio/mp3",
+                    "filename": "recording.mp3"
+                }
+            ])
+            print(result["extracted_text"])
+            
+            # Use VLM OCR for scanned PDFs (slower but more accurate)
+            result = client.process_multimodal_content(
+                content_parts=[{"type": "document", "data": pdf_data, "media_type": "application/pdf"}],
+                fast_mode=False  # Use VLM OCR
+            )
+        """
+        data: dict[str, Any] = {
+            "content_parts": content_parts,
+            "fast_mode": fast_mode,
+        }
+        
+        if vision_model:
+            data["vision_model"] = vision_model
+        if audio_model:
+            data["audio_model"] = audio_model
+        
+        response = self._make_request("POST", "/v1/multimodal/process", json_data=data)
+        
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
+
     def get_upload_url(
         self,
         filename: str,

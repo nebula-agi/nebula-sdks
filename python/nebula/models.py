@@ -128,9 +128,36 @@ class MemoryResponse:
 class ImageContent:
     """Image content for multimodal messages."""
     data: str  # Base64 encoded image data
-    media_type: str = "image/jpeg"  # MIME type
+    media_type: str = "image/jpeg"  # MIME type (e.g., 'image/jpeg', 'image/png')
     filename: str | None = None
     type: str = "image"
+
+
+@dataclass
+class AudioContent:
+    """Audio content for transcription.
+    
+    Supported formats: MP3, WAV, M4A, OGG, FLAC, AAC, WebM
+    Transcribed using Whisper via LiteLLM.
+    """
+    data: str  # Base64 encoded audio data
+    media_type: str = "audio/mp3"  # MIME type (e.g., 'audio/mp3', 'audio/wav')
+    filename: str | None = None
+    duration_seconds: float | None = None
+    type: str = "audio"
+
+
+@dataclass
+class DocumentContent:
+    """Document content for text extraction.
+    
+    Supported formats: PDF, DOC, DOCX, TXT, CSV, RTF
+    PDFs are processed with VLM OCR or pypdf depending on fast_mode setting.
+    """
+    data: str  # Base64 encoded document data
+    media_type: str = "application/pdf"  # MIME type
+    filename: str | None = None
+    type: str = "document"
 
 
 @dataclass
@@ -152,7 +179,7 @@ class TextContent:
 
 
 # Union type for content parts
-ContentPart = ImageContent | S3FileRef | TextContent | dict[str, Any]
+ContentPart = ImageContent | AudioContent | DocumentContent | S3FileRef | TextContent | dict[str, Any]
 
 
 @dataclass

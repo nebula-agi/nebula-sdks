@@ -7,6 +7,7 @@ Complete API reference for both JavaScript and Python SDKs.
 - [Client Initialization](#client-initialization)
 - [Collections](#collections)
 - [Memories](#memories)
+- [Multimodal Content](#multimodal-content)
 - [Search](#search)
 - [Graph Queries](#graph-queries)
 - [Error Handling](#error-handling)
@@ -225,6 +226,93 @@ await client.deleteMemory(memoryId: string);
 ```python
 client.delete_memory(memory_id: str)
 ```
+
+---
+
+## Multimodal Content
+
+Nebula supports storing and processing images, audio, and documents.
+
+> **Full Guide**: See [Multimodal Content Guide](./multimodal-guide.md) for comprehensive examples.
+
+### Content Part Types
+
+```typescript
+// Image
+{ type: 'image', data: 'base64...', media_type: 'image/jpeg', filename?: string }
+
+// Audio  
+{ type: 'audio', data: 'base64...', media_type: 'audio/mp3', filename?: string }
+
+// Document
+{ type: 'document', data: 'base64...', media_type: 'application/pdf', filename?: string }
+
+// S3 Reference (for large files)
+{ type: 's3_ref', s3_key: 'path/to/file', media_type: string }
+```
+
+### Store Multimodal Memory
+
+**JavaScript:**
+```typescript
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [
+    { type: 'text', text: 'Description of the image' },
+    { type: 'image', data: imageBase64, media_type: 'image/jpeg' }
+  ],
+  metadata: {}
+});
+```
+
+**Python:**
+```python
+from nebula import Memory, ImageContent
+
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[
+        {'type': 'text', 'text': 'Description of the image'},
+        ImageContent(data=image_base64, media_type='image/jpeg')
+    ]
+))
+```
+
+### Process Multimodal Content
+
+Extract text from files without saving to memory.
+
+**JavaScript:**
+```typescript
+const result = await client.processMultimodalContent({
+  contentParts: [
+    { type: 'document', data: pdfBase64, media_type: 'application/pdf' }
+  ],
+  fastMode: true  // Use fast pypdf extraction (default)
+});
+
+console.log(result.extracted_text);
+```
+
+**Python:**
+```python
+result = client.process_multimodal_content([
+    {'type': 'document', 'data': pdf_base64, 'media_type': 'application/pdf'}
+])
+
+print(result['extracted_text'])
+```
+
+**Parameters:**
+- `contentParts` / `content_parts`: Array of content parts to process
+- `visionModel` / `vision_model` (optional): Vision model for images/PDFs
+- `audioModel` / `audio_model` (optional): Audio transcription model
+- `fastMode` / `fast_mode` (boolean, default: true): Use fast text extraction for PDFs
+
+**Returns:**
+- `extracted_text`: The processed text content
+- `content_parts_count`: Number of parts processed
+- `fast_mode`: Whether fast mode was used
 
 ---
 

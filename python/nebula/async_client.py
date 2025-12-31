@@ -859,3 +859,48 @@ class AsyncNebula:
 
     async def health_check(self) -> dict[str, Any]:
         return await self._make_request_async("GET", "/v1/health")
+
+    async def process_multimodal_content(
+        self,
+        content_parts: list[dict[str, Any]],
+        vision_model: str | None = None,
+        audio_model: str | None = None,
+        fast_mode: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Process multimodal content (audio, documents, images) and return extracted text.
+        
+        This method processes files on-the-fly without saving to memory. Useful for:
+        - Pre-processing files before sending to an LLM in chat
+        - Extracting text from PDFs/documents
+        - Transcribing audio files
+        - Analyzing images with vision models
+        
+        Args:
+            content_parts: List of content part dicts with keys:
+                - type: 'image' | 'audio' | 'document'
+                - data: Base64 encoded file data
+                - media_type: MIME type (e.g., 'application/pdf', 'audio/mp3')
+                - filename: Optional filename
+            vision_model: Optional vision model for images/documents
+            audio_model: Optional audio transcription model
+            fast_mode: Use fast text extraction for PDFs (default: True)
+            
+        Returns:
+            dict with extracted_text, content_parts_count, and model info
+        """
+        data: dict[str, Any] = {
+            "content_parts": content_parts,
+            "fast_mode": fast_mode,
+        }
+        
+        if vision_model:
+            data["vision_model"] = vision_model
+        if audio_model:
+            data["audio_model"] = audio_model
+        
+        response = await self._make_request_async("POST", "/v1/multimodal/process", json_data=data)
+        
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
