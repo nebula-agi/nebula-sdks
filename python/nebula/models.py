@@ -5,7 +5,7 @@ Data models for the Nebula Client SDK
 import base64
 import mimetypes
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -655,7 +655,7 @@ def is_multimodal_content(content: Any) -> bool:
     Returns:
         True if content is multimodal (list of content parts), False otherwise
     """
-    if not isinstance(content, list) or len(content) == 0:
+    if not isinstance(content, list) or not content:
         return False
     
     first_item = content[0]
@@ -678,9 +678,8 @@ def convert_to_content_parts(content: list[ContentPart]) -> list[dict[str, Any]]
     result = []
     for part in content:
         if hasattr(part, "__dataclass_fields__"):
-            # Convert dataclass to dict
-            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
-            result.append(part_dict)
+            # Convert dataclass to dict using asdict for proper handling
+            result.append(asdict(part))
         elif isinstance(part, dict):
             # Already a dict, use as-is
             result.append(part)
