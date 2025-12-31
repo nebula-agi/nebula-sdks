@@ -5,7 +5,7 @@ Data models for the Nebula Client SDK
 import base64
 import mimetypes
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -643,6 +643,50 @@ class TextContent:
 
 # Union type for content parts
 ContentPart = ImageContent | AudioContent | DocumentContent | S3FileRef | TextContent | dict[str, Any]
+
+
+def is_multimodal_content(content: Any) -> bool:
+    """
+    Check if content is in multimodal format (list of content parts).
+    
+    Args:
+        content: Content to check
+        
+    Returns:
+        True if content is multimodal (list of content parts), False otherwise
+    """
+    if not isinstance(content, list) or not content:
+        return False
+    
+    first_item = content[0]
+    # Check if it's a dict with a type field or a dataclass (has __dataclass_fields__)
+    return (isinstance(first_item, dict) and "type" in first_item) or hasattr(first_item, "__dataclass_fields__")
+
+
+def convert_to_content_parts(content: list[ContentPart]) -> list[dict[str, Any]]:
+    """
+    Convert a list of content parts to API-compatible dictionaries.
+    
+    Handles both dataclass instances (ImageContent, AudioContent, etc.) and plain dicts.
+    
+    Args:
+        content: List of content parts (dataclasses or dicts)
+        
+    Returns:
+        List of dictionaries in API format
+    """
+    result = []
+    for part in content:
+        if hasattr(part, "__dataclass_fields__"):
+            # Convert dataclass to dict using asdict for proper handling
+            result.append(asdict(part))
+        elif isinstance(part, dict):
+            # Already a dict, use as-is
+            result.append(part)
+        else:
+            # Fallback: convert to text content
+            result.append({"type": "text", "text": str(part)})
+    return result
 
 
 @dataclass

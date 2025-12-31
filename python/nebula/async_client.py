@@ -24,6 +24,7 @@ from .models import (
     MemoryRecall,
     MemoryResponse,
 )
+from . import models
 
 
 class AsyncNebula:
@@ -381,32 +382,17 @@ class AsyncNebula:
             doc_metadata = dict(memory.metadata or {})
 
             # Check if content is multimodal (list of content parts)
-            is_multimodal = (
-                isinstance(memory.content, list) and
-                len(memory.content) > 0 and
-                (
-                    (isinstance(memory.content[0], dict) and "type" in memory.content[0]) or
-                    hasattr(memory.content[0], "__dataclass_fields__")
-                )
-            )
+            is_multimodal = models.is_multimodal_content(memory.content)
 
             # Build messages array if content and role are provided
             messages = []
             if memory.content and memory.role:
-                # For multimodal, convert content parts to API format
-                if is_multimodal:
-                    content_parts = []
-                    for part in memory.content:
-                        if hasattr(part, "__dataclass_fields__"):
-                            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
-                            content_parts.append(part_dict)
-                        elif isinstance(part, dict):
-                            content_parts.append(part)
-                        else:
-                            content_parts.append({"type": "text", "text": str(part)})
-                    msg_content = content_parts
-                else:
-                    msg_content = str(memory.content)
+                # Convert content to appropriate format
+                msg_content = (
+                    models.convert_to_content_parts(memory.content)
+                    if is_multimodal
+                    else str(memory.content)
+                )
 
                 msg: dict[str, Any] = {
                     "role": memory.role,
@@ -598,29 +584,14 @@ class AsyncNebula:
             messages = []
             for m in group:
                 # Check if this message has multimodal content
-                is_multimodal = (
-                    isinstance(m.content, list) and
-                    len(m.content) > 0 and
-                    (
-                        (isinstance(m.content[0], dict) and "type" in m.content[0]) or
-                        hasattr(m.content[0], "__dataclass_fields__")
-                    )
-                )
+                is_multimodal = models.is_multimodal_content(m.content)
                 
-                # Convert multimodal content to API format
-                if is_multimodal:
-                    content_parts = []
-                    for part in m.content:
-                        if hasattr(part, "__dataclass_fields__"):
-                            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
-                            content_parts.append(part_dict)
-                        elif isinstance(part, dict):
-                            content_parts.append(part)
-                        else:
-                            content_parts.append({"type": "text", "text": str(part)})
-                    content = content_parts
-                else:
-                    content = str(m.content or "")
+                # Convert content to appropriate format
+                content = (
+                    models.convert_to_content_parts(m.content)
+                    if is_multimodal
+                    else str(m.content or "")
+                )
                 
                 msg_meta = dict(m.metadata or {})
                 messages.append({"content": content, "role": m.role, "metadata": msg_meta})
