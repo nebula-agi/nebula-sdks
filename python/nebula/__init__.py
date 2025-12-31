@@ -17,24 +17,16 @@ from .exceptions import (
 )
 from .models import (
     AgentResponse,
-    AudioContent,
     Chunk,
     Collection,
-    DocumentContent,
-    ImageContent,
     Memory,
     MemoryRecall,
     MemoryResponse,
     RetrievalType,
-    S3FileRef,
     SearchResult,
-    TextContent,
-    # Helper functions for loading files
-    load_file,
-    load_url,
 )
 
-__version__ = "2.1.5"
+__version__ = "2.1.4"
 __all__ = [
     "Nebula",
     "AsyncNebula",
@@ -52,13 +44,4 @@ __all__ = [
     "AgentResponse",
     "Chunk",
     "RetrievalType",
-    # Multimodal helpers (recommended - auto-detects file type)
-    "load_file",
-    "load_url",
-    # Multimodal content types (for advanced use)
-    "AudioContent",
-    "DocumentContent",
-    "ImageContent",
-    "S3FileRef",
-    "TextContent",
 ]
