@@ -329,19 +329,23 @@ class AsyncNebula:
         Behavior:
         - If memory_id is absent → creates new memory
         - If memory_id is present → appends to existing memory
+        - Automatically handles multimodal content (images, audio, documents)
 
         Accepts either a `Memory` object or equivalent keyword arguments:
         - collection_id: str (required)
-        - content: str | List[str] | List[Dict] (required)
+        - content: str | List[ContentPart] (required) - can include ImageContent, AudioContent, DocumentContent
         - memory_id: Optional[str] (if provided, appends to existing memory)
         - name: str (optional, used for conversation names)
         - role: Optional[str] (if provided, creates a conversation; otherwise creates a document)
         - metadata: Optional[dict]
+        - vision_model: Optional[str] (for image/document processing)
+        - audio_model: Optional[str] (for audio transcription)
+        - fast_mode: Optional[bool] (False=VLM OCR quality, True=fast pypdf extraction)
 
         Returns: memory_id (for both conversations and documents)
 
         Raises:
-            NebulaNotFoundException: If engram_id is provided but doesn't exist
+            NebulaNotFoundException: If memory_id is provided but doesn't exist
         """
         if memory is None:
             memory = Memory(
@@ -351,6 +355,9 @@ class AsyncNebula:
                 memory_id=kwargs.get("memory_id"),
                 metadata=kwargs.get("metadata", {}),
                 authority=kwargs.get("authority"),
+                vision_model=kwargs.get("vision_model"),
+                audio_model=kwargs.get("audio_model"),
+                fast_mode=kwargs.get("fast_mode"),
             )
         elif isinstance(memory, dict):
             memory = Memory(
@@ -360,9 +367,12 @@ class AsyncNebula:
                 memory_id=memory.get("memory_id"),
                 metadata=memory.get("metadata", {}),
                 authority=memory.get("authority"),
+                vision_model=memory.get("vision_model"),
+                audio_model=memory.get("audio_model"),
+                fast_mode=memory.get("fast_mode"),
             )
 
-        # If engram_id is present, append to existing engram
+        # If memory_id is present, append to existing memory
         if memory.memory_id:
             return await self._append_to_memory(memory.memory_id, memory)
 
@@ -372,89 +382,75 @@ class AsyncNebula:
         # Handle conversation creation
         if memory_type == "conversation":
             doc_metadata = dict(memory.metadata or {})
-            # Use files= to send as multipart/form-data (FastAPI expects this with Form(...))
-            # Note: Parse UUID from string if needed
-            try:
-                from uuid import UUID
 
-                collection_uuid: UUID | str = UUID(memory.collection_id)
-            except (ValueError, TypeError):
-                collection_uuid = memory.collection_id
-
-            files = {
-                "engram_type": (None, "conversation"),
-                "name": (None, name or "Conversation"),
-                "metadata": (None, json.dumps(doc_metadata)),
-                "collection_ids": (None, json.dumps([str(collection_uuid)])),
-            }
-
-            url = f"{self.base_url}/v1/memories"
-            headers = self._build_auth_headers(include_content_type=False)
-            # Debug logging
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.info(f"Creating conversation with files: {files}")
-            response = await self._client.post(url, files=files, headers=headers)
-            logger.info(
-                f"Response status: {response.status_code}, content: {response.text if response.content else 'empty'}"
-            )
-            if response.status_code not in (200, 202):
-                error_data = response.json() if response.content else {}
-                logger.error(f"Failed to create conversation. Error data: {error_data}")
-                raise NebulaException(
-                    error_data.get(
-                        "message",
-                        f"Failed to create conversation: {response.status_code}",
-                    ),
-                    response.status_code,
-                    error_data,
+            # Check if content is multimodal (list of content parts)
+            is_multimodal = (
+                isinstance(memory.content, list) and
+                len(memory.content) > 0 and
+                (
+                    (isinstance(memory.content[0], dict) and "type" in memory.content[0]) or
+                    hasattr(memory.content[0], "__dataclass_fields__")
                 )
-            resp_data = response.json()
-            if isinstance(resp_data, dict) and "results" in resp_data:
-                conv_id = resp_data["results"].get("engram_id") or resp_data[
-                    "results"
-                ].get("id")
-                if not conv_id:
-                    raise NebulaClientException(
-                        "Failed to create conversation: no id returned"
-                    )
-
-                # If content and role provided, append initial message
-                if memory.content and memory.role:
-                    append_memory = Memory(
-                        collection_id=memory.collection_id,
-                        content=[  # type: ignore[arg-type]
-                            {
-                                "content": str(memory.content),
-                                "role": memory.role,
-                                "metadata": memory.metadata,
-                                **(
-                                    {"authority": float(memory.authority)}
-                                    if memory.authority is not None
-                                    else {}
-                                ),
-                            }
-                        ],
-                        memory_id=conv_id,
-                        metadata={},
-                    )
-                    await self._append_to_memory(conv_id, append_memory)
-
-                return str(conv_id)
-            raise NebulaClientException(
-                "Failed to create conversation: invalid response format"
             )
+
+            # Build messages array if content and role are provided
+            messages = []
+            if memory.content and memory.role:
+                # For multimodal, convert content parts to API format
+                if is_multimodal:
+                    content_parts = []
+                    for part in memory.content:
+                        if hasattr(part, "__dataclass_fields__"):
+                            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
+                            content_parts.append(part_dict)
+                        elif isinstance(part, dict):
+                            content_parts.append(part)
+                        else:
+                            content_parts.append({"type": "text", "text": str(part)})
+                    msg_content = content_parts
+                else:
+                    msg_content = str(memory.content)
+
+                msg: dict[str, Any] = {
+                    "role": memory.role,
+                    "content": msg_content,
+                    "metadata": memory.metadata or {},
+                }
+                if memory.authority is not None:
+                    msg["authority"] = float(memory.authority)
+                messages.append(msg)
+
+            payload: dict[str, Any] = {
+                "collection_ref": memory.collection_id,
+                "engram_type": "conversation",
+                "messages": messages,
+                "metadata": doc_metadata,
+            }
+            if name:
+                payload["name"] = name
+
+            # Add multimodal processing options
+            if is_multimodal:
+                if memory.vision_model:
+                    payload["vision_model"] = memory.vision_model
+                if memory.audio_model:
+                    payload["audio_model"] = memory.audio_model
+                if memory.fast_mode is not None:
+                    payload["fast_mode"] = memory.fast_mode
+
+            response = await self._make_request_async("POST", "/v1/memories", json_data=payload)
+
+            if isinstance(response, dict) and "results" in response:
+                conv_id = response["results"].get("id") or response["results"].get("engram_id")
+                if not conv_id:
+                    raise NebulaClientException("Failed to create conversation: no id returned")
+                return str(conv_id)
+            raise NebulaClientException("Failed to create conversation: invalid response format")
 
         # Handle document/text memory
-        content_text = str(memory.content or "")
-        if not content_text:
-            raise NebulaClientException("Content is required for document memories")
-
-        content_hash = hashlib.sha256(content_text.encode("utf-8")).hexdigest()
         doc_metadata = dict(memory.metadata or {})
         doc_metadata["memory_type"] = "memory"
-        doc_metadata["content_hash"] = content_hash
+
         # If authority provided for document, persist in metadata for chunk ranking
         if memory.authority is not None:
             try:
@@ -463,32 +459,53 @@ class AsyncNebula:
                     doc_metadata["authority"] = auth_val
             except Exception:
                 pass
-        # Use files= to send as multipart/form-data (FastAPI expects this with Form(...))
-        files = {
-            "metadata": (None, json.dumps(doc_metadata)),
-            "ingestion_mode": (None, "fast"),
-            "collection_ids": (None, json.dumps([memory.collection_id])),
-            "raw_text": (None, content_text),
+
+        # Use JSON format matching the backend CreateMemoryRequest model
+        payload: dict[str, Any] = {
+            "collection_ref": memory.collection_id,
+            "engram_type": "document",
+            "metadata": doc_metadata,
+            "ingestion_mode": "fast",
         }
 
-        url = f"{self.base_url}/v1/memories"
-        headers = self._build_auth_headers(include_content_type=False)
-        response = await self._client.post(url, files=files, headers=headers)
-        if response.status_code not in (200, 202):
-            error_data = response.json() if response.content else {}
-            raise NebulaException(
-                error_data.get(
-                    "message", f"Failed to create engram: {response.status_code}"
-                ),
-                response.status_code,
-                error_data,
-            )
-        response_data = response.json()
-        if isinstance(response_data, dict) and "results" in response_data:
-            if "engram_id" in response_data["results"]:
-                return str(response_data["results"]["engram_id"])
-            if "id" in response_data["results"]:
-                return str(response_data["results"]["id"])
+        # Check if content is multimodal (list of content parts)
+        if isinstance(memory.content, list):
+            # Convert content parts to API format
+            content_parts = []
+            for part in memory.content:
+                if hasattr(part, "__dataclass_fields__"):
+                    # Dataclass - convert to dict
+                    part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
+                    content_parts.append(part_dict)
+                elif isinstance(part, dict):
+                    content_parts.append(part)
+                else:
+                    # Assume it's text
+                    content_parts.append({"type": "text", "text": str(part)})
+
+            payload["content_parts"] = content_parts
+
+            # Add multimodal processing options
+            if memory.vision_model:
+                payload["vision_model"] = memory.vision_model
+            if memory.audio_model:
+                payload["audio_model"] = memory.audio_model
+            if memory.fast_mode is not None:
+                payload["fast_mode"] = memory.fast_mode
+        else:
+            # Plain text content
+            content_text = str(memory.content or "")
+            if not content_text:
+                raise NebulaClientException("Content is required for document memories")
+            payload["raw_text"] = content_text
+
+        response = await self._make_request_async("POST", "/v1/memories", json_data=payload)
+
+        if isinstance(response, dict) and "results" in response:
+            if "engram_id" in response["results"]:
+                return str(response["results"]["engram_id"])
+            if "id" in response["results"]:
+                return str(response["results"]["id"])
         return ""
 
     async def _append_to_memory(self, memory_id: str, memory: Memory) -> str:
@@ -549,7 +566,8 @@ class AsyncNebula:
 
         All items are processed identically to `store_memory`:
         - Conversations are grouped by conversation memory_id and sent in batches
-        - Text/JSON memories are stored individually with consistent metadata generation
+        - Text/JSON/multimodal memories are stored individually
+        - Multimodal content (images, audio, documents) is automatically processed
 
         Returns: list of memory_ids in the same order as input memories
         """
@@ -567,14 +585,18 @@ class AsyncNebula:
         # Process conversation groups using new unified API
         for key, group in conv_groups.items():
             collection_id = group[0].collection_id
+            
+            # Get multimodal options from first memory that has them
+            vision_model = next((m.vision_model for m in group if m.vision_model), None)
+            audio_model = next((m.audio_model for m in group if m.audio_model), None)
+            fast_mode = next((m.fast_mode for m in group if m.fast_mode is not None), None)
 
             # Create conversation if needed
             if key.startswith("__new__::"):
-                # Pass a placeholder role to trigger conversation creation
                 conv_id = await self.store_memory(
                     collection_id=collection_id,
                     content="",
-                    role="assistant",  # Placeholder role to infer conversation type
+                    role="assistant",
                     name="Conversation",
                 )
             else:
@@ -583,20 +605,52 @@ class AsyncNebula:
             # Append messages using new unified API
             messages = []
             for m in group:
-                text = str(m.content or "")
+                # Check if this message has multimodal content
+                is_multimodal = (
+                    isinstance(m.content, list) and
+                    len(m.content) > 0 and
+                    (
+                        (isinstance(m.content[0], dict) and "type" in m.content[0]) or
+                        hasattr(m.content[0], "__dataclass_fields__")
+                    )
+                )
+                
+                # Convert multimodal content to API format
+                if is_multimodal:
+                    content_parts = []
+                    for part in m.content:
+                        if hasattr(part, "__dataclass_fields__"):
+                            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
+                            content_parts.append(part_dict)
+                        elif isinstance(part, dict):
+                            content_parts.append(part)
+                        else:
+                            content_parts.append({"type": "text", "text": str(part)})
+                    content = content_parts
+                else:
+                    content = str(m.content or "")
+                
                 msg_meta = dict(m.metadata or {})
-                messages.append({"content": text, "role": m.role, "metadata": msg_meta})
+                messages.append({"content": content, "role": m.role, "metadata": msg_meta})
 
-            append_mem = Memory(
-                collection_id=collection_id,
-                content=messages,  # type: ignore[arg-type]
-                memory_id=conv_id,
-                metadata={},
+            # Build append payload with multimodal options
+            payload: dict[str, Any] = {
+                "collection_id": collection_id,
+                "messages": messages,
+            }
+            if vision_model:
+                payload["vision_model"] = vision_model
+            if audio_model:
+                payload["audio_model"] = audio_model
+            if fast_mode is not None:
+                payload["fast_mode"] = fast_mode
+
+            await self._make_request_async(
+                "POST", f"/v1/memories/{conv_id}/append", json_data=payload
             )
-            await self._append_to_memory(conv_id, append_mem)
             results.extend([str(conv_id)] * len(group))
 
-        # Process others (text/json) individually
+        # Process others (text/json/multimodal) individually - store_memory handles multimodal
         for m in others:
             results.append(await self.store_memory(m))
         return results
@@ -865,7 +919,7 @@ class AsyncNebula:
         content_parts: list[dict[str, Any]],
         vision_model: str | None = None,
         audio_model: str | None = None,
-        fast_mode: bool = True,
+        fast_mode: bool = False,
     ) -> dict[str, Any]:
         """
         Process multimodal content (audio, documents, images) and return extracted text.

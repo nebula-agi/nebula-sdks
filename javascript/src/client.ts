@@ -367,6 +367,14 @@ export class Nebula {
       if ((mem as any).vision_model) {
         data.vision_model = (mem as any).vision_model;
       }
+      // Add audio model if specified
+      if ((mem as any).audio_model) {
+        data.audio_model = (mem as any).audio_model;
+      }
+      // Add fast_mode if specified (defaults to false on backend for VLM quality)
+      if ((mem as any).fast_mode !== undefined) {
+        data.fast_mode = (mem as any).fast_mode;
+      }
 
       const response = await this._makeRequest('POST', '/v1/memories', data);
 
@@ -411,6 +419,14 @@ export class Nebula {
       // Add vision model if specified
       if ((mem as any).vision_model) {
         data.vision_model = (mem as any).vision_model;
+      }
+      // Add audio model if specified
+      if ((mem as any).audio_model) {
+        data.audio_model = (mem as any).audio_model;
+      }
+      // Add fast_mode if specified (defaults to false on backend for VLM quality)
+      if ((mem as any).fast_mode !== undefined) {
+        data.fast_mode = (mem as any).fast_mode;
       }
       
       const response = await this._makeRequest('POST', '/v1/memories', data);
@@ -503,6 +519,17 @@ export class Nebula {
     if (metadata) {
       payload.metadata = metadata;
     }
+    
+    // Add multimodal processing options if present
+    if ((memory as any).vision_model) {
+      payload.vision_model = (memory as any).vision_model;
+    }
+    if ((memory as any).audio_model) {
+      payload.audio_model = (memory as any).audio_model;
+    }
+    if ((memory as any).fast_mode !== undefined) {
+      payload.fast_mode = (memory as any).fast_mode;
+    }
 
     try {
       await this._makeRequest('POST', `/v1/memories/${memoryId}/append`, payload);
@@ -580,6 +607,16 @@ export class Nebula {
           if (visionModel) {
             data.vision_model = visionModel;
           }
+          // Check for audio_model
+          const audioModel = group.find((m) => (m as any).audio_model)?.audio_model as string | undefined;
+          if (audioModel) {
+            data.audio_model = audioModel;
+          }
+          // Check for fast_mode
+          const fastMode = group.find((m) => (m as any).fast_mode !== undefined)?.fast_mode as boolean | undefined;
+          if (fastMode !== undefined) {
+            data.fast_mode = fastMode;
+          }
         }
 
         const response = await this._makeRequest('POST', '/v1/memories', data);
@@ -595,13 +632,21 @@ export class Nebula {
       } else {
         // Append to existing conversation
         convId = key;
+        
+        // Get multimodal options from the group
+        const visionModel = group.find((m) => (m as any).vision_model)?.vision_model as string | undefined;
+        const audioModel = group.find((m) => (m as any).audio_model)?.audio_model as string | undefined;
+        const fastMode = group.find((m) => (m as any).fast_mode !== undefined)?.fast_mode as boolean | undefined;
+        
         // Cast messages to the expected type for _appendToMemory
-        // The method will handle this as an array of message objects
         const appendMem: Memory = {
           collection_id: collectionId,
           content: messages as Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, any>; authority?: number}>,
           memory_id: convId,
           metadata: {},
+          vision_model: visionModel,
+          audio_model: audioModel,
+          fast_mode: fastMode,
         };
         await this._appendToMemory(convId, appendMem);
       }
@@ -1057,7 +1102,7 @@ export class Nebula {
   }> {
     const data: Record<string, any> = {
       content_parts: options.contentParts,
-      fast_mode: options.fastMode ?? true,
+      fast_mode: options.fastMode ?? false,
     };
 
     if (options.visionModel) {
@@ -1074,7 +1119,7 @@ export class Nebula {
       content_parts_count: response.content_parts_count || 0,
       vision_model: response.vision_model,
       audio_model: response.audio_model,
-      fast_mode: response.fast_mode ?? true,
+      fast_mode: response.fast_mode ?? false,
     };
   }
 

@@ -253,6 +253,8 @@ Nebula supports storing and processing images, audio, and documents.
 
 ### Store Multimodal Memory
 
+All multimodal processing is handled automatically by `storeMemory()` / `store_memory()`.
+
 **JavaScript:**
 ```typescript
 await client.storeMemory({
@@ -261,26 +263,37 @@ await client.storeMemory({
     { type: 'text', text: 'Description of the image' },
     { type: 'image', data: imageBase64, media_type: 'image/jpeg' }
   ],
-  metadata: {}
+  metadata: {},
+  // Optional processing options:
+  fast_mode: false,  // false (default) = VLM OCR, true = fast pypdf
+  vision_model: 'gpt-4o',  // Custom vision model
 });
 ```
 
 **Python:**
 ```python
-from nebula import Memory, ImageContent
+from nebula import Memory, ImageContent, DocumentContent
 
 client.store_memory(Memory(
     collection_id='my-collection',
     content=[
         {'type': 'text', 'text': 'Description of the image'},
         ImageContent(data=image_base64, media_type='image/jpeg')
-    ]
+    ],
+    # Optional processing options:
+    fast_mode=False,  # False (default) = VLM OCR, True = fast pypdf
+    vision_model='gpt-4o',  # Custom vision model
 ))
 ```
 
-### Process Multimodal Content
+**Parameters:**
+- `fast_mode` (boolean, default: false): Use fast text extraction for PDFs instead of VLM OCR
+- `vision_model` (string, optional): Vision model for images/documents
+- `audio_model` (string, optional): Audio transcription model
 
-Extract text from files without saving to memory.
+### Process Multimodal Content (On-the-Fly)
+
+Extract text from files without saving to memory. Useful for pre-processing before sending to an LLM.
 
 **JavaScript:**
 ```typescript
@@ -288,7 +301,7 @@ const result = await client.processMultimodalContent({
   contentParts: [
     { type: 'document', data: pdfBase64, media_type: 'application/pdf' }
   ],
-  fastMode: true  // Use fast pypdf extraction (default)
+  fastMode: false  // false (default) = VLM OCR, true = fast pypdf
 });
 
 console.log(result.extracted_text);
@@ -298,7 +311,7 @@ console.log(result.extracted_text);
 ```python
 result = client.process_multimodal_content([
     {'type': 'document', 'data': pdf_base64, 'media_type': 'application/pdf'}
-])
+], fast_mode=False)  # False (default) = VLM OCR
 
 print(result['extracted_text'])
 ```
@@ -307,7 +320,7 @@ print(result['extracted_text'])
 - `contentParts` / `content_parts`: Array of content parts to process
 - `visionModel` / `vision_model` (optional): Vision model for images/PDFs
 - `audioModel` / `audio_model` (optional): Audio transcription model
-- `fastMode` / `fast_mode` (boolean, default: true): Use fast text extraction for PDFs
+- `fastMode` / `fast_mode` (boolean, default: false): Use fast text extraction for PDFs
 
 **Returns:**
 - `extracted_text`: The processed text content

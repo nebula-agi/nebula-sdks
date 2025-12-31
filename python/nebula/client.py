@@ -653,6 +653,12 @@ class Nebula:
             # Add vision model if specified and content is multimodal
             if is_multimodal and memory.vision_model:
                 payload["vision_model"] = memory.vision_model
+            # Add audio model if specified
+            if is_multimodal and memory.audio_model:
+                payload["audio_model"] = memory.audio_model
+            # Add fast_mode if specified (defaults to False on backend for VLM quality)
+            if is_multimodal and memory.fast_mode is not None:
+                payload["fast_mode"] = memory.fast_mode
 
             response = self._make_request("POST", "/v1/memories", json_data=payload)
 
@@ -713,6 +719,12 @@ class Nebula:
             # Add vision model if specified
             if memory.vision_model:
                 payload["vision_model"] = memory.vision_model
+            # Add audio model if specified
+            if memory.audio_model:
+                payload["audio_model"] = memory.audio_model
+            # Add fast_mode if specified (defaults to False on backend for VLM quality)
+            if memory.fast_mode is not None:
+                payload["fast_mode"] = memory.fast_mode
         else:
             # Plain text content
             content_text = str(memory.content or "")
@@ -790,7 +802,8 @@ class Nebula:
 
         All items are processed identically to `store_memory`:
         - Conversations are grouped by conversation memory_id and sent in batches
-        - Text/JSON memories are stored individually with consistent metadata generation
+        - Text/JSON/multimodal memories are stored individually
+        - Multimodal content (images, audio, documents) is automatically processed
 
         Returns: list of memory_ids in the same order as input memories
         """
@@ -810,23 +823,17 @@ class Nebula:
         for key, group in conv_groups.items():
             collection_id = group[0].collection_id
             
-            # Check if any message has multimodal content
-            has_multimodal_content = any(
-                isinstance(m.content, list) and
-                len(m.content) > 0 and
-                isinstance(m.content[0], dict) and
-                "type" in m.content[0]
-                for m in group
-            )
+            # Get multimodal options from first memory that has them
+            vision_model = next((m.vision_model for m in group if m.vision_model), None)
+            audio_model = next((m.audio_model for m in group if m.audio_model), None)
+            fast_mode = next((m.fast_mode for m in group if m.fast_mode is not None), None)
 
             # Create conversation if needed
             if key.startswith("__new__::"):
-                # Use new POST /v1/memories endpoint
-                # Pass a placeholder role to trigger conversation creation
                 conv_id = self.store_memory(
                     collection_id=collection_id,
                     content="",
-                    role="assistant",  # Placeholder role to infer conversation type
+                    role="assistant",
                     name="Conversation",
                 )
             else:
@@ -839,24 +846,46 @@ class Nebula:
                 is_multimodal = (
                     isinstance(m.content, list) and
                     len(m.content) > 0 and
-                    isinstance(m.content[0], dict) and
-                    "type" in m.content[0]
+                    (
+                        (isinstance(m.content[0], dict) and "type" in m.content[0]) or
+                        hasattr(m.content[0], "__dataclass_fields__")
+                    )
                 )
-                # Preserve multimodal content as-is, only stringify plain text
-                content = m.content if is_multimodal else str(m.content or "")
+                
+                # Convert multimodal content to API format
+                if is_multimodal:
+                    content_parts = []
+                    for part in m.content:
+                        if hasattr(part, "__dataclass_fields__"):
+                            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
+                            content_parts.append(part_dict)
+                        elif isinstance(part, dict):
+                            content_parts.append(part)
+                        else:
+                            content_parts.append({"type": "text", "text": str(part)})
+                    content = content_parts
+                else:
+                    content = str(m.content or "")
+                
                 msg_meta = dict(m.metadata or {})
                 messages.append({"content": content, "role": m.role, "metadata": msg_meta})
 
-            append_mem = Memory(
-                collection_id=collection_id,
-                content=messages,  # type: ignore[arg-type]
-                memory_id=conv_id,
-                metadata={},
-            )
-            self._append_to_memory(conv_id, append_mem)
+            # Build append payload with multimodal options
+            payload: dict[str, Any] = {
+                "collection_id": collection_id,
+                "messages": messages,
+            }
+            if vision_model:
+                payload["vision_model"] = vision_model
+            if audio_model:
+                payload["audio_model"] = audio_model
+            if fast_mode is not None:
+                payload["fast_mode"] = fast_mode
+
+            self._make_request("POST", f"/v1/memories/{conv_id}/append", json_data=payload)
             results.extend([str(conv_id)] * len(group))
 
-        # Process others (text/json) individually
+        # Process others (text/json/multimodal) individually - store_memory handles multimodal
         for m in others:
             results.append(self.store_memory(m))
         return results
@@ -1319,7 +1348,7 @@ class Nebula:
         content_parts: list[dict[str, Any]],
         vision_model: str | None = None,
         audio_model: str | None = None,
-        fast_mode: bool = True,
+        fast_mode: bool = False,
     ) -> dict[str, Any]:
         """
         Process multimodal content (audio, documents, images) and return extracted text.

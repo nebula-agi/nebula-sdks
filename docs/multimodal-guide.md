@@ -1,11 +1,12 @@
 # Multimodal Content Guide
 
-Nebula supports storing and processing multimodal content including images, audio files, and documents (PDFs, Word docs, etc.). This guide explains how to work with multimodal content using the SDKs.
+Nebula supports storing and processing multimodal content including images, audio files, and documents (PDFs, Word docs, etc.). **All multimodal processing is handled automatically by `store_memory()`** — just pass your content and Nebula handles transcription, OCR, and text extraction behind the scenes.
 
 ## Table of Contents
 
 - [Supported Content Types](#supported-content-types)
 - [Storing Multimodal Memories](#storing-multimodal-memories)
+- [Processing Options](#processing-options)
 - [Processing Content On-the-Fly](#processing-content-on-the-fly)
 - [Large File Uploads (S3)](#large-file-uploads-s3)
 - [Fast Mode vs VLM OCR](#fast-mode-vs-vlm-ocr)
@@ -28,8 +29,8 @@ Nebula supports storing and processing multimodal content including images, audi
 ### Documents
 - **Formats**: PDF, DOC, DOCX, TXT, CSV, RTF, XLSX, PPTX
 - **Processing**: 
-  - **Fast mode (default)**: Text extracted using pypdf (instant)
-  - **VLM mode**: OCR using vision models (better for scanned docs)
+  - **VLM mode (default)**: OCR using vision models (best quality for all PDFs)
+  - **Fast mode**: Text extracted using pypdf (instant, for text-based PDFs)
 - **Max inline size**: 5MB (use S3 for larger files)
 
 ---
@@ -69,7 +70,7 @@ await client.storeMemory({
   metadata: { type: 'meeting-notes' }
 });
 
-// Store a PDF document
+// Store a PDF document (VLM OCR by default)
 const pdfBuffer = fs.readFileSync('report.pdf');
 const pdfBase64 = pdfBuffer.toString('base64');
 
@@ -79,6 +80,8 @@ await client.storeMemory({
     { type: 'document', data: pdfBase64, media_type: 'application/pdf', filename: 'Q4-report.pdf' }
   ],
   metadata: { category: 'reports' }
+  // fast_mode: false (default) - uses VLM for best quality
+  // fast_mode: true - uses pypdf for instant text extraction
 });
 ```
 
@@ -115,7 +118,7 @@ client.store_memory(Memory(
     metadata={'type': 'meeting-notes'}
 ))
 
-# Store a PDF document
+# Store a PDF document (VLM OCR by default for best quality)
 with open('report.pdf', 'rb') as f:
     pdf_data = base64.b64encode(f.read()).decode()
 
@@ -124,7 +127,49 @@ client.store_memory(Memory(
     content=[
         DocumentContent(data=pdf_data, media_type='application/pdf', filename='Q4-report.pdf')
     ],
-    metadata={'category': 'reports'}
+    metadata={'category': 'reports'},
+    # fast_mode=False (default) - uses VLM for best quality
+    # fast_mode=True - uses pypdf for instant text extraction
+))
+```
+
+---
+
+## Processing Options
+
+The `store_memory()` function automatically handles all multimodal processing. You can customize the processing with these optional parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `vision_model` | string | `modal/qwen3-vl-thinking` | Vision model for images and document OCR |
+| `audio_model` | string | `whisper-1` | Audio transcription model |
+| `fast_mode` | boolean | `false` | Fast text extraction for PDFs (see below) |
+
+### Example with Options
+
+**JavaScript:**
+```typescript
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [
+    { type: 'document', data: pdfBase64, media_type: 'application/pdf' }
+  ],
+  metadata: {},
+  fast_mode: true,  // Use fast pypdf extraction instead of VLM OCR
+  vision_model: 'gpt-4o',  // Custom vision model
+});
+```
+
+**Python:**
+```python
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[
+        DocumentContent(data=pdf_data, media_type='application/pdf')
+    ],
+    metadata={},
+    fast_mode=True,  # Use fast pypdf extraction instead of VLM OCR
+    vision_model='gpt-4o',  # Custom vision model
 ))
 ```
 
@@ -132,7 +177,7 @@ client.store_memory(Memory(
 
 ## Processing Content On-the-Fly
 
-Use `processMultimodalContent()` to extract text from files without saving to memory. This is useful for:
+Use `processMultimodalContent()` to extract text from files **without saving to memory**. This is useful for:
 - Pre-processing files before sending to an LLM
 - Quick text extraction from documents
 - Audio transcription
@@ -342,8 +387,8 @@ When processing PDF documents, you can choose between two modes:
 
 | Mode | Speed | Accuracy | Best For |
 |------|-------|----------|----------|
-| **Fast Mode** (default) | Instant (<1s) | Good for text PDFs | Regular text-based PDFs, quick previews |
-| **VLM OCR Mode** | 10-15s per page | Excellent | Scanned documents, image-heavy PDFs |
+| **VLM OCR Mode** (default) | 10-15s per page | Excellent | Scanned documents, image-heavy PDFs, best quality |
+| **Fast Mode** | Instant (<1s) | Good for text PDFs | Quick previews, text-based PDFs |
 
 ### Automatic Fallback
 
@@ -354,16 +399,16 @@ Fast mode automatically falls back to VLM OCR if:
 ### Example
 
 ```python
-# Fast mode (default) - great for text PDFs
+# VLM OCR mode (default) - best quality for all PDFs
 result = client.process_multimodal_content(
     content_parts=[...],
-    fast_mode=True  # Default
+    fast_mode=False  # Default - uses VLM
 )
 
-# VLM OCR mode - for scanned documents
+# Fast mode - for quick processing of text-based PDFs
 result = client.process_multimodal_content(
     content_parts=[...],
-    fast_mode=False
+    fast_mode=True  # Uses pypdf, instant but less accurate
 )
 ```
 

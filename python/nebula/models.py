@@ -228,6 +228,8 @@ class Memory:
     metadata: dict[str, Any] = field(default_factory=dict)
     authority: float | None = None  # Optional authority score (0.0 - 1.0)
     vision_model: str | None = None  # Vision model for image processing (default: modal/qwen3-vl-thinking)
+    audio_model: str | None = None  # Audio transcription model (default: whisper-1)
+    fast_mode: bool | None = None  # Use fast text extraction for PDFs (None = use backend default: False/VLM)
 
 
 @dataclass

@@ -87,6 +87,8 @@ export interface Memory {
   metadata: Record<string, any>;
   authority?: number; // Optional authority score (0.0 - 1.0)
   vision_model?: string; // Optional vision model for multimodal processing
+  audio_model?: string; // Optional audio transcription model
+  fast_mode?: boolean; // Use fast text extraction for PDFs (default: false, uses VLM OCR)
 }
 
 export interface Collection {
