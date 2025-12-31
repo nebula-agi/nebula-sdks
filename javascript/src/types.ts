@@ -104,7 +104,15 @@ export async function loadFile(
     // Browser: Read File object
     filename = source.name;
     const buffer = await source.arrayBuffer();
-    data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    // Convert ArrayBuffer to base64 - use a safe method that avoids apply() limits
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    // Process byte by byte to avoid "too many function arguments" error
+    // that can occur with String.fromCharCode.apply() on large arrays
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    data = btoa(binary);
   }
   
   const contentType = detectContentType(filename);
@@ -176,9 +184,19 @@ export function loadBytes(
     bytes = data as Uint8Array;
   }
   
-  const base64 = typeof Buffer !== 'undefined'
-    ? Buffer.from(bytes).toString('base64')
-    : btoa(String.fromCharCode(...bytes));
+  // Convert bytes to base64, handling large files in browser
+  let base64: string;
+  if (typeof Buffer !== 'undefined') {
+    base64 = Buffer.from(bytes).toString('base64');
+  } else {
+    // Browser: process byte by byte to avoid "too many function arguments" error
+    // that can occur with String.fromCharCode.apply() on large arrays
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    base64 = btoa(binary);
+  }
   
   const contentType = detectContentType(filename);
   const ext = getExtension(filename);
@@ -241,9 +259,20 @@ export async function loadUrl(
   }
   
   const buffer = await response.arrayBuffer();
-  const data = typeof Buffer !== 'undefined'
-    ? Buffer.from(buffer).toString('base64')
-    : btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  // Convert to base64, handling large files in browser
+  let data: string;
+  if (typeof Buffer !== 'undefined') {
+    data = Buffer.from(buffer).toString('base64');
+  } else {
+    // Browser: process byte by byte to avoid "too many function arguments" error
+    // that can occur with String.fromCharCode.apply() on large arrays
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    data = btoa(binary);
+  }
   
   // Extract filename from URL if not provided
   if (!filename) {
