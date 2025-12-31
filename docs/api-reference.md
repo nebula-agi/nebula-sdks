@@ -7,6 +7,7 @@ Complete API reference for both JavaScript and Python SDKs.
 - [Client Initialization](#client-initialization)
 - [Collections](#collections)
 - [Memories](#memories)
+- [Multimodal Content](#multimodal-content)
 - [Search](#search)
 - [Graph Queries](#graph-queries)
 - [Error Handling](#error-handling)
@@ -225,6 +226,100 @@ await client.deleteMemory(memoryId: string);
 ```python
 client.delete_memory(memory_id: str)
 ```
+
+---
+
+## Multimodal Content
+
+Nebula supports storing and processing images, audio, and documents.
+
+> **Full Guide**: See [Multimodal Content Guide](./multimodal-guide.md) for comprehensive examples.
+
+### Content Part Types
+
+```typescript
+// Image
+{ type: 'image', data: 'base64...', media_type: 'image/jpeg', filename?: string }
+
+// Audio  
+{ type: 'audio', data: 'base64...', media_type: 'audio/mp3', filename?: string }
+
+// Document
+{ type: 'document', data: 'base64...', media_type: 'application/pdf', filename?: string }
+
+// S3 Reference (for large files)
+{ type: 's3_ref', s3_key: 'path/to/file', media_type: string }
+```
+
+### Store Multimodal Memory
+
+All multimodal processing is handled automatically by `storeMemory()` / `store_memory()`.
+
+**JavaScript:**
+```typescript
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [
+    { type: 'text', text: 'Description of the image' },
+    { type: 'image', data: imageBase64, media_type: 'image/jpeg' }
+  ],
+  metadata: {},
+  // Optional processing options:
+  vision_model: 'gpt-4o',  // Custom vision model
+});
+```
+
+**Python:**
+```python
+from nebula import Memory, ImageContent, DocumentContent
+
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[
+        {'type': 'text', 'text': 'Description of the image'},
+        ImageContent(data=image_base64, media_type='image/jpeg')
+    ],
+    # Optional processing options:
+    vision_model='gpt-4o',  # Custom vision model
+))
+```
+
+**Parameters:**
+- `vision_model` (string, optional): Vision model for images/documents
+- `audio_model` (string, optional): Audio transcription model
+
+### Process Multimodal Content (On-the-Fly)
+
+Extract text from files without saving to memory. Useful for pre-processing before sending to an LLM.
+
+**JavaScript:**
+```typescript
+const result = await client.processMultimodalContent({
+  contentParts: [
+    { type: 'document', data: pdfBase64, media_type: 'application/pdf' }
+  ]
+});
+
+console.log(result.extracted_text);
+```
+
+**Python:**
+```python
+result = client.process_multimodal_content([
+    {'type': 'document', 'data': pdf_base64, 'media_type': 'application/pdf'}
+])
+
+print(result['extracted_text'])
+```
+
+**Parameters:**
+- `contentParts` / `content_parts`: Array of content parts to process
+- `visionModel` / `vision_model` (optional): Vision model for images/PDFs
+- `audioModel` / `audio_model` (optional): Audio transcription model
+
+**Returns:**
+- `extracted_text`: The processed text content
+- `content_parts_count`: Number of parts processed
 
 ---
 

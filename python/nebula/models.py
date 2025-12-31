@@ -2,10 +2,232 @@
 Data models for the Nebula Client SDK
 """
 
+import base64
+import mimetypes
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from pathlib import Path
+from typing import IO, Any, BinaryIO
+
+
+def _read_and_encode(source: str | Path | bytes | BinaryIO) -> tuple[str, str | None]:
+    """
+    Read file content and encode to base64.
+    
+    Args:
+        source: File path, bytes, or file-like object
+        
+    Returns:
+        Tuple of (base64_data, filename or None)
+    """
+    filename: str | None = None
+    
+    if isinstance(source, (str, Path)):
+        path = Path(source)
+        filename = path.name
+        with open(path, "rb") as f:
+            data = f.read()
+    elif isinstance(source, bytes):
+        data = source
+    else:
+        # File-like object
+        data = source.read()
+        if hasattr(source, "name"):
+            filename = os.path.basename(source.name)
+    
+    encoded = base64.b64encode(data).decode("utf-8")
+    return encoded, filename
+
+
+def _guess_media_type(filename: str | None, default: str) -> str:
+    """Guess media type from filename, or return default."""
+    if not filename:
+        return default
+    mime_type, _ = mimetypes.guess_type(filename)
+    return mime_type or default
+
+
+# Extension to media type mappings for common types
+IMAGE_EXTENSIONS = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".svg": "image/svg+xml",
+}
+
+AUDIO_EXTENSIONS = {
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
+    ".flac": "audio/flac",
+    ".aac": "audio/aac",
+    ".webm": "audio/webm",
+}
+
+DOCUMENT_EXTENSIONS = {
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".txt": "text/plain",
+    ".csv": "text/csv",
+    ".rtf": "application/rtf",
+    ".md": "text/markdown",
+    ".json": "application/json",
+}
+
+
+def _detect_content_type(filename: str | None, media_type: str | None = None) -> str:
+    """
+    Detect content type (image, audio, document) from filename or media type.
+    
+    Returns: 'image', 'audio', 'document', or 'unknown'
+    """
+    if filename:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in IMAGE_EXTENSIONS:
+            return "image"
+        if ext in AUDIO_EXTENSIONS:
+            return "audio"
+        if ext in DOCUMENT_EXTENSIONS:
+            return "document"
+    
+    if media_type:
+        if media_type.startswith("image/"):
+            return "image"
+        if media_type.startswith("audio/"):
+            return "audio"
+        if media_type.startswith("application/") or media_type.startswith("text/"):
+            return "document"
+    
+    return "unknown"
+
+
+def load_file(source: str | Path | BinaryIO) -> "ImageContent | AudioContent | DocumentContent":
+    """
+    Load a file and automatically detect its type (image, audio, or document).
+    
+    This is the simplest way to add files to Nebula - just pass a file path
+    and the SDK handles everything: reading, encoding, and type detection.
+    
+    Args:
+        source: File path string, Path object, or opened file (binary mode)
+        
+    Returns:
+        ImageContent, AudioContent, or DocumentContent based on file extension
+        
+    Raises:
+        ValueError: If file type cannot be detected
+        
+    Example:
+        from nebula import Nebula, Memory, load_file
+        
+        client = Nebula()
+        
+        # Just use load_file() - type is auto-detected!
+        memory = Memory(
+            collection_id="my-collection",
+            content=[
+                load_file("photo.jpg"),      # Auto-detected as image
+                load_file("recording.mp3"),  # Auto-detected as audio
+                load_file("report.pdf"),     # Auto-detected as document
+                "What's in these files?"     # Plain text (no load_file needed)
+            ]
+        )
+        
+        client.store_memory(memory)
+    """
+    data, filename = _read_and_encode(source)
+    
+    if not filename and isinstance(source, (str, Path)):
+        filename = Path(source).name
+    
+    content_type = _detect_content_type(filename)
+    
+    if content_type == "image":
+        ext = os.path.splitext(filename or "")[1].lower()
+        media_type = IMAGE_EXTENSIONS.get(ext, _guess_media_type(filename, "image/jpeg"))
+        return ImageContent(data=data, media_type=media_type, filename=filename)
+    
+    elif content_type == "audio":
+        ext = os.path.splitext(filename or "")[1].lower()
+        media_type = AUDIO_EXTENSIONS.get(ext, _guess_media_type(filename, "audio/mpeg"))
+        return AudioContent(data=data, media_type=media_type, filename=filename)
+    
+    elif content_type == "document":
+        ext = os.path.splitext(filename or "")[1].lower()
+        media_type = DOCUMENT_EXTENSIONS.get(ext, _guess_media_type(filename, "application/pdf"))
+        return DocumentContent(data=data, media_type=media_type, filename=filename)
+    
+    else:
+        raise ValueError(
+            f"Cannot detect file type for '{filename}'. "
+            f"Supported extensions: {', '.join(list(IMAGE_EXTENSIONS) + list(AUDIO_EXTENSIONS) + list(DOCUMENT_EXTENSIONS))}"
+        )
+
+
+def load_url(url: str, filename: str | None = None) -> "ImageContent":
+    """
+    Download a file from URL and create appropriate content.
+    
+    Currently only supports images. For documents/audio, download first
+    and use load_file() with the local path.
+    
+    Args:
+        url: URL to download from
+        filename: Optional filename (extracted from URL if not provided)
+        
+    Returns:
+        ImageContent with downloaded and encoded data
+        
+    Example:
+        from nebula import Memory, load_url
+        
+        memory = Memory(
+            collection_id="my-collection",
+            content=[
+                load_url("https://example.com/photo.jpg"),
+                "Describe this image"
+            ]
+        )
+    """
+    import httpx
+    
+    with httpx.Client(timeout=60.0) as client:
+        response = client.get(url, follow_redirects=True)
+        response.raise_for_status()
+        data = response.content
+    
+    # Extract filename from URL if not provided
+    if filename is None:
+        from urllib.parse import urlparse
+        path = urlparse(url).path
+        filename = os.path.basename(path) if path else None
+    
+    # Detect media type from content-type header or filename
+    content_type_header = response.headers.get("content-type", "").split(";")[0].strip()
+    
+    if filename:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in IMAGE_EXTENSIONS:
+            media_type = IMAGE_EXTENSIONS.get(ext, content_type_header or "image/jpeg")
+            return ImageContent(
+                data=base64.b64encode(data).decode("utf-8"),
+                media_type=media_type,
+                filename=filename
+            )
+    
+    # Default to image for URLs
+    return ImageContent(
+        data=base64.b64encode(data).decode("utf-8"),
+        media_type=content_type_header or "image/jpeg",
+        filename=filename
+    )
 
 
 @dataclass
@@ -125,6 +347,305 @@ class MemoryResponse:
 
 
 @dataclass
+class ImageContent:
+    """Image content for multimodal messages.
+    
+    Create from file path (easiest):
+        ImageContent.from_file("photo.jpg")
+        ImageContent.from_file(Path("photos/vacation.png"))
+    
+    Create from bytes:
+        ImageContent.from_bytes(image_bytes, filename="photo.jpg")
+    
+    Create from file object:
+        with open("photo.jpg", "rb") as f:
+            ImageContent.from_file(f)
+    
+    Create manually with base64 (advanced):
+        ImageContent(data=base64_string, media_type="image/jpeg")
+    """
+    data: str  # Base64 encoded image data
+    media_type: str = "image/jpeg"  # MIME type (e.g., 'image/jpeg', 'image/png')
+    filename: str | None = None
+    type: str = "image"
+    
+    @classmethod
+    def from_file(cls, source: str | Path | BinaryIO) -> "ImageContent":
+        """
+        Create ImageContent from a file path, Path object, or file-like object.
+        
+        Args:
+            source: File path string, Path object, or opened file (binary mode)
+            
+        Returns:
+            ImageContent with base64-encoded data and auto-detected media type
+            
+        Example:
+            # From file path
+            img = ImageContent.from_file("photo.jpg")
+            
+            # From Path object
+            img = ImageContent.from_file(Path("photos/vacation.png"))
+            
+            # From file object
+            with open("photo.jpg", "rb") as f:
+                img = ImageContent.from_file(f)
+        """
+        data, filename = _read_and_encode(source)
+        
+        # Detect media type from extension
+        if filename:
+            ext = os.path.splitext(filename)[1].lower()
+            media_type = IMAGE_EXTENSIONS.get(ext, _guess_media_type(filename, "image/jpeg"))
+        else:
+            media_type = "image/jpeg"
+        
+        return cls(data=data, media_type=media_type, filename=filename)
+    
+    @classmethod
+    def from_bytes(cls, data: bytes, filename: str | None = None, media_type: str | None = None) -> "ImageContent":
+        """
+        Create ImageContent from raw bytes.
+        
+        Args:
+            data: Raw image bytes
+            filename: Optional filename (used for media type detection)
+            media_type: Optional explicit media type (auto-detected if not provided)
+            
+        Returns:
+            ImageContent with base64-encoded data
+        """
+        encoded = base64.b64encode(data).decode("utf-8")
+        
+        if media_type is None:
+            if filename:
+                ext = os.path.splitext(filename)[1].lower()
+                media_type = IMAGE_EXTENSIONS.get(ext, _guess_media_type(filename, "image/jpeg"))
+            else:
+                media_type = "image/jpeg"
+        
+        return cls(data=encoded, media_type=media_type, filename=filename)
+    
+    @classmethod
+    def from_url(cls, url: str, filename: str | None = None) -> "ImageContent":
+        """
+        Create ImageContent by downloading from a URL.
+        
+        Args:
+            url: URL to download the image from
+            filename: Optional filename (extracted from URL if not provided)
+            
+        Returns:
+            ImageContent with base64-encoded data
+            
+        Note: Requires httpx to be installed (included with nebula-client)
+        """
+        import httpx
+        
+        with httpx.Client(timeout=60.0) as client:
+            response = client.get(url, follow_redirects=True)
+            response.raise_for_status()
+            data = response.content
+        
+        # Extract filename from URL if not provided
+        if filename is None:
+            from urllib.parse import urlparse
+            path = urlparse(url).path
+            filename = os.path.basename(path) if path else None
+        
+        # Detect media type from content-type header or filename
+        content_type = response.headers.get("content-type", "").split(";")[0].strip()
+        if content_type and content_type.startswith("image/"):
+            media_type = content_type
+        elif filename:
+            ext = os.path.splitext(filename)[1].lower()
+            media_type = IMAGE_EXTENSIONS.get(ext, "image/jpeg")
+        else:
+            media_type = "image/jpeg"
+        
+        return cls(
+            data=base64.b64encode(data).decode("utf-8"),
+            media_type=media_type,
+            filename=filename
+        )
+
+
+@dataclass
+class AudioContent:
+    """Audio content for transcription.
+    
+    Supported formats: MP3, WAV, M4A, OGG, FLAC, AAC, WebM
+    Transcribed using Whisper via LiteLLM.
+    
+    Create from file path (easiest):
+        AudioContent.from_file("recording.mp3")
+        AudioContent.from_file(Path("audio/meeting.wav"))
+    
+    Create from bytes:
+        AudioContent.from_bytes(audio_bytes, filename="recording.mp3")
+    
+    Create manually with base64 (advanced):
+        AudioContent(data=base64_string, media_type="audio/mp3")
+    """
+    data: str  # Base64 encoded audio data
+    media_type: str = "audio/mpeg"  # MIME type (e.g., 'audio/mpeg', 'audio/wav')
+    filename: str | None = None
+    duration_seconds: float | None = None
+    type: str = "audio"
+    
+    @classmethod
+    def from_file(cls, source: str | Path | BinaryIO) -> "AudioContent":
+        """
+        Create AudioContent from a file path, Path object, or file-like object.
+        
+        Args:
+            source: File path string, Path object, or opened file (binary mode)
+            
+        Returns:
+            AudioContent with base64-encoded data and auto-detected media type
+            
+        Example:
+            # From file path
+            audio = AudioContent.from_file("recording.mp3")
+            
+            # From Path object
+            audio = AudioContent.from_file(Path("audio/meeting.wav"))
+        """
+        data, filename = _read_and_encode(source)
+        
+        # Detect media type from extension
+        if filename:
+            ext = os.path.splitext(filename)[1].lower()
+            media_type = AUDIO_EXTENSIONS.get(ext, _guess_media_type(filename, "audio/mpeg"))
+        else:
+            media_type = "audio/mpeg"
+        
+        return cls(data=data, media_type=media_type, filename=filename)
+    
+    @classmethod
+    def from_bytes(cls, data: bytes, filename: str | None = None, media_type: str | None = None) -> "AudioContent":
+        """
+        Create AudioContent from raw bytes.
+        
+        Args:
+            data: Raw audio bytes
+            filename: Optional filename (used for media type detection)
+            media_type: Optional explicit media type (auto-detected if not provided)
+            
+        Returns:
+            AudioContent with base64-encoded data
+        """
+        encoded = base64.b64encode(data).decode("utf-8")
+        
+        if media_type is None:
+            if filename:
+                ext = os.path.splitext(filename)[1].lower()
+                media_type = AUDIO_EXTENSIONS.get(ext, _guess_media_type(filename, "audio/mpeg"))
+            else:
+                media_type = "audio/mpeg"
+        
+        return cls(data=encoded, media_type=media_type, filename=filename)
+
+
+@dataclass
+class DocumentContent:
+    """Document content for text extraction.
+    
+    Supported formats: PDF, DOC, DOCX, TXT, CSV, RTF
+    PDFs are processed with VLM OCR for accurate text extraction.
+    
+    Create from file path (easiest):
+        DocumentContent.from_file("report.pdf")
+        DocumentContent.from_file(Path("docs/contract.docx"))
+    
+    Create from bytes:
+        DocumentContent.from_bytes(pdf_bytes, filename="report.pdf")
+    
+    Create manually with base64 (advanced):
+        DocumentContent(data=base64_string, media_type="application/pdf")
+    """
+    data: str  # Base64 encoded document data
+    media_type: str = "application/pdf"  # MIME type
+    filename: str | None = None
+    type: str = "document"
+    
+    @classmethod
+    def from_file(cls, source: str | Path | BinaryIO) -> "DocumentContent":
+        """
+        Create DocumentContent from a file path, Path object, or file-like object.
+        
+        Args:
+            source: File path string, Path object, or opened file (binary mode)
+            
+        Returns:
+            DocumentContent with base64-encoded data and auto-detected media type
+            
+        Example:
+            # From file path
+            doc = DocumentContent.from_file("report.pdf")
+            
+            # From Path object
+            doc = DocumentContent.from_file(Path("docs/contract.docx"))
+        """
+        data, filename = _read_and_encode(source)
+        
+        # Detect media type from extension
+        if filename:
+            ext = os.path.splitext(filename)[1].lower()
+            media_type = DOCUMENT_EXTENSIONS.get(ext, _guess_media_type(filename, "application/pdf"))
+        else:
+            media_type = "application/pdf"
+        
+        return cls(data=data, media_type=media_type, filename=filename)
+    
+    @classmethod
+    def from_bytes(cls, data: bytes, filename: str | None = None, media_type: str | None = None) -> "DocumentContent":
+        """
+        Create DocumentContent from raw bytes.
+        
+        Args:
+            data: Raw document bytes
+            filename: Optional filename (used for media type detection)
+            media_type: Optional explicit media type (auto-detected if not provided)
+            
+        Returns:
+            DocumentContent with base64-encoded data
+        """
+        encoded = base64.b64encode(data).decode("utf-8")
+        
+        if media_type is None:
+            if filename:
+                ext = os.path.splitext(filename)[1].lower()
+                media_type = DOCUMENT_EXTENSIONS.get(ext, _guess_media_type(filename, "application/pdf"))
+            else:
+                media_type = "application/pdf"
+        
+        return cls(data=encoded, media_type=media_type, filename=filename)
+
+
+@dataclass
+class S3FileRef:
+    """Reference to a file uploaded to S3 (for large files >5MB)."""
+    s3_key: str  # S3 object key
+    bucket: str | None = None  # Uses default bucket if not specified
+    media_type: str = "application/octet-stream"
+    filename: str | None = None
+    size_bytes: int | None = None
+    type: str = "s3_ref"
+
+
+@dataclass  
+class TextContent:
+    """Text content block for multimodal messages."""
+    text: str
+    type: str = "text"
+
+
+# Union type for content parts
+ContentPart = ImageContent | AudioContent | DocumentContent | S3FileRef | TextContent | dict[str, Any]
+
+
+@dataclass
 class Memory:
     """Unified input model for writing memories via store_memory/store_memories.
 
@@ -136,14 +657,41 @@ class Memory:
       - For conversations: appends to conversation
       - For documents: appends content to document
       - Returns the same memory_id
+    
+    Multimodal Support:
+    - content can be a string (text-only) or list of ContentPart objects
+    - For images, use ImageContent or S3FileRef
+    - Images are processed with a vision model (Qwen3-VL by default)
+    - For files >5MB, upload to S3 first using client.get_upload_url()
+    
+    Examples:
+        # Text-only memory
+        Memory(collection_id="...", content="Hello world")
+        
+        # Multimodal with image (base64)
+        Memory(
+            collection_id="...",
+            content=[
+                TextContent(text="What's in this image?"),
+                ImageContent(data="base64...", media_type="image/jpeg")
+            ]
+        )
+        
+        # Large file via S3
+        Memory(
+            collection_id="...",
+            content=[S3FileRef(s3_key="multimodal/abc/image.jpg")]
+        )
     """
 
     collection_id: str
-    content: str
+    content: str | list[ContentPart]
     role: str | None = None  # user, assistant, or custom
     memory_id: str | None = None  # ID of existing memory to append to
     metadata: dict[str, Any] = field(default_factory=dict)
     authority: float | None = None  # Optional authority score (0.0 - 1.0)
+    vision_model: str | None = None  # Vision model for image processing (default: modal/qwen3-vl-thinking)
+    audio_model: str | None = None  # Audio transcription model (default: whisper-1)
 
 
 @dataclass
