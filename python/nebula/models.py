@@ -645,6 +645,51 @@ class TextContent:
 ContentPart = ImageContent | AudioContent | DocumentContent | S3FileRef | TextContent | dict[str, Any]
 
 
+def is_multimodal_content(content: Any) -> bool:
+    """
+    Check if content is in multimodal format (list of content parts).
+    
+    Args:
+        content: Content to check
+        
+    Returns:
+        True if content is multimodal (list of content parts), False otherwise
+    """
+    if not isinstance(content, list) or len(content) == 0:
+        return False
+    
+    first_item = content[0]
+    # Check if it's a dict with a type field or a dataclass (has __dataclass_fields__)
+    return (isinstance(first_item, dict) and "type" in first_item) or hasattr(first_item, "__dataclass_fields__")
+
+
+def convert_to_content_parts(content: list[ContentPart]) -> list[dict[str, Any]]:
+    """
+    Convert a list of content parts to API-compatible dictionaries.
+    
+    Handles both dataclass instances (ImageContent, AudioContent, etc.) and plain dicts.
+    
+    Args:
+        content: List of content parts (dataclasses or dicts)
+        
+    Returns:
+        List of dictionaries in API format
+    """
+    result = []
+    for part in content:
+        if hasattr(part, "__dataclass_fields__"):
+            # Convert dataclass to dict
+            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
+            result.append(part_dict)
+        elif isinstance(part, dict):
+            # Already a dict, use as-is
+            result.append(part)
+        else:
+            # Fallback: convert to text content
+            result.append({"type": "text", "text": str(part)})
+    return result
+
+
 @dataclass
 class Memory:
     """Unified input model for writing memories via store_memory/store_memories.
