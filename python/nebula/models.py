@@ -552,7 +552,7 @@ class DocumentContent:
     """Document content for text extraction.
     
     Supported formats: PDF, DOC, DOCX, TXT, CSV, RTF
-    PDFs are processed with VLM OCR or pypdf depending on fast_mode setting.
+    PDFs are processed with VLM OCR for accurate text extraction.
     
     Create from file path (easiest):
         DocumentContent.from_file("report.pdf")
@@ -692,7 +692,6 @@ class Memory:
     authority: float | None = None  # Optional authority score (0.0 - 1.0)
     vision_model: str | None = None  # Vision model for image processing (default: modal/qwen3-vl-thinking)
     audio_model: str | None = None  # Audio transcription model (default: whisper-1)
-    fast_mode: bool | None = None  # Use fast text extraction for PDFs (None = use backend default: False/VLM)
 
 
 @dataclass

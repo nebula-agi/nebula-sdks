@@ -656,9 +656,6 @@ class Nebula:
             # Add audio model if specified
             if is_multimodal and memory.audio_model:
                 payload["audio_model"] = memory.audio_model
-            # Add fast_mode if specified (defaults to False on backend for VLM quality)
-            if is_multimodal and memory.fast_mode is not None:
-                payload["fast_mode"] = memory.fast_mode
 
             response = self._make_request("POST", "/v1/memories", json_data=payload)
 
@@ -722,9 +719,6 @@ class Nebula:
             # Add audio model if specified
             if memory.audio_model:
                 payload["audio_model"] = memory.audio_model
-            # Add fast_mode if specified (defaults to False on backend for VLM quality)
-            if memory.fast_mode is not None:
-                payload["fast_mode"] = memory.fast_mode
         else:
             # Plain text content
             content_text = str(memory.content or "")
@@ -830,7 +824,6 @@ class Nebula:
             # Get multimodal options from first memory that has them
             vision_model = next((m.vision_model for m in group if m.vision_model), None)
             audio_model = next((m.audio_model for m in group if m.audio_model), None)
-            fast_mode = next((m.fast_mode for m in group if m.fast_mode is not None), None)
 
             # Create conversation if needed
             if key.startswith("__new__::"):
@@ -883,8 +876,6 @@ class Nebula:
                 payload["vision_model"] = vision_model
             if audio_model:
                 payload["audio_model"] = audio_model
-            if fast_mode is not None:
-                payload["fast_mode"] = fast_mode
 
             self._make_request("POST", f"/v1/memories/{conv_id}/append", json_data=payload)
             results.extend([str(conv_id)] * len(group))
@@ -1352,7 +1343,6 @@ class Nebula:
         content_parts: list[dict[str, Any]],
         vision_model: str | None = None,
         audio_model: str | None = None,
-        fast_mode: bool = False,
     ) -> dict[str, Any]:
         """
         Process multimodal content (audio, documents, images) and return extracted text.
@@ -1371,8 +1361,6 @@ class Nebula:
                 - filename: Optional filename
             vision_model: Optional vision model for images/documents (default: modal/qwen3-vl-thinking)
             audio_model: Optional audio transcription model (default: whisper-1)
-            fast_mode: Use fast text extraction for PDFs (pypdf) instead of VLM OCR (default: True)
-                       Fast mode is much faster but less accurate for scanned/image PDFs.
             
         Returns:
             dict with:
@@ -1380,7 +1368,6 @@ class Nebula:
             - content_parts_count: Number of parts processed
             - vision_model: Vision model used (if any)
             - audio_model: Audio model used (if any)
-            - fast_mode: Whether fast mode was used
             
         Example:
             import base64
@@ -1415,16 +1402,9 @@ class Nebula:
                 }
             ])
             print(result["extracted_text"])
-            
-            # Use VLM OCR for scanned PDFs (slower but more accurate)
-            result = client.process_multimodal_content(
-                content_parts=[{"type": "document", "data": pdf_data, "media_type": "application/pdf"}],
-                fast_mode=False  # Use VLM OCR
-            )
         """
         data: dict[str, Any] = {
             "content_parts": content_parts,
-            "fast_mode": fast_mode,
         }
         
         if vision_model:

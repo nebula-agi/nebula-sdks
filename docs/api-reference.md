@@ -265,7 +265,6 @@ await client.storeMemory({
   ],
   metadata: {},
   // Optional processing options:
-  fast_mode: false,  // false (default) = VLM OCR, true = fast pypdf
   vision_model: 'gpt-4o',  // Custom vision model
 });
 ```
@@ -281,13 +280,11 @@ client.store_memory(Memory(
         ImageContent(data=image_base64, media_type='image/jpeg')
     ],
     # Optional processing options:
-    fast_mode=False,  # False (default) = VLM OCR, True = fast pypdf
     vision_model='gpt-4o',  # Custom vision model
 ))
 ```
 
 **Parameters:**
-- `fast_mode` (boolean, default: false): Use fast text extraction for PDFs instead of VLM OCR
 - `vision_model` (string, optional): Vision model for images/documents
 - `audio_model` (string, optional): Audio transcription model
 
@@ -300,8 +297,7 @@ Extract text from files without saving to memory. Useful for pre-processing befo
 const result = await client.processMultimodalContent({
   contentParts: [
     { type: 'document', data: pdfBase64, media_type: 'application/pdf' }
-  ],
-  fastMode: false  // false (default) = VLM OCR, true = fast pypdf
+  ]
 });
 
 console.log(result.extracted_text);
@@ -311,7 +307,7 @@ console.log(result.extracted_text);
 ```python
 result = client.process_multimodal_content([
     {'type': 'document', 'data': pdf_base64, 'media_type': 'application/pdf'}
-], fast_mode=False)  # False (default) = VLM OCR
+])
 
 print(result['extracted_text'])
 ```
@@ -320,12 +316,10 @@ print(result['extracted_text'])
 - `contentParts` / `content_parts`: Array of content parts to process
 - `visionModel` / `vision_model` (optional): Vision model for images/PDFs
 - `audioModel` / `audio_model` (optional): Audio transcription model
-- `fastMode` / `fast_mode` (boolean, default: false): Use fast text extraction for PDFs
 
 **Returns:**
 - `extracted_text`: The processed text content
 - `content_parts_count`: Number of parts processed
-- `fast_mode`: Whether fast mode was used
 
 ---
 

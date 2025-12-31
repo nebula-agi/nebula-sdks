@@ -10,7 +10,6 @@ Nebula supports storing and processing multimodal content including images, audi
 - [Processing Options](#processing-options)
 - [Processing Content On-the-Fly](#processing-content-on-the-fly)
 - [Large File Uploads (S3)](#large-file-uploads-s3)
-- [Fast Mode vs VLM OCR](#fast-mode-vs-vlm-ocr)
 - [Complete Examples](#complete-examples)
 
 ---
@@ -104,9 +103,7 @@ const content = await loadFile(file);
 
 ### Documents
 - **Formats**: PDF, DOC, DOCX, TXT, CSV, RTF, XLSX, PPTX
-- **Processing**: 
-  - **VLM mode (default)**: OCR using vision models (best quality for all PDFs)
-  - **Fast mode**: Text extracted using pypdf (instant, for text-based PDFs)
+- **Processing**: OCR using vision models (best quality for all PDFs)
 - **Max inline size**: 5MB (use S3 for larger files)
 
 ---
@@ -144,8 +141,7 @@ client.store_memory(Memory(
 client.store_memory(Memory(
     collection_id='my-collection',
     content=[load_file('Q4-report.pdf')],  # Auto-detected as document
-    metadata={'category': 'reports'},
-    fast_mode=True  # Optional: use fast text extraction
+    metadata={'category': 'reports'}
 ))
 ```
 
@@ -176,8 +172,7 @@ await client.storeMemory({
 await client.storeMemory({
   collection_id: 'my-collection',
   content: [await loadFile('Q4-report.pdf')],  // Auto-detected as document
-  metadata: { category: 'reports' },
-  fast_mode: true  // Optional: use fast text extraction
+  metadata: { category: 'reports' }
 });
 ```
 
@@ -237,7 +232,6 @@ The `store_memory()` function automatically handles all multimodal processing. Y
 |-----------|------|---------|-------------|
 | `vision_model` | string | `modal/qwen3-vl-thinking` | Vision model for images and document OCR |
 | `audio_model` | string | `whisper-1` | Audio transcription model |
-| `fast_mode` | boolean | `false` | Fast text extraction for PDFs (see below) |
 
 ### Example with Options
 
@@ -249,7 +243,6 @@ await client.storeMemory({
     { type: 'document', data: pdfBase64, media_type: 'application/pdf' }
   ],
   metadata: {},
-  fast_mode: true,  // Use fast pypdf extraction instead of VLM OCR
   vision_model: 'gpt-4o',  // Custom vision model
 });
 ```
@@ -262,7 +255,6 @@ client.store_memory(Memory(
         DocumentContent(data=pdf_data, media_type='application/pdf')
     ],
     metadata={},
-    fast_mode=True,  # Use fast pypdf extraction instead of VLM OCR
     vision_model='gpt-4o',  # Custom vision model
 ))
 ```
@@ -294,8 +286,7 @@ const result = await client.processMultimodalContent({
     data: pdfBase64,
     media_type: 'application/pdf',
     filename: 'document.pdf'
-  }],
-  fastMode: true  // Use fast pypdf extraction (default)
+  }]
 });
 
 console.log('Extracted text:', result.extracted_text);
@@ -316,14 +307,13 @@ const transcription = await client.processMultimodalContent({
 
 console.log('Transcription:', transcription.extracted_text);
 
-// Use VLM OCR for scanned PDFs
+// Use custom vision model for PDFs
 const scannedResult = await client.processMultimodalContent({
   contentParts: [{
     type: 'document',
     data: pdfBase64,
     media_type: 'application/pdf'
   }],
-  fastMode: false,  // Use VLM OCR (slower but better for scanned docs)
   visionModel: 'modal/qwen3-vl-thinking'
 });
 ```
@@ -367,14 +357,13 @@ transcription = client.process_multimodal_content([
 
 print('Transcription:', transcription['extracted_text'])
 
-# Use VLM OCR for scanned PDFs
+# Use custom vision model for PDFs
 scanned_result = client.process_multimodal_content(
     content_parts=[{
         'type': 'document',
         'data': pdf_data,
         'media_type': 'application/pdf'
     }],
-    fast_mode=False,  # Use VLM OCR
     vision_model='modal/qwen3-vl-thinking'
 )
 ```
@@ -471,39 +460,6 @@ await client.storeMemory({
   }],
   metadata: {}
 });
-```
-
----
-
-## Fast Mode vs VLM OCR
-
-When processing PDF documents, you can choose between two modes:
-
-| Mode | Speed | Accuracy | Best For |
-|------|-------|----------|----------|
-| **VLM OCR Mode** (default) | 10-15s per page | Excellent | Scanned documents, image-heavy PDFs, best quality |
-| **Fast Mode** | Instant (<1s) | Good for text PDFs | Quick previews, text-based PDFs |
-
-### Automatic Fallback
-
-Fast mode automatically falls back to VLM OCR if:
-- pypdf returns no text (likely a scanned/image PDF)
-- The PDF appears to be image-only
-
-### Example
-
-```python
-# VLM OCR mode (default) - best quality for all PDFs
-result = client.process_multimodal_content(
-    content_parts=[...],
-    fast_mode=False  # Default - uses VLM
-)
-
-# Fast mode - for quick processing of text-based PDFs
-result = client.process_multimodal_content(
-    content_parts=[...],
-    fast_mode=True  # Uses pypdf, instant but less accurate
-)
 ```
 
 ---

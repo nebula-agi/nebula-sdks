@@ -340,7 +340,6 @@ class AsyncNebula:
         - metadata: Optional[dict]
         - vision_model: Optional[str] (for image/document processing)
         - audio_model: Optional[str] (for audio transcription)
-        - fast_mode: Optional[bool] (False=VLM OCR quality, True=fast pypdf extraction)
 
         Returns: memory_id (for both conversations and documents)
 
@@ -357,7 +356,6 @@ class AsyncNebula:
                 authority=kwargs.get("authority"),
                 vision_model=kwargs.get("vision_model"),
                 audio_model=kwargs.get("audio_model"),
-                fast_mode=kwargs.get("fast_mode"),
             )
         elif isinstance(memory, dict):
             memory = Memory(
@@ -369,7 +367,6 @@ class AsyncNebula:
                 authority=memory.get("authority"),
                 vision_model=memory.get("vision_model"),
                 audio_model=memory.get("audio_model"),
-                fast_mode=memory.get("fast_mode"),
             )
 
         # If memory_id is present, append to existing memory
@@ -435,8 +432,6 @@ class AsyncNebula:
                     payload["vision_model"] = memory.vision_model
                 if memory.audio_model:
                     payload["audio_model"] = memory.audio_model
-                if memory.fast_mode is not None:
-                    payload["fast_mode"] = memory.fast_mode
 
             response = await self._make_request_async("POST", "/v1/memories", json_data=payload)
 
@@ -490,8 +485,6 @@ class AsyncNebula:
                 payload["vision_model"] = memory.vision_model
             if memory.audio_model:
                 payload["audio_model"] = memory.audio_model
-            if memory.fast_mode is not None:
-                payload["fast_mode"] = memory.fast_mode
         else:
             # Plain text content
             content_text = str(memory.content or "")
@@ -589,7 +582,6 @@ class AsyncNebula:
             # Get multimodal options from first memory that has them
             vision_model = next((m.vision_model for m in group if m.vision_model), None)
             audio_model = next((m.audio_model for m in group if m.audio_model), None)
-            fast_mode = next((m.fast_mode for m in group if m.fast_mode is not None), None)
 
             # Create conversation if needed
             if key.startswith("__new__::"):
@@ -642,8 +634,6 @@ class AsyncNebula:
                 payload["vision_model"] = vision_model
             if audio_model:
                 payload["audio_model"] = audio_model
-            if fast_mode is not None:
-                payload["fast_mode"] = fast_mode
 
             await self._make_request_async(
                 "POST", f"/v1/memories/{conv_id}/append", json_data=payload
@@ -919,7 +909,6 @@ class AsyncNebula:
         content_parts: list[dict[str, Any]],
         vision_model: str | None = None,
         audio_model: str | None = None,
-        fast_mode: bool = False,
     ) -> dict[str, Any]:
         """
         Process multimodal content (audio, documents, images) and return extracted text.
@@ -938,14 +927,12 @@ class AsyncNebula:
                 - filename: Optional filename
             vision_model: Optional vision model for images/documents
             audio_model: Optional audio transcription model
-            fast_mode: Use fast text extraction for PDFs (default: True)
             
         Returns:
             dict with extracted_text, content_parts_count, and model info
         """
         data: dict[str, Any] = {
             "content_parts": content_parts,
-            "fast_mode": fast_mode,
         }
         
         if vision_model:
