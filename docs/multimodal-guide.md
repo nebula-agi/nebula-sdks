@@ -4,6 +4,7 @@ Nebula supports storing and processing multimodal content including images, audi
 
 ## Table of Contents
 
+- [Quick Start](#quick-start)
 - [Supported Content Types](#supported-content-types)
 - [Storing Multimodal Memories](#storing-multimodal-memories)
 - [Processing Options](#processing-options)
@@ -11,6 +12,81 @@ Nebula supports storing and processing multimodal content including images, audi
 - [Large File Uploads (S3)](#large-file-uploads-s3)
 - [Fast Mode vs VLM OCR](#fast-mode-vs-vlm-ocr)
 - [Complete Examples](#complete-examples)
+
+---
+
+## Quick Start
+
+Use `load_file()` (Python) or `loadFile()` (JavaScript) to automatically detect file types - no manual base64 encoding needed.
+
+### Python
+
+```python
+from nebula import Nebula, Memory, load_file, load_url
+
+client = Nebula(api_key='your-api-key')
+
+# Just use load_file() - type is auto-detected from extension!
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[
+        "Describe these files",
+        load_file("photo.jpg"),      # Auto-detected as image
+        load_file("recording.mp3"),  # Auto-detected as audio
+        load_file("report.pdf"),     # Auto-detected as document
+    ]
+))
+
+# Or use load_url() for images from the web
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[
+        "What's in this image?",
+        load_url("https://example.com/image.jpg")
+    ]
+))
+```
+
+### JavaScript/TypeScript
+
+```typescript
+import Nebula, { loadFile, loadUrl } from '@nebula-ai/sdk';
+
+const client = new Nebula({ apiKey: 'your-api-key' });
+
+// Just use loadFile() - type is auto-detected from extension!
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [
+    { type: 'text', text: 'Describe these files' },
+    await loadFile('photo.jpg'),      // Auto-detected as image
+    await loadFile('recording.mp3'),  // Auto-detected as audio
+    await loadFile('report.pdf'),     // Auto-detected as document
+  ]
+});
+
+// Or use loadUrl() for images from the web
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [
+    { type: 'text', text: "What's in this image?" },
+    await loadUrl('https://example.com/image.jpg')
+  ]
+});
+
+// Browser: Works with File objects from input/drag-drop
+const fileInput = document.querySelector('input[type="file"]');
+const file = fileInput.files[0];
+const content = await loadFile(file);
+```
+
+### Supported File Extensions (Auto-Detected)
+
+| Type | Extensions |
+|------|------------|
+| **Image** | .jpg, .jpeg, .png, .gif, .webp, .bmp, .svg |
+| **Audio** | .mp3, .wav, .m4a, .ogg, .flac, .aac, .webm |
+| **Document** | .pdf, .doc, .docx, .txt, .csv, .rtf, .md, .json |
 
 ---
 
@@ -37,15 +113,86 @@ Nebula supports storing and processing multimodal content including images, audi
 
 ## Storing Multimodal Memories
 
-### JavaScript/TypeScript
+### Using load_file / loadFile
 
+Use `load_file()` / `loadFile()` for automatic type detection - no encoding needed:
+
+**Python:**
+```python
+from nebula import Nebula, Memory, load_file
+
+client = Nebula(api_key='your-api-key')
+
+# Store an image with text
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[
+        'Photo from my trip to Paris',
+        load_file('paris.jpg')  # Auto-detected as image
+    ],
+    metadata={'trip': 'paris-2024'}
+))
+
+# Store audio transcription
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[load_file('meeting.mp3')],  # Auto-detected as audio
+    metadata={'type': 'meeting-notes'}
+))
+
+# Store a PDF document
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[load_file('Q4-report.pdf')],  # Auto-detected as document
+    metadata={'category': 'reports'},
+    fast_mode=True  # Optional: use fast text extraction
+))
+```
+
+**JavaScript/TypeScript:**
+```typescript
+import Nebula, { loadFile } from '@nebula-ai/sdk';
+
+const client = new Nebula({ apiKey: 'your-api-key' });
+
+// Store an image with text
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [
+    { type: 'text', text: 'Photo from my trip to Paris' },
+    await loadFile('paris.jpg')  // Auto-detected as image
+  ],
+  metadata: { trip: 'paris-2024' }
+});
+
+// Store audio transcription
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [await loadFile('meeting.mp3')],  // Auto-detected as audio
+  metadata: { type: 'meeting-notes' }
+});
+
+// Store a PDF document
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [await loadFile('Q4-report.pdf')],  // Auto-detected as document
+  metadata: { category: 'reports' },
+  fast_mode: true  // Optional: use fast text extraction
+});
+```
+
+### Advanced: Manual Encoding
+
+If you need more control, you can manually encode content:
+
+**JavaScript/TypeScript:**
 ```typescript
 import Nebula from '@nebula-ai/sdk';
 import fs from 'fs';
 
 const client = new Nebula({ apiKey: 'your-api-key' });
 
-// Store an image with text
+// Manual encoding (advanced)
 const imageBuffer = fs.readFileSync('photo.jpg');
 const imageBase64 = imageBuffer.toString('base64');
 
@@ -57,43 +204,16 @@ await client.storeMemory({
   ],
   metadata: { trip: 'paris-2024' }
 });
-
-// Store audio transcription
-const audioBuffer = fs.readFileSync('recording.mp3');
-const audioBase64 = audioBuffer.toString('base64');
-
-await client.storeMemory({
-  collection_id: 'my-collection',
-  content: [
-    { type: 'audio', data: audioBase64, media_type: 'audio/mp3', filename: 'meeting.mp3' }
-  ],
-  metadata: { type: 'meeting-notes' }
-});
-
-// Store a PDF document (VLM OCR by default)
-const pdfBuffer = fs.readFileSync('report.pdf');
-const pdfBase64 = pdfBuffer.toString('base64');
-
-await client.storeMemory({
-  collection_id: 'my-collection',
-  content: [
-    { type: 'document', data: pdfBase64, media_type: 'application/pdf', filename: 'Q4-report.pdf' }
-  ],
-  metadata: { category: 'reports' }
-  // fast_mode: false (default) - uses VLM for best quality
-  // fast_mode: true - uses pypdf for instant text extraction
-});
 ```
 
-### Python
-
+**Python:**
 ```python
 import base64
 from nebula import Nebula, Memory, ImageContent, AudioContent, DocumentContent
 
 client = Nebula(api_key='your-api-key')
 
-# Store an image with text
+# Manual encoding (advanced)
 with open('photo.jpg', 'rb') as f:
     image_data = base64.b64encode(f.read()).decode()
 
@@ -104,32 +224,6 @@ client.store_memory(Memory(
         ImageContent(data=image_data, media_type='image/jpeg', filename='paris.jpg')
     ],
     metadata={'trip': 'paris-2024'}
-))
-
-# Store audio transcription
-with open('recording.mp3', 'rb') as f:
-    audio_data = base64.b64encode(f.read()).decode()
-
-client.store_memory(Memory(
-    collection_id='my-collection',
-    content=[
-        AudioContent(data=audio_data, media_type='audio/mp3', filename='meeting.mp3')
-    ],
-    metadata={'type': 'meeting-notes'}
-))
-
-# Store a PDF document (VLM OCR by default for best quality)
-with open('report.pdf', 'rb') as f:
-    pdf_data = base64.b64encode(f.read()).decode()
-
-client.store_memory(Memory(
-    collection_id='my-collection',
-    content=[
-        DocumentContent(data=pdf_data, media_type='application/pdf', filename='Q4-report.pdf')
-    ],
-    metadata={'category': 'reports'},
-    # fast_mode=False (default) - uses VLM for best quality
-    # fast_mode=True - uses pypdf for instant text extraction
 ))
 ```
 

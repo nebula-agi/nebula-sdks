@@ -65,11 +65,11 @@ class Nebula:
         self._client.close()
 
     def _is_nebula_api_key(self, token: str | None = None) -> bool:
-        """Detect if a token looks like an Nebula API key (public.raw).
+        """Detect if a token looks like a Nebula API key (public.raw).
 
         Heuristic:
         - Exactly one dot
-        - Public part starts with "key_"
+        - Public part starts with "key_" or "neb_"
         """
         candidate = token or self.api_key
         if not candidate:
@@ -77,7 +77,7 @@ class Nebula:
         if candidate.count(".") != 1:
             return False
         public_part, raw_part = candidate.split(".", 1)
-        return public_part.startswith("key_") and len(raw_part) > 0
+        return (public_part.startswith("key_") or public_part.startswith("neb_")) and len(raw_part) > 0
 
     def _build_auth_headers(self, include_content_type: bool = True) -> dict[str, str]:
         """Build authentication headers.
@@ -775,8 +775,12 @@ class Nebula:
                 # List of strings (chunks)
                 payload["chunks"] = content
         elif isinstance(content, str):
-            # Raw text string
-            payload["raw_text"] = content
+            # If role is present, wrap as a message for conversation append
+            if memory.role:
+                payload["messages"] = [{"content": content, "role": memory.role}]
+            else:
+                # Raw text string for document append
+                payload["raw_text"] = content
         else:
             raise NebulaClientException(
                 "content must be a string, list of strings, or list of message dicts"

@@ -81,7 +81,7 @@ class AsyncNebula:
         if candidate.count(".") != 1:
             return False
         public_part, raw_part = candidate.split(".", 1)
-        return public_part.startswith("key_") and len(raw_part) > 0
+        return (public_part.startswith("key_") or public_part.startswith("neb_")) and len(raw_part) > 0
 
     def _build_auth_headers(self, include_content_type: bool = True) -> dict[str, str]:
         """Build authentication headers.

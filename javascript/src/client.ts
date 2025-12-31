@@ -66,7 +66,7 @@ export class Nebula {
     const parts = candidate.split('.');
     if (parts.length !== 2) return false;
     const [publicPart, rawPart] = parts;
-    return publicPart.startsWith('key_') && !!rawPart && rawPart.length > 0;
+    return (publicPart.startsWith('key_') || publicPart.startsWith('neb_')) && !!rawPart && rawPart.length > 0;
   }
 
   /** Build authentication headers */
