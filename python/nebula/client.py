@@ -1222,7 +1222,7 @@ class Nebula:
         if search_settings:
             data["search_settings"] = search_settings
 
-        response = self._make_request("POST", "/v1/retrieval/search", json_data=data)
+        response = self._make_request("POST", "/v1/memories/search", json_data=data)
 
         # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
         if isinstance(response, dict) and "results" in response:
