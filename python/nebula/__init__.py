@@ -16,13 +16,11 @@ from .exceptions import (
     NebulaValidationException,
 )
 from .models import (
-    AgentResponse,
     Chunk,
     Collection,
     Memory,
     MemoryRecall,
     MemoryResponse,
-    RetrievalType,
     SearchResult,
 )
 
@@ -41,7 +39,5 @@ __all__ = [
     "MemoryRecall",
     "Collection",
     "SearchResult",
-    "AgentResponse",
     "Chunk",
-    "RetrievalType",
 ]
