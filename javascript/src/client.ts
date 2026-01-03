@@ -199,11 +199,15 @@ export class Nebula {
   async listCollections(options?: {
     limit?: number;
     offset?: number;
+    name?: string;
   }): Promise<Collection[]> {
-    const params = {
+    const params: Record<string, any> = {
       limit: options?.limit ?? 100,
       offset: options?.offset ?? 0
     };
+    if (options?.name !== undefined) {
+      params.name = options.name;
+    }
     const response = await this._makeRequest('GET', '/v1/collections', undefined, params);
 
     let collections: any[];
@@ -347,7 +351,7 @@ export class Nebula {
 
       const data = {
         engram_type: 'conversation',
-        collection_ref: mem.collection_id,
+        collection_id: mem.collection_id,
         name: name || 'Conversation',
         messages: messages,
         metadata: mem.metadata || {},
@@ -502,7 +506,7 @@ export class Nebula {
         // Create conversation with initial messages using JSON body
         const data = {
           engram_type: 'conversation',
-          collection_ref: collectionId,
+          collection_id: collectionId,
           name: 'Conversation',
           messages: messages,
           metadata: {},

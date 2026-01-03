@@ -222,6 +222,7 @@ class Nebula:
         self,
         limit: int = 100,
         offset: int = 0,
+        name: str | None = None,
     ) -> list[Collection]:
         """
         Get all collections
@@ -229,14 +230,23 @@ class Nebula:
         Args:
             limit: Maximum number of collections to return
             offset: Number of collections to skip
+            name: Optional name filter (case-insensitive exact match). Use this to find a collection ID by name.
 
         Returns:
             List of Collection objects
+
+        Example:
+            >>> # Find collection by name to get its ID
+            >>> collections = client.list_collections(name="my-collection")
+            >>> if collections:
+            ...     collection_id = collections[0].id
         """
         params = {
             "limit": limit,
             "offset": offset,
         }
+        if name is not None:
+            params["name"] = name
 
         response = self._make_request("GET", "/v1/collections", params=params)
 
@@ -488,7 +498,7 @@ class Nebula:
     # New unified write APIs
     def create_document_text(
         self,
-        collection_ref: str,
+        collection_id: str,
         raw_text: str,
         metadata: dict[str, Any] | None = None,
         ingestion_mode: str = "fast",
@@ -497,7 +507,7 @@ class Nebula:
         Create a new document from raw text.
 
         Args:
-            collection_ref: Collection UUID or name
+            collection_id: Collection UUID (required)
             raw_text: Text content of the document
             metadata: Optional document metadata
             ingestion_mode: Ingestion mode ("fast", "hi-res", or "custom")
@@ -506,13 +516,14 @@ class Nebula:
             Document ID (UUID string)
 
         Example:
+            >>> collection = client.collections.create(name="my-collection")
             >>> doc_id = client.create_document_text(
-            ...     collection_ref="my-collection",
+            ...     collection_id=collection.id,
             ...     raw_text="This is my document content."
             ... )
         """
         payload = {
-            "collection_ref": collection_ref,
+            "collection_id": collection_id,
             "engram_type": "document",
             "raw_text": raw_text,
             "metadata": metadata or {},
@@ -529,7 +540,7 @@ class Nebula:
 
     def create_document_chunks(
         self,
-        collection_ref: str,
+        collection_id: str,
         chunks: list[str],
         metadata: dict[str, Any] | None = None,
         ingestion_mode: str = "fast",
@@ -538,7 +549,7 @@ class Nebula:
         Create a new document from pre-chunked text.
 
         Args:
-            collection_ref: Collection UUID or name
+            collection_id: Collection UUID (required)
             chunks: List of text chunks
             metadata: Optional document metadata
             ingestion_mode: Ingestion mode ("fast", "hi-res", or "custom")
@@ -547,7 +558,7 @@ class Nebula:
             Document ID (UUID string)
         """
         payload = {
-            "collection_ref": collection_ref,
+            "collection_id": collection_id,
             "engram_type": "document",
             "chunks": chunks,
             "metadata": metadata or {},
@@ -633,7 +644,7 @@ class Nebula:
                 messages.append(msg)
 
             payload = {
-                "collection_ref": memory.collection_id,
+                "collection_id": memory.collection_id,
                 "engram_type": "conversation",
                 "messages": messages,
                 "metadata": doc_metadata,
@@ -676,7 +687,7 @@ class Nebula:
 
         # Use JSON format matching the backend CreateMemoryRequest model
         payload = {
-            "collection_ref": memory.collection_id,
+            "collection_id": memory.collection_id,
             "engram_type": "document",
             "raw_text": content_text,
             "metadata": doc_metadata,

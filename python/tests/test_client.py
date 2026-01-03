@@ -157,6 +157,35 @@ class TestNebula:
         assert collections[1].name == "Collection 2"
 
     @patch("httpx.Client.request")
+    def test_list_collections_with_name_filter(self, mock_request):
+        """Test listing collections with name filter"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "id": "cluster-1",
+                    "name": "Work",
+                    "description": "Work collection",
+                    "engram_count": 5,
+                    "created_at": "2024-01-01T00:00:00Z",
+                }
+            ]
+        }
+        mock_request.return_value = mock_response
+
+        collections = self.client.list_collections(name="Work")
+
+        assert len(collections) == 1
+        assert isinstance(collections[0], Collection)
+        assert collections[0].name == "Work"
+        # Verify the name parameter was passed in the request
+        call_args = mock_request.call_args
+        assert call_args is not None
+        # Check that params include name
+        assert call_args.kwargs.get("params", {}).get("name") == "Work"
+
+    @patch("httpx.Client.request")
     def test_store_memory(self, mock_request):
         """Test storing a memory"""
         mock_response = Mock()

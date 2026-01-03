@@ -144,6 +144,35 @@ describe('Nebula', () => {
         })
       );
     });
+
+    it('should list collections with name filter', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          results: [
+            {
+              id: 'collection-123',
+              name: 'Work',
+              description: 'Work collection',
+              created_at: '2024-01-01T00:00:00Z'
+            }
+          ]
+        })
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.listCollections({ name: 'Work' });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Work');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/v1/collections?name=Work'),
+        expect.objectContaining({
+          method: 'GET'
+        })
+      );
+    });
   });
 
   describe('Memory Operations', () => {
