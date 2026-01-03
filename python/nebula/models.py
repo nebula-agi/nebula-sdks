@@ -514,45 +514,12 @@ class SearchResult:
 
 
 @dataclass
-class AgentResponse:
-    """A response from an agent"""
-
-    content: str
-    agent_id: str
-    conversation_id: str | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
-    citations: list[dict[str, Any]] = field(default_factory=list)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AgentResponse":
-        """Create an AgentResponse from a dictionary"""
-        return cls(
-            content=data["content"],
-            agent_id=data["agent_id"],
-            conversation_id=data.get("conversation_id"),
-            metadata=data.get("metadata", {}),
-            citations=data.get("citations", []),
-        )
-
-
-@dataclass
 class SearchOptions:
     """Options for search operations"""
 
     limit: int = 10
     filters: dict[str, Any] | None = None
     search_mode: str = "super"  # "fast" or "super"
-
-
-class RetrievalType(str, Enum):
-    """Compatibility enum for legacy imports from client modules.
-
-    Note: The current SDK does not actively use this in public APIs; it remains
-    to preserve import compatibility for modules/tests that import it.
-    """
-
-    SIMPLE = "simple"
-    ADVANCED = "advanced"
 
 
 # Hierarchical Memory Recall types (matches backend MemoryRecall structure)

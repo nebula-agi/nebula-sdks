@@ -146,14 +146,6 @@ export interface GraphCommunityResult {
   metadata: Record<string, any>;
 }
 
-export interface AgentResponse {
-  content: string;
-  agent_id: string;
-  conversation_id?: string;
-  metadata: Record<string, any>;
-  citations: Record<string, any>[];
-}
-
 export interface SearchOptions {
   limit: number;
   filters?: Record<string, any>;
