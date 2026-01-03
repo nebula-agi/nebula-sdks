@@ -2,8 +2,6 @@
 Async client for the Nebula Client SDK
 """
 
-import hashlib
-import json
 import os
 from typing import Any
 from urllib.parse import urljoin
@@ -99,6 +97,33 @@ class AsyncNebula:
         if include_content_type:
             headers["Content-Type"] = "application/json"
         return headers
+
+    @staticmethod
+    def _is_multimodal_content(content: Any) -> bool:
+        """Check if content is a list of multimodal content parts (images, audio, documents)."""
+        if not isinstance(content, list) or len(content) == 0:
+            return False
+        first = content[0]
+        # Check for dict with 'type' key or dataclass content types
+        return (
+            (isinstance(first, dict) and "type" in first) or
+            hasattr(first, "__dataclass_fields__")
+        )
+
+    @staticmethod
+    def _convert_content_parts(content: list) -> list[dict[str, Any]]:
+        """Convert a list of content parts (dataclasses or dicts) to API format."""
+        parts = []
+        for part in content:
+            if hasattr(part, "__dataclass_fields__"):
+                # Dataclass - convert to dict
+                parts.append({k: getattr(part, k) for k in part.__dataclass_fields__.keys()})
+            elif isinstance(part, dict):
+                parts.append(part)
+            else:
+                # Plain string - wrap as text
+                parts.append({"type": "text", "text": str(part)})
+        return parts
 
     async def _make_request_async(
         self,
@@ -338,8 +363,6 @@ class AsyncNebula:
         - name: str (optional, used for conversation names)
         - role: Optional[str] (if provided, creates a conversation; otherwise creates a document)
         - metadata: Optional[dict]
-        - vision_model: Optional[str] (for image/document processing)
-        - audio_model: Optional[str] (for audio transcription)
 
         Returns: memory_id (for both conversations and documents)
 
@@ -354,8 +377,6 @@ class AsyncNebula:
                 memory_id=kwargs.get("memory_id"),
                 metadata=kwargs.get("metadata", {}),
                 authority=kwargs.get("authority"),
-                vision_model=kwargs.get("vision_model"),
-                audio_model=kwargs.get("audio_model"),
             )
         elif isinstance(memory, dict):
             memory = Memory(
@@ -365,8 +386,6 @@ class AsyncNebula:
                 memory_id=memory.get("memory_id"),
                 metadata=memory.get("metadata", {}),
                 authority=memory.get("authority"),
-                vision_model=memory.get("vision_model"),
-                audio_model=memory.get("audio_model"),
             )
 
         # If memory_id is present, append to existing memory
@@ -379,35 +398,12 @@ class AsyncNebula:
         # Handle conversation creation
         if memory_type == "conversation":
             doc_metadata = dict(memory.metadata or {})
-
-            # Check if content is multimodal (list of content parts)
-            is_multimodal = (
-                isinstance(memory.content, list) and
-                len(memory.content) > 0 and
-                (
-                    (isinstance(memory.content[0], dict) and "type" in memory.content[0]) or
-                    hasattr(memory.content[0], "__dataclass_fields__")
-                )
-            )
+            is_multimodal = self._is_multimodal_content(memory.content)
 
             # Build messages array if content and role are provided
             messages = []
             if memory.content and memory.role:
-                # For multimodal, convert content parts to API format
-                if is_multimodal:
-                    content_parts = []
-                    for part in memory.content:
-                        if hasattr(part, "__dataclass_fields__"):
-                            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
-                            content_parts.append(part_dict)
-                        elif isinstance(part, dict):
-                            content_parts.append(part)
-                        else:
-                            content_parts.append({"type": "text", "text": str(part)})
-                    msg_content = content_parts
-                else:
-                    msg_content = str(memory.content)
-
+                msg_content = self._convert_content_parts(memory.content) if is_multimodal else str(memory.content)
                 msg: dict[str, Any] = {
                     "role": memory.role,
                     "content": msg_content,
@@ -425,13 +421,6 @@ class AsyncNebula:
             }
             if name:
                 payload["name"] = name
-
-            # Add multimodal processing options
-            if is_multimodal:
-                if memory.vision_model:
-                    payload["vision_model"] = memory.vision_model
-                if memory.audio_model:
-                    payload["audio_model"] = memory.audio_model
 
             response = await self._make_request_async("POST", "/v1/memories", json_data=payload)
 
@@ -463,30 +452,10 @@ class AsyncNebula:
             "ingestion_mode": "fast",
         }
 
-        # Check if content is multimodal (list of content parts)
-        if isinstance(memory.content, list):
-            # Convert content parts to API format
-            content_parts = []
-            for part in memory.content:
-                if hasattr(part, "__dataclass_fields__"):
-                    # Dataclass - convert to dict
-                    part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
-                    content_parts.append(part_dict)
-                elif isinstance(part, dict):
-                    content_parts.append(part)
-                else:
-                    # Assume it's text
-                    content_parts.append({"type": "text", "text": str(part)})
-
-            payload["content_parts"] = content_parts
-
-            # Add multimodal processing options
-            if memory.vision_model:
-                payload["vision_model"] = memory.vision_model
-            if memory.audio_model:
-                payload["audio_model"] = memory.audio_model
+        # Handle multimodal vs plain text content
+        if self._is_multimodal_content(memory.content):
+            payload["content_parts"] = self._convert_content_parts(memory.content)
         else:
-            # Plain text content
             content_text = str(memory.content or "")
             if not content_text:
                 raise NebulaClientException("Content is required for document memories")
@@ -512,7 +481,7 @@ class AsyncNebula:
             The memory_id (same as input)
 
         Raises:
-            NebulaNotFoundException: If engram_id doesn't exist
+            NebulaNotFoundException: If memory_id doesn't exist
         """
         collection_id = memory.collection_id
         content = memory.content
@@ -578,10 +547,6 @@ class AsyncNebula:
         # Process conversation groups using new unified API
         for key, group in conv_groups.items():
             collection_id = group[0].collection_id
-            
-            # Get multimodal options from first memory that has them
-            vision_model = next((m.vision_model for m in group if m.vision_model), None)
-            audio_model = next((m.audio_model for m in group if m.audio_model), None)
 
             # Create conversation if needed
             if key.startswith("__new__::"):
@@ -597,43 +562,17 @@ class AsyncNebula:
             # Append messages using new unified API
             messages = []
             for m in group:
-                # Check if this message has multimodal content
-                is_multimodal = (
-                    isinstance(m.content, list) and
-                    len(m.content) > 0 and
-                    (
-                        (isinstance(m.content[0], dict) and "type" in m.content[0]) or
-                        hasattr(m.content[0], "__dataclass_fields__")
-                    )
-                )
-                
-                # Convert multimodal content to API format
-                if is_multimodal:
-                    content_parts = []
-                    for part in m.content:
-                        if hasattr(part, "__dataclass_fields__"):
-                            part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
-                            content_parts.append(part_dict)
-                        elif isinstance(part, dict):
-                            content_parts.append(part)
-                        else:
-                            content_parts.append({"type": "text", "text": str(part)})
-                    content = content_parts
+                if self._is_multimodal_content(m.content):
+                    content = self._convert_content_parts(m.content)
                 else:
                     content = str(m.content or "")
-                
                 msg_meta = dict(m.metadata or {})
                 messages.append({"content": content, "role": m.role, "metadata": msg_meta})
 
-            # Build append payload with multimodal options
             payload: dict[str, Any] = {
                 "collection_id": collection_id,
                 "messages": messages,
             }
-            if vision_model:
-                payload["vision_model"] = vision_model
-            if audio_model:
-                payload["audio_model"] = audio_model
 
             await self._make_request_async(
                 "POST", f"/v1/memories/{conv_id}/append", json_data=payload
@@ -903,45 +842,3 @@ class AsyncNebula:
 
     async def health_check(self) -> dict[str, Any]:
         return await self._make_request_async("GET", "/v1/health")
-
-    async def process_multimodal_content(
-        self,
-        content_parts: list[dict[str, Any]],
-        vision_model: str | None = None,
-        audio_model: str | None = None,
-    ) -> dict[str, Any]:
-        """
-        Process multimodal content (audio, documents, images) and return extracted text.
-        
-        This method processes files on-the-fly without saving to memory. Useful for:
-        - Pre-processing files before sending to an LLM in chat
-        - Extracting text from PDFs/documents
-        - Transcribing audio files
-        - Analyzing images with vision models
-        
-        Args:
-            content_parts: List of content part dicts with keys:
-                - type: 'image' | 'audio' | 'document'
-                - data: Base64 encoded file data
-                - media_type: MIME type (e.g., 'application/pdf', 'audio/mp3')
-                - filename: Optional filename
-            vision_model: Optional vision model for images/documents
-            audio_model: Optional audio transcription model
-            
-        Returns:
-            dict with extracted_text, content_parts_count, and model info
-        """
-        data: dict[str, Any] = {
-            "content_parts": content_parts,
-        }
-        
-        if vision_model:
-            data["vision_model"] = vision_model
-        if audio_model:
-            data["audio_model"] = audio_model
-        
-        response = await self._make_request_async("POST", "/v1/multimodal/process", json_data=data)
-        
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response

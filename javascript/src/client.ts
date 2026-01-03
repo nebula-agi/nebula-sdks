@@ -362,15 +362,6 @@ export class Nebula {
         messages: messages,
         metadata: mem.metadata || {},
       };
-      
-      // Add vision model if specified
-      if ((mem as any).vision_model) {
-        data.vision_model = (mem as any).vision_model;
-      }
-      // Add audio model if specified
-      if ((mem as any).audio_model) {
-        data.audio_model = (mem as any).audio_model;
-      }
 
       const response = await this._makeRequest('POST', '/v1/memories', data);
 
@@ -411,16 +402,7 @@ export class Nebula {
         metadata: docMetadata,
         ingestion_mode: 'fast',
       };
-      
-      // Add vision model if specified
-      if ((mem as any).vision_model) {
-        data.vision_model = (mem as any).vision_model;
-      }
-      // Add audio model if specified
-      if ((mem as any).audio_model) {
-        data.audio_model = (mem as any).audio_model;
-      }
-      
+
       const response = await this._makeRequest('POST', '/v1/memories', data);
       
       if (response.results) {
@@ -473,9 +455,9 @@ export class Nebula {
   }
 
   /**
-   * Internal method to append content to an existing engram
+   * Internal method to append content to an existing memory
    *
-   * @throws NebulaNotFoundException if engram_id doesn't exist
+   * @throws NebulaNotFoundException if memory_id doesn't exist
    */
   private async _appendToMemory(memoryId: string, memory: Memory): Promise<string> {
     const collectionId = memory.collection_id;
@@ -510,14 +492,6 @@ export class Nebula {
 
     if (metadata) {
       payload.metadata = metadata;
-    }
-    
-    // Add multimodal processing options if present
-    if ((memory as any).vision_model) {
-      payload.vision_model = (memory as any).vision_model;
-    }
-    if ((memory as any).audio_model) {
-      payload.audio_model = (memory as any).audio_model;
     }
 
     try {
@@ -588,20 +562,6 @@ export class Nebula {
           messages: messages,
           metadata: {},
         };
-        
-        // Add vision_model if any message has multimodal content
-        if (hasMultimodalContent) {
-          // Check if any memory in group has vision_model specified
-          const visionModel = group.find((m) => (m as any).vision_model)?.vision_model as string | undefined;
-          if (visionModel) {
-            data.vision_model = visionModel;
-          }
-          // Check for audio_model
-          const audioModel = group.find((m) => (m as any).audio_model)?.audio_model as string | undefined;
-          if (audioModel) {
-            data.audio_model = audioModel;
-          }
-        }
 
         const response = await this._makeRequest('POST', '/v1/memories', data);
 
@@ -616,19 +576,12 @@ export class Nebula {
       } else {
         // Append to existing conversation
         convId = key;
-        
-        // Get multimodal options from the group
-        const visionModel = group.find((m) => (m as any).vision_model)?.vision_model as string | undefined;
-        const audioModel = group.find((m) => (m as any).audio_model)?.audio_model as string | undefined;
-        
-        // Cast messages to the expected type for _appendToMemory
+
         const appendMem: Memory = {
           collection_id: collectionId,
           content: messages as Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, any>; authority?: number}>,
           memory_id: convId,
           metadata: {},
-          vision_model: visionModel,
-          audio_model: audioModel,
         };
         await this._appendToMemory(convId, appendMem);
       }
@@ -1028,76 +981,6 @@ export class Nebula {
   // Health Check
   async healthCheck(): Promise<Record<string, any>> {
     return this._makeRequest('GET', '/v1/health');
-  }
-
-  /**
-   * Process multimodal content (audio, documents, images) and return extracted text.
-   * 
-   * This method processes files on-the-fly without saving to memory. Useful for:
-   * - Pre-processing files before sending to an LLM in chat
-   * - Extracting text from PDFs/documents
-   * - Transcribing audio files
-   * - Analyzing images with vision models
-   * 
-   * @param options - Processing configuration
-   * @param options.contentParts - Array of content parts to process
-   * @param options.visionModel - Optional vision model for images/documents
-   * @param options.audioModel - Optional audio transcription model
-   * @returns Extracted text and processing metadata
-   * 
-   * @example
-   * // Process a PDF document
-   * const result = await client.processMultimodalContent({
-   *   contentParts: [{
-   *     type: 'document',
-   *     data: pdfBase64,
-   *     media_type: 'application/pdf',
-   *     filename: 'report.pdf'
-   *   }]
-   * });
-   * console.log(result.extracted_text);
-   * 
-   * @example
-   * // Transcribe audio
-   * const result = await client.processMultimodalContent({
-   *   contentParts: [{
-   *     type: 'audio',
-   *     data: audioBase64,
-   *     media_type: 'audio/mp3',
-   *     filename: 'recording.mp3'
-   *   }]
-   * });
-   * console.log(result.extracted_text);
-   */
-  async processMultimodalContent(options: {
-    contentParts: Array<ImageContentPart | AudioContentPart | DocumentContentPart>;
-    visionModel?: string;
-    audioModel?: string;
-  }): Promise<{
-    extracted_text: string;
-    content_parts_count: number;
-    vision_model?: string;
-    audio_model?: string;
-  }> {
-    const data: Record<string, any> = {
-      content_parts: options.contentParts,
-    };
-
-    if (options.visionModel) {
-      data.vision_model = options.visionModel;
-    }
-    if (options.audioModel) {
-      data.audio_model = options.audioModel;
-    }
-
-    const response = await this._makeRequest('POST', '/v1/multimodal/process', data);
-    
-    return {
-      extracted_text: response.extracted_text || '',
-      content_parts_count: response.content_parts_count || 0,
-      vision_model: response.vision_model,
-      audio_model: response.audio_model,
-    };
   }
 
   // Helpers

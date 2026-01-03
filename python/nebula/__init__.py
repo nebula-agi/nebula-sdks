@@ -29,9 +29,6 @@ from .models import (
     S3FileRef,
     SearchResult,
     TextContent,
-    # Helper functions for loading files
-    load_file,
-    load_url,
 )
 
 __version__ = "2.1.5"
@@ -52,10 +49,7 @@ __all__ = [
     "AgentResponse",
     "Chunk",
     "RetrievalType",
-    # Multimodal helpers (recommended - auto-detects file type)
-    "load_file",
-    "load_url",
-    # Multimodal content types (for advanced use)
+    # Multimodal content types
     "AudioContent",
     "DocumentContent",
     "ImageContent",

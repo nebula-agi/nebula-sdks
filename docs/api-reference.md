@@ -264,8 +264,6 @@ await client.storeMemory({
     { type: 'image', data: imageBase64, media_type: 'image/jpeg' }
   ],
   metadata: {},
-  // Optional processing options:
-  vision_model: 'gpt-4o',  // Custom vision model
 });
 ```
 
@@ -279,47 +277,8 @@ client.store_memory(Memory(
         {'type': 'text', 'text': 'Description of the image'},
         ImageContent(data=image_base64, media_type='image/jpeg')
     ],
-    # Optional processing options:
-    vision_model='gpt-4o',  # Custom vision model
 ))
 ```
-
-**Parameters:**
-- `vision_model` (string, optional): Vision model for images/documents
-- `audio_model` (string, optional): Audio transcription model
-
-### Process Multimodal Content (On-the-Fly)
-
-Extract text from files without saving to memory. Useful for pre-processing before sending to an LLM.
-
-**JavaScript:**
-```typescript
-const result = await client.processMultimodalContent({
-  contentParts: [
-    { type: 'document', data: pdfBase64, media_type: 'application/pdf' }
-  ]
-});
-
-console.log(result.extracted_text);
-```
-
-**Python:**
-```python
-result = client.process_multimodal_content([
-    {'type': 'document', 'data': pdf_base64, 'media_type': 'application/pdf'}
-])
-
-print(result['extracted_text'])
-```
-
-**Parameters:**
-- `contentParts` / `content_parts`: Array of content parts to process
-- `visionModel` / `vision_model` (optional): Vision model for images/PDFs
-- `audioModel` / `audio_model` (optional): Audio transcription model
-
-**Returns:**
-- `extracted_text`: The processed text content
-- `content_parts_count`: Number of parts processed
 
 ---
 
