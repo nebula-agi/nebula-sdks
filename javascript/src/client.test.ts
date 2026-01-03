@@ -166,12 +166,11 @@ describe('Nebula', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Work');
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/v1/collections?name=Work'),
-        expect.objectContaining({
-          method: 'GET'
-        })
-      );
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      const parsedUrl = new URL(url);
+      expect(parsedUrl.pathname).toBe('/v1/collections');
+      expect(parsedUrl.searchParams.get('name')).toBe('Work');
+      expect(requestInit).toEqual(expect.objectContaining({ method: 'GET' }));
     });
   });
 
@@ -351,7 +350,6 @@ describe('Nebula', () => {
     });
   });
 });
-
 
 
 
