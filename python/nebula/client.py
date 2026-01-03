@@ -241,7 +241,7 @@ class Nebula:
             >>> if collections:
             ...     collection_id = collections[0].id
         """
-        params = {
+        params: dict[str, Any] = {
             "limit": limit,
             "offset": offset,
         }

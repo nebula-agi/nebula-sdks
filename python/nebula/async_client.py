@@ -212,7 +212,7 @@ class AsyncNebula:
         Returns:
             List of Collection objects
         """
-        params = {"limit": limit, "offset": offset}
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
         if name is not None:
             params["name"] = name
         response = await self._make_request_async(
