@@ -906,7 +906,7 @@ export class Nebula {
       data.search_settings = options.searchSettings;
     }
 
-    const response = await this._makeRequest('POST', '/v1/retrieval/search', data);
+    const response = await this._makeRequest('POST', '/v1/memories/search', data);
 
     // Backend returns MemoryRecall wrapped in { results: MemoryRecall }
     const memoryRecall: MemoryRecall = response.results || {

@@ -221,7 +221,7 @@ describe('Nebula', () => {
       expect(results.utterances).toHaveLength(1);
       expect(results.utterances[0].text).toBe('Test content');
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/v1/retrieval/search'),
+        expect.stringContaining('/v1/memories/search'),
         expect.objectContaining({
           method: 'POST',
           body: expect.stringContaining('test query')
@@ -314,7 +314,7 @@ describe('Nebula', () => {
       });
 
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/v1/retrieval/search'),
+        expect.stringContaining('/v1/memories/search'),
         expect.objectContaining({
           body: expect.stringContaining('"metadata.content_type":{"$eq":"conversation"}')
         })

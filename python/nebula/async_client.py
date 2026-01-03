@@ -839,7 +839,7 @@ class AsyncNebula:
             "search_settings": effective_settings,
         }
         response = await self._make_request_async(
-            "POST", "/v1/retrieval/search", json_data=data
+            "POST", "/v1/memories/search", json_data=data
         )
 
         # Backend returns MemoryRecall wrapped in { results: MemoryRecall }

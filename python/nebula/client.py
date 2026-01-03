@@ -1141,7 +1141,7 @@ class Nebula:
         if search_settings:
             data["search_settings"] = search_settings
 
-        response = self._make_request("POST", "/v1/retrieval/search", json_data=data)
+        response = self._make_request("POST", "/v1/memories/search", json_data=data)
 
         # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
         if isinstance(response, dict) and "results" in response:
@@ -1157,96 +1157,6 @@ class Nebula:
             entity_to_facts={},
             retrieved_at="",
         )
-
-    # def chat(
-    #     self,
-    #     agent_id: str,
-    #     message: str,
-    #     conversation_id: Optional[str] = None,
-    #     model: str = "gpt-4",
-    #     temperature: float = 0.7,
-    #     max_tokens: Optional[int] = None,
-    #     retrieval_type: Union[RetrievalType, str] = RetrievalType.SIMPLE,
-    #     collection_id: Optional[str] = None,
-    #     stream: bool = False,
-    # ) -> AgentResponse:
-    #     """
-    #     Chat with an agent using its memories for context
-    #
-    #     Args:
-    #         agent_id: Unique identifier for the agent
-    #         message: User message to send to the agent
-    #         conversation_id: Optional conversation ID for multi-turn conversations
-    #         model: LLM model to use for generation
-    #         temperature: Sampling temperature for generation
-    #         max_tokens: Maximum tokens to generate
-    #         retrieval_type: Type of retrieval to use for context
-    #         collection_id: Optional collection ID to search within
-    #         stream: Whether to enable streaming response
-    #
-    #     Returns:
-    #         AgentResponse object with the agent's response
-    #     """
-    #     # Convert string to enum if needed
-    #     if isinstance(retrieval_type, str):
-    #         retrieval_type = RetrievalType(retrieval_type)
-    #
-    #     data = {
-    #         "query": message,
-    #         "rag_generation_config": {
-    #             "model": model,
-    #             "temperature": temperature,
-    #             "stream": stream,
-    #         }
-    #     }
-    #
-    #     if max_tokens:
-    #         data["rag_generation_config"]["max_tokens"] = max_tokens
-    #
-    #     if conversation_id:
-    #         data["conversation_id"] = conversation_id
-    #
-    #     # Note: Skipping collection_id filter for now due to API issue
-    #
-    #     if stream:
-    #         # For streaming, we need to handle the response differently
-    #         return self._make_streaming_generator("POST", "/v1/retrieval/rag", json_data=data, agent_id=agent_id, conversation_id=conversation_id)
-    #     else:
-    #         response = self._make_request("POST", "/v1/retrieval/rag", json_data=data)
-    #
-    #     # Extract the response from the API format
-    #     if isinstance(response, dict) and "results" in response:
-    #         # The RAG endpoint returns the answer in "generated_answer" field
-    #         generated_answer = response["results"].get("generated_answer", "")
-    #         if generated_answer:
-    #                 return AgentResponse(
-    #                     content=generated_answer,
-    #                     agent_id=agent_id,
-    #                     conversation_id=conversation_id,
-    #                     metadata={},
-    #                     citations=[]
-    #                 )
-    #
-    #         # Fallback to completion format if generated_answer is not available
-    #         completion = response["results"].get("completion", {})
-    #         if completion and "choices" in completion:
-    #             content = completion["choices"][0].get("message", {}).get("content", "")
-    #             return AgentResponse(
-    #                 content=content,
-    #                 agent_id=agent_id,
-    #                 conversation_id=conversation_id,
-    #                 metadata={},
-    #                 citations=[]
-    #             )
-    #
-    #     # Fallback
-    #     return AgentResponse(
-    #         content="No response received",
-    #         agent_id=agent_id,
-    #         conversation_id=conversation_id,
-    #         metadata={},
-    #         citations=[]
-    #     )
 
     def health_check(self) -> dict[str, Any]:
         """

@@ -7,11 +7,9 @@ from datetime import datetime
 import pytest
 
 from nebula import (
-    AgentResponse,
     Collection,
     Memory,
     MemoryResponse,
-    RetrievalType,
     SearchResult,
 )
 
@@ -294,79 +292,3 @@ class TestSearchResult:
         assert result.score == 0.0
         assert result.metadata == {}
         assert result.memory_id is None
-
-
-class TestAgentResponse:
-    """Test cases for AgentResponse model"""
-
-    def test_agent_response_creation(self):
-        """Test creating an AgentResponse instance"""
-        response = AgentResponse(
-            content="Hello! How can I help you?",
-            agent_id="test-agent",
-            conversation_id="conv-123",
-            metadata={"model": "gpt-4"},
-            citations=[{"id": "memory-1", "content": "Cited content"}],
-        )
-
-        assert response.content == "Hello! How can I help you?"
-        assert response.agent_id == "test-agent"
-        assert response.conversation_id == "conv-123"
-        assert response.metadata == {"model": "gpt-4"}
-        assert len(response.citations) == 1
-        assert response.citations[0]["id"] == "memory-1"
-
-    def test_agent_response_from_dict(self):
-        """Test creating AgentResponse from dictionary"""
-        data = {
-            "content": "Hello! How can I help you?",
-            "agent_id": "test-agent",
-            "conversation_id": "conv-123",
-            "metadata": {"model": "gpt-4"},
-            "citations": [{"id": "memory-1", "content": "Cited content"}],
-        }
-
-        response = AgentResponse.from_dict(data)
-
-        assert response.content == "Hello! How can I help you?"
-        assert response.agent_id == "test-agent"
-        assert response.conversation_id == "conv-123"
-        assert response.metadata == {"model": "gpt-4"}
-        assert len(response.citations) == 1
-
-    def test_agent_response_from_dict_without_optional_fields(self):
-        """Test creating AgentResponse from dictionary without optional fields"""
-        data = {
-            "content": "Hello!",
-            "agent_id": "test-agent",
-        }
-
-        response = AgentResponse.from_dict(data)
-
-        assert response.content == "Hello!"
-        assert response.agent_id == "test-agent"
-        assert response.conversation_id is None
-        assert response.metadata == {}
-        assert response.citations == []
-
-
-class TestRetrievalType:
-    """Test cases for RetrievalType enum"""
-
-    def test_retrieval_type_values(self):
-        """Test RetrievalType enum values"""
-        assert RetrievalType.SIMPLE == "simple"
-        assert RetrievalType.ADVANCED == "advanced"
-
-    def test_retrieval_type_creation(self):
-        """Test creating RetrievalType instances"""
-        simple = RetrievalType("simple")
-        advanced = RetrievalType("advanced")
-
-        assert simple == RetrievalType.SIMPLE
-        assert advanced == RetrievalType.ADVANCED
-
-    def test_retrieval_type_invalid_value(self):
-        """Test creating RetrievalType with invalid value raises error"""
-        with pytest.raises(ValueError):
-            RetrievalType("invalid_type")

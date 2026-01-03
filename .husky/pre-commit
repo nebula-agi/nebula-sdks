@@ -6,13 +6,24 @@ if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^py
   echo "Python SDK changes detected, bumping version..."
   cd python || exit 1
 
-  # Ensure tomlkit is available
-  python3 -c "import tomlkit" 2>/dev/null || {
-    echo "Installing tomlkit..."
-    pip3 install -q tomlkit || exit 1
-  }
+  CURRENT_VERSION=$(python3 - << 'EOF'
+import re
+from pathlib import Path
 
-  CURRENT_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+text = Path("pyproject.toml").read_text()
+in_project = False
+for line in text.splitlines():
+    if line.strip().startswith("["):
+        in_project = line.strip() == "[project]"
+    if in_project:
+        match = re.match(r'\s*version\s*=\s*"([^"]+)"', line)
+        if match:
+            print(match.group(1))
+            raise SystemExit(0)
+
+raise SystemExit("Could not find [project].version in pyproject.toml")
+EOF
+  )
 
   # Parse and bump patch version
   IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
@@ -20,19 +31,33 @@ if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^py
 
   echo "Bumping Python SDK: $CURRENT_VERSION -> $NEW_VERSION"
 
-  # Update version using tomlkit (write script to temp file to avoid quote issues)
-  cat > /tmp/bump_version.py << 'EOF'
+  python3 - << 'EOF' "$NEW_VERSION"
+import re
 import sys
-import tomlkit
+from pathlib import Path
 
 new_version = sys.argv[1]
-d = tomlkit.parse(open('pyproject.toml').read())
-d['project']['version'] = new_version
-open('pyproject.toml', 'w').write(tomlkit.dumps(d))
-EOF
+path = Path("pyproject.toml")
+text = path.read_text()
+lines = text.splitlines()
+in_project = False
+updated = False
 
-  python3 /tmp/bump_version.py "$NEW_VERSION"
-  rm /tmp/bump_version.py
+for i, line in enumerate(lines):
+    if line.strip().startswith("["):
+        in_project = line.strip() == "[project]"
+    if in_project:
+        match = re.match(r'\s*version\s*=\s*"([^"]+)"', line)
+        if match:
+            lines[i] = re.sub(r'"[^"]+"', f'"{new_version}"', line, count=1)
+            updated = True
+            break
+
+if not updated:
+    raise SystemExit("Could not find [project].version in pyproject.toml")
+
+path.write_text("\n".join(lines) + ("\n" if text.endswith("\n") else ""))
+EOF
 
   git add pyproject.toml
   cd ..
