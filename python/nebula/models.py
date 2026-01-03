@@ -128,124 +128,21 @@ class MemoryResponse:
 class ImageContent:
     """Image content for multimodal messages.
     
-    Create from file path (easiest):
-        ImageContent.from_file("photo.jpg")
-        ImageContent.from_file(Path("photos/vacation.png"))
+    Args:
+        data: Base64-encoded image data
+        media_type: MIME type (e.g., 'image/jpeg', 'image/png')
+        filename: Optional filename
     
-    Create from bytes:
-        ImageContent.from_bytes(image_bytes, filename="photo.jpg")
-    
-    Create from file object:
+    Example:
+        import base64
         with open("photo.jpg", "rb") as f:
-            ImageContent.from_file(f)
-    
-    Create manually with base64 (advanced):
-        ImageContent(data=base64_string, media_type="image/jpeg")
+            data = base64.b64encode(f.read()).decode()
+        ImageContent(data=data, media_type="image/jpeg", filename="photo.jpg")
     """
     data: str  # Base64 encoded image data
-    media_type: str = "image/jpeg"  # MIME type (e.g., 'image/jpeg', 'image/png')
+    media_type: str = "image/jpeg"
     filename: str | None = None
     type: str = "image"
-    
-    @classmethod
-    def from_file(cls, source: str | Path | BinaryIO) -> "ImageContent":
-        """
-        Create ImageContent from a file path, Path object, or file-like object.
-        
-        Args:
-            source: File path string, Path object, or opened file (binary mode)
-            
-        Returns:
-            ImageContent with base64-encoded data and auto-detected media type
-            
-        Example:
-            # From file path
-            img = ImageContent.from_file("photo.jpg")
-            
-            # From Path object
-            img = ImageContent.from_file(Path("photos/vacation.png"))
-            
-            # From file object
-            with open("photo.jpg", "rb") as f:
-                img = ImageContent.from_file(f)
-        """
-        data, filename = _read_and_encode(source)
-        
-        # Detect media type from extension
-        if filename:
-            ext = os.path.splitext(filename)[1].lower()
-            media_type = IMAGE_EXTENSIONS.get(ext, _guess_media_type(filename, "image/jpeg"))
-        else:
-            media_type = "image/jpeg"
-        
-        return cls(data=data, media_type=media_type, filename=filename)
-    
-    @classmethod
-    def from_bytes(cls, data: bytes, filename: str | None = None, media_type: str | None = None) -> "ImageContent":
-        """
-        Create ImageContent from raw bytes.
-        
-        Args:
-            data: Raw image bytes
-            filename: Optional filename (used for media type detection)
-            media_type: Optional explicit media type (auto-detected if not provided)
-            
-        Returns:
-            ImageContent with base64-encoded data
-        """
-        encoded = base64.b64encode(data).decode("utf-8")
-        
-        if media_type is None:
-            if filename:
-                ext = os.path.splitext(filename)[1].lower()
-                media_type = IMAGE_EXTENSIONS.get(ext, _guess_media_type(filename, "image/jpeg"))
-            else:
-                media_type = "image/jpeg"
-        
-        return cls(data=encoded, media_type=media_type, filename=filename)
-    
-    @classmethod
-    def from_url(cls, url: str, filename: str | None = None) -> "ImageContent":
-        """
-        Create ImageContent by downloading from a URL.
-        
-        Args:
-            url: URL to download the image from
-            filename: Optional filename (extracted from URL if not provided)
-            
-        Returns:
-            ImageContent with base64-encoded data
-            
-        Note: Requires httpx to be installed (included with nebula-client)
-        """
-        import httpx
-        
-        with httpx.Client(timeout=60.0) as client:
-            response = client.get(url, follow_redirects=True)
-            response.raise_for_status()
-            data = response.content
-        
-        # Extract filename from URL if not provided
-        if filename is None:
-            from urllib.parse import urlparse
-            path = urlparse(url).path
-            filename = os.path.basename(path) if path else None
-        
-        # Detect media type from content-type header or filename
-        content_type = response.headers.get("content-type", "").split(";")[0].strip()
-        if content_type and content_type.startswith("image/"):
-            media_type = content_type
-        elif filename:
-            ext = os.path.splitext(filename)[1].lower()
-            media_type = IMAGE_EXTENSIONS.get(ext, "image/jpeg")
-        else:
-            media_type = "image/jpeg"
-        
-        return cls(
-            data=base64.b64encode(data).decode("utf-8"),
-            media_type=media_type,
-            filename=filename
-        )
 
 
 @dataclass
@@ -253,76 +150,24 @@ class AudioContent:
     """Audio content for transcription.
     
     Supported formats: MP3, WAV, M4A, OGG, FLAC, AAC, WebM
-    Transcribed using Whisper via LiteLLM.
+    Transcribed using Whisper.
     
-    Create from file path (easiest):
-        AudioContent.from_file("recording.mp3")
-        AudioContent.from_file(Path("audio/meeting.wav"))
+    Args:
+        data: Base64-encoded audio data
+        media_type: MIME type (e.g., 'audio/mpeg', 'audio/wav')
+        filename: Optional filename
     
-    Create from bytes:
-        AudioContent.from_bytes(audio_bytes, filename="recording.mp3")
-    
-    Create manually with base64 (advanced):
-        AudioContent(data=base64_string, media_type="audio/mp3")
+    Example:
+        import base64
+        with open("recording.mp3", "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        AudioContent(data=data, media_type="audio/mpeg", filename="recording.mp3")
     """
     data: str  # Base64 encoded audio data
-    media_type: str = "audio/mpeg"  # MIME type (e.g., 'audio/mpeg', 'audio/wav')
+    media_type: str = "audio/mpeg"
     filename: str | None = None
     duration_seconds: float | None = None
     type: str = "audio"
-    
-    @classmethod
-    def from_file(cls, source: str | Path | BinaryIO) -> "AudioContent":
-        """
-        Create AudioContent from a file path, Path object, or file-like object.
-        
-        Args:
-            source: File path string, Path object, or opened file (binary mode)
-            
-        Returns:
-            AudioContent with base64-encoded data and auto-detected media type
-            
-        Example:
-            # From file path
-            audio = AudioContent.from_file("recording.mp3")
-            
-            # From Path object
-            audio = AudioContent.from_file(Path("audio/meeting.wav"))
-        """
-        data, filename = _read_and_encode(source)
-        
-        # Detect media type from extension
-        if filename:
-            ext = os.path.splitext(filename)[1].lower()
-            media_type = AUDIO_EXTENSIONS.get(ext, _guess_media_type(filename, "audio/mpeg"))
-        else:
-            media_type = "audio/mpeg"
-        
-        return cls(data=data, media_type=media_type, filename=filename)
-    
-    @classmethod
-    def from_bytes(cls, data: bytes, filename: str | None = None, media_type: str | None = None) -> "AudioContent":
-        """
-        Create AudioContent from raw bytes.
-        
-        Args:
-            data: Raw audio bytes
-            filename: Optional filename (used for media type detection)
-            media_type: Optional explicit media type (auto-detected if not provided)
-            
-        Returns:
-            AudioContent with base64-encoded data
-        """
-        encoded = base64.b64encode(data).decode("utf-8")
-        
-        if media_type is None:
-            if filename:
-                ext = os.path.splitext(filename)[1].lower()
-                media_type = AUDIO_EXTENSIONS.get(ext, _guess_media_type(filename, "audio/mpeg"))
-            else:
-                media_type = "audio/mpeg"
-        
-        return cls(data=encoded, media_type=media_type, filename=filename)
 
 
 @dataclass
@@ -330,75 +175,23 @@ class DocumentContent:
     """Document content for text extraction.
     
     Supported formats: PDF, DOC, DOCX, TXT, CSV, RTF
-    PDFs are processed with VLM OCR for accurate text extraction.
+    PDFs are processed with VLM OCR.
     
-    Create from file path (easiest):
-        DocumentContent.from_file("report.pdf")
-        DocumentContent.from_file(Path("docs/contract.docx"))
+    Args:
+        data: Base64-encoded document data
+        media_type: MIME type (e.g., 'application/pdf')
+        filename: Optional filename
     
-    Create from bytes:
-        DocumentContent.from_bytes(pdf_bytes, filename="report.pdf")
-    
-    Create manually with base64 (advanced):
-        DocumentContent(data=base64_string, media_type="application/pdf")
+    Example:
+        import base64
+        with open("report.pdf", "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        DocumentContent(data=data, media_type="application/pdf", filename="report.pdf")
     """
     data: str  # Base64 encoded document data
-    media_type: str = "application/pdf"  # MIME type
+    media_type: str = "application/pdf"
     filename: str | None = None
     type: str = "document"
-    
-    @classmethod
-    def from_file(cls, source: str | Path | BinaryIO) -> "DocumentContent":
-        """
-        Create DocumentContent from a file path, Path object, or file-like object.
-        
-        Args:
-            source: File path string, Path object, or opened file (binary mode)
-            
-        Returns:
-            DocumentContent with base64-encoded data and auto-detected media type
-            
-        Example:
-            # From file path
-            doc = DocumentContent.from_file("report.pdf")
-            
-            # From Path object
-            doc = DocumentContent.from_file(Path("docs/contract.docx"))
-        """
-        data, filename = _read_and_encode(source)
-        
-        # Detect media type from extension
-        if filename:
-            ext = os.path.splitext(filename)[1].lower()
-            media_type = DOCUMENT_EXTENSIONS.get(ext, _guess_media_type(filename, "application/pdf"))
-        else:
-            media_type = "application/pdf"
-        
-        return cls(data=data, media_type=media_type, filename=filename)
-    
-    @classmethod
-    def from_bytes(cls, data: bytes, filename: str | None = None, media_type: str | None = None) -> "DocumentContent":
-        """
-        Create DocumentContent from raw bytes.
-        
-        Args:
-            data: Raw document bytes
-            filename: Optional filename (used for media type detection)
-            media_type: Optional explicit media type (auto-detected if not provided)
-            
-        Returns:
-            DocumentContent with base64-encoded data
-        """
-        encoded = base64.b64encode(data).decode("utf-8")
-        
-        if media_type is None:
-            if filename:
-                ext = os.path.splitext(filename)[1].lower()
-                media_type = DOCUMENT_EXTENSIONS.get(ext, _guess_media_type(filename, "application/pdf"))
-            else:
-                media_type = "application/pdf"
-        
-        return cls(data=encoded, media_type=media_type, filename=filename)
 
 
 @dataclass

@@ -204,7 +204,6 @@ class TestSyncMultimodal:
     @pytest.fixture
     def test_collection(self, client):
         """Create a test collection and clean up after."""
-        from nebula import Nebula
         collection_name = generate_test_collection_name()
         collection = client.create_collection(
             name=collection_name,
@@ -476,7 +475,7 @@ class TestAsyncMultimodal:
 
         # Create memories for each image
         memories = []
-        for (name, url), data in zip(SAMPLE_IMAGES.items(), image_data_list):
+        for (name, _url), data in zip(SAMPLE_IMAGES.items(), image_data_list, strict=True):
             memories.append(Memory(
                 collection_id=test_collection.id,
                 content=[
@@ -760,7 +759,7 @@ async def run_async_quick_test():
             
         finally:
             await client.delete_collection(collection.id)
-            print(f"\n🧹 Cleaned up collection")
+            print("\n🧹 Cleaned up collection")
     
     print("\n✅ Async tests passed!")
 
