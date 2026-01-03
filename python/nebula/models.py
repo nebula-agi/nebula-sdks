@@ -125,6 +125,98 @@ class MemoryResponse:
 
 
 @dataclass
+class ImageContent:
+    """Image content for multimodal messages.
+    
+    Args:
+        data: Base64-encoded image data
+        media_type: MIME type (e.g., 'image/jpeg', 'image/png')
+        filename: Optional filename
+    
+    Example:
+        import base64
+        with open("photo.jpg", "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        ImageContent(data=data, media_type="image/jpeg", filename="photo.jpg")
+    """
+    data: str  # Base64 encoded image data
+    media_type: str = "image/jpeg"
+    filename: str | None = None
+    type: str = "image"
+
+
+@dataclass
+class AudioContent:
+    """Audio content for transcription.
+    
+    Supported formats: MP3, WAV, M4A, OGG, FLAC, AAC, WebM
+    Transcribed using Whisper.
+    
+    Args:
+        data: Base64-encoded audio data
+        media_type: MIME type (e.g., 'audio/mpeg', 'audio/wav')
+        filename: Optional filename
+    
+    Example:
+        import base64
+        with open("recording.mp3", "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        AudioContent(data=data, media_type="audio/mpeg", filename="recording.mp3")
+    """
+    data: str  # Base64 encoded audio data
+    media_type: str = "audio/mpeg"
+    filename: str | None = None
+    duration_seconds: float | None = None
+    type: str = "audio"
+
+
+@dataclass
+class DocumentContent:
+    """Document content for text extraction.
+    
+    Supported formats: PDF, DOC, DOCX, TXT, CSV, RTF
+    PDFs are processed with VLM OCR.
+    
+    Args:
+        data: Base64-encoded document data
+        media_type: MIME type (e.g., 'application/pdf')
+        filename: Optional filename
+    
+    Example:
+        import base64
+        with open("report.pdf", "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        DocumentContent(data=data, media_type="application/pdf", filename="report.pdf")
+    """
+    data: str  # Base64 encoded document data
+    media_type: str = "application/pdf"
+    filename: str | None = None
+    type: str = "document"
+
+
+@dataclass
+class S3FileRef:
+    """Reference to a file uploaded to S3 (for large files >5MB)."""
+    s3_key: str  # S3 object key
+    bucket: str | None = None  # Uses default bucket if not specified
+    media_type: str = "application/octet-stream"
+    filename: str | None = None
+    size_bytes: int | None = None
+    type: str = "s3_ref"
+
+
+@dataclass  
+class TextContent:
+    """Text content block for multimodal messages."""
+    text: str
+    type: str = "text"
+
+
+# Union type for content parts
+ContentPart = ImageContent | AudioContent | DocumentContent | S3FileRef | TextContent | dict[str, Any]
+
+
+@dataclass
 class Memory:
     """Unified input model for writing memories via store_memory/store_memories.
 
@@ -136,10 +228,35 @@ class Memory:
       - For conversations: appends to conversation
       - For documents: appends content to document
       - Returns the same memory_id
+    
+    Multimodal Support:
+    - content can be a string (text-only) or list of ContentPart objects
+    - For images, use ImageContent or S3FileRef
+    - Images are processed with a vision model (Qwen3-VL by default)
+    - For files >5MB, upload to S3 first using client.get_upload_url()
+    
+    Examples:
+        # Text-only memory
+        Memory(collection_id="...", content="Hello world")
+        
+        # Multimodal with image (base64)
+        Memory(
+            collection_id="...",
+            content=[
+                TextContent(text="What's in this image?"),
+                ImageContent(data="base64...", media_type="image/jpeg")
+            ]
+        )
+        
+        # Large file via S3
+        Memory(
+            collection_id="...",
+            content=[S3FileRef(s3_key="multimodal/abc/image.jpg")]
+        )
     """
 
     collection_id: str
-    content: str
+    content: str | list[ContentPart]
     role: str | None = None  # user, assistant, or custom
     memory_id: str | None = None  # ID of existing memory to append to
     metadata: dict[str, Any] = field(default_factory=dict)

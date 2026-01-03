@@ -16,15 +16,20 @@ from .exceptions import (
     NebulaValidationException,
 )
 from .models import (
+    AudioContent,
     Chunk,
     Collection,
+    DocumentContent,
+    ImageContent,
     Memory,
     MemoryRecall,
     MemoryResponse,
+    S3FileRef,
     SearchResult,
+    TextContent,
 )
 
-__version__ = "2.1.4"
+__version__ = "2.1.5"
 __all__ = [
     "Nebula",
     "AsyncNebula",
@@ -40,4 +45,10 @@ __all__ = [
     "Collection",
     "SearchResult",
     "Chunk",
+    # Multimodal content types
+    "AudioContent",
+    "DocumentContent",
+    "ImageContent",
+    "S3FileRef",
+    "TextContent",
 ]

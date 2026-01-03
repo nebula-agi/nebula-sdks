@@ -15,6 +15,10 @@ import {
   NebulaRateLimitException,
   NebulaValidationException,
   NebulaNotFoundException,
+  MultimodalContentPart,
+  AudioContentPart,
+  DocumentContentPart,
+  ImageContentPart,
 } from './types';
 
 /**
@@ -62,7 +66,7 @@ export class Nebula {
     const parts = candidate.split('.');
     if (parts.length !== 2) return false;
     const [publicPart, rawPart] = parts;
-    return publicPart.startsWith('key_') && !!rawPart && rawPart.length > 0;
+    return (publicPart.startsWith('key_') || publicPart.startsWith('neb_')) && !!rawPart && rawPart.length > 0;
   }
 
   /** Build authentication headers */
@@ -332,8 +336,14 @@ export class Nebula {
 
       // If content and role provided, include as initial message
       if (mem.content && mem.role) {
+        // Check if content is multimodal (array of content parts)
+        const isMultimodal = Array.isArray(mem.content) && 
+          mem.content.length > 0 && 
+          typeof mem.content[0] === 'object' && 
+          'type' in mem.content[0];
+        
         messages.push({
-          content: String(mem.content),
+          content: isMultimodal ? mem.content : String(mem.content),
           role: mem.role,
           metadata: mem.metadata || {},
           ...(typeof (mem as any).authority === 'number' ? { authority: Number((mem as any).authority) } : {})
@@ -345,7 +355,7 @@ export class Nebula {
         throw new NebulaClientException('Cannot create conversation without messages. Provide content and role.');
       }
 
-      const data = {
+      const data: Record<string, any> = {
         engram_type: 'conversation',
         collection_ref: mem.collection_id,
         name: name || 'Conversation',
@@ -366,15 +376,15 @@ export class Nebula {
     }
 
     // Handle document/text memory
-    const contentText = String(mem.content || '');
-    if (!contentText) {
-      throw new NebulaClientException('Content is required for document memories');
-    }
-
-    const contentHash = await this._sha256(contentText);
+    // Check if content is multimodal (array of content parts)
+    const isMultimodal = Array.isArray(mem.content) && 
+      mem.content.length > 0 && 
+      typeof mem.content[0] === 'object' && 
+      'type' in mem.content[0];
+    
     const docMetadata = { ...mem.metadata } as Record<string, any>;
     docMetadata.memory_type = 'memory';
-    docMetadata.content_hash = contentHash;
+    
     // If authority provided for document, persist in metadata for ranking
     if (typeof (mem as any).authority === 'number') {
       const v = Number((mem as any).authority);
@@ -382,6 +392,34 @@ export class Nebula {
         (docMetadata as any).authority = v;
       }
     }
+    
+    if (isMultimodal) {
+      // Use JSON format for multimodal content
+      const data: Record<string, any> = {
+        engram_type: 'document',
+        collection_ref: mem.collection_id,
+        content_parts: mem.content,
+        metadata: docMetadata,
+        ingestion_mode: 'fast',
+      };
+
+      const response = await this._makeRequest('POST', '/v1/memories', data);
+      
+      if (response.results) {
+        if (response.results.engram_id) return String(response.results.engram_id);
+        if (response.results.id) return String(response.results.id);
+      }
+      return '';
+    }
+    
+    // Plain text content
+    const contentText = String(mem.content || '');
+    if (!contentText) {
+      throw new NebulaClientException('Content is required for document memories');
+    }
+
+    const contentHash = await this._sha256(contentText);
+    docMetadata.content_hash = contentHash;
 
     const data = {
       metadata: JSON.stringify(docMetadata),
@@ -417,9 +455,9 @@ export class Nebula {
   }
 
   /**
-   * Internal method to append content to an existing engram
+   * Internal method to append content to an existing memory
    *
-   * @throws NebulaNotFoundException if engram_id doesn't exist
+   * @throws NebulaNotFoundException if memory_id doesn't exist
    */
   private async _appendToMemory(memoryId: string, memory: Memory): Promise<string> {
     const collectionId = memory.collection_id;
@@ -488,19 +526,36 @@ export class Nebula {
     for (const [key, group] of Object.entries(convGroups)) {
       const collectionId = group[0].collection_id;
       let convId: string;
+      
+      // Check if any message has multimodal content
+      const hasMultimodalContent = group.some((m) => 
+        Array.isArray(m.content) && 
+        m.content.length > 0 && 
+        typeof m.content[0] === 'object' && 
+        'type' in m.content[0]
+      );
 
       // Prepare messages for the conversation
-      const messages = group.map((m) => ({
-        content: String(m.content || ''),
-        role: m.role!,
-        metadata: m.metadata || {},
-        ...(typeof (m as any).authority === 'number' ? { authority: Number((m as any).authority) } : {})
-      }));
+      const messages = group.map((m) => {
+        // Check if this message has multimodal content
+        const isMultimodal = Array.isArray(m.content) && 
+          m.content.length > 0 && 
+          typeof m.content[0] === 'object' && 
+          'type' in m.content[0];
+        
+        return {
+          // Preserve multimodal content as-is, only stringify plain text
+          content: isMultimodal ? m.content : String(m.content || ''),
+          role: m.role!,
+          metadata: m.metadata || {},
+          ...(typeof (m as any).authority === 'number' ? { authority: Number((m as any).authority) } : {})
+        };
+      });
 
       // Create conversation if needed
       if (key.startsWith('__new__::')) {
         // Create conversation with initial messages using JSON body
-        const data = {
+        const data: Record<string, any> = {
           engram_type: 'conversation',
           collection_ref: collectionId,
           name: 'Conversation',
@@ -521,9 +576,10 @@ export class Nebula {
       } else {
         // Append to existing conversation
         convId = key;
+
         const appendMem: Memory = {
           collection_id: collectionId,
-          content: messages,
+          content: messages as Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, any>; authority?: number}>,
           memory_id: convId,
           metadata: {},
         };

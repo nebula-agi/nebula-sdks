@@ -35,9 +35,53 @@ export interface MemoryResponse {
   updated_at?: string;
 }
 
+// Multimodal content part types
+export interface TextContentPart {
+  type: 'text';
+  text: string;
+}
+
+export interface ImageContentPart {
+  type: 'image';
+  data: string;  // Base64 encoded image data
+  media_type: string;  // MIME type (e.g., 'image/jpeg', 'image/png')
+  filename?: string;
+}
+
+export interface AudioContentPart {
+  type: 'audio';
+  data: string;  // Base64 encoded audio data
+  media_type: string;  // MIME type (e.g., 'audio/mp3', 'audio/wav', 'audio/m4a')
+  filename?: string;
+  duration_seconds?: number;
+}
+
+export interface DocumentContentPart {
+  type: 'document';
+  data: string;  // Base64 encoded document data
+  media_type: string;  // MIME type (e.g., 'application/pdf', 'application/msword')
+  filename?: string;
+}
+
+export interface S3FileReferencePart {
+  type: 's3_ref';
+  s3_key: string;
+  bucket?: string;
+  media_type: string;
+  filename?: string;
+  size_bytes?: number;
+}
+
+export type MultimodalContentPart = 
+  | TextContentPart 
+  | ImageContentPart 
+  | AudioContentPart 
+  | DocumentContentPart 
+  | S3FileReferencePart;
+
 export interface Memory {
   collection_id: string;
-  content: string | string[] | Array<{content: string; role: string; metadata?: Record<string, any>; authority?: number}>;
+  content: string | string[] | MultimodalContentPart[] | Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, any>; authority?: number}>;
   role?: string; // user, assistant, or custom
   memory_id?: string; // ID of existing memory to append to
   metadata: Record<string, any>;
