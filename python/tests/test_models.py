@@ -4,8 +4,6 @@ Tests for the data models
 
 from datetime import datetime
 
-import pytest
-
 from nebula import (
     Collection,
     Memory,

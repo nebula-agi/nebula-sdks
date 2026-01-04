@@ -218,7 +218,7 @@ class TestSyncMultimodal:
 
     def test_store_image_memory(self, client, test_collection):
         """Test storing an image as memory."""
-        from nebula import Memory, ImageContent
+        from nebula import ImageContent, Memory
 
         # Download and encode image
         image_data = download_and_encode(SAMPLE_IMAGES["cat"])
@@ -243,7 +243,7 @@ class TestSyncMultimodal:
 
     def test_store_document_memory(self, client, test_collection):
         """Test storing a PDF document as memory."""
-        from nebula import Memory, DocumentContent
+        from nebula import DocumentContent, Memory
 
         # Create a simple test PDF
         pdf_data = base64.b64encode(create_simple_test_pdf()).decode()
@@ -262,7 +262,7 @@ class TestSyncMultimodal:
 
     def test_store_multiple_images(self, client, test_collection):
         """Test storing multiple images in a single memory."""
-        from nebula import Memory, ImageContent
+        from nebula import ImageContent, Memory
 
         # Download and encode images
         cat_data = download_and_encode(SAMPLE_IMAGES["cat"])
@@ -284,7 +284,7 @@ class TestSyncMultimodal:
 
     def test_multimodal_conversation(self, client, test_collection):
         """Test storing a conversation with multimodal content."""
-        from nebula import Memory, ImageContent
+        from nebula import ImageContent, Memory
 
         # Download and encode image
         image_data = download_and_encode(SAMPLE_IMAGES["landscape"])
@@ -326,7 +326,7 @@ class TestSyncMultimodal:
 
     def test_search_multimodal_memories(self, client, test_collection):
         """Test searching memories that contain multimodal content."""
-        from nebula import Memory, ImageContent
+        from nebula import ImageContent, Memory
 
         # Download and encode image
         image_data = download_and_encode(SAMPLE_IMAGES["landscape"])
@@ -388,7 +388,7 @@ class TestAsyncMultimodal:
     @pytest.mark.asyncio
     async def test_async_store_image_memory(self, client, test_collection):
         """Test storing an image as memory asynchronously."""
-        from nebula import Memory, ImageContent
+        from nebula import ImageContent, Memory
 
         # Download and encode
         image_data = await async_download_and_encode(SAMPLE_IMAGES["dog"])
@@ -409,7 +409,7 @@ class TestAsyncMultimodal:
     @pytest.mark.asyncio
     async def test_async_store_document(self, client, test_collection):
         """Test storing a PDF document asynchronously."""
-        from nebula import Memory, DocumentContent
+        from nebula import DocumentContent, Memory
 
         pdf_data = base64.b64encode(create_simple_test_pdf()).decode()
         
@@ -428,7 +428,7 @@ class TestAsyncMultimodal:
     @pytest.mark.asyncio
     async def test_async_multimodal_conversation(self, client, test_collection):
         """Test async conversation with multimodal content."""
-        from nebula import Memory, ImageContent
+        from nebula import ImageContent, Memory
 
         # Download and encode images concurrently
         cat_data, dog_data = await asyncio.gather(
@@ -465,7 +465,7 @@ class TestAsyncMultimodal:
     @pytest.mark.asyncio
     async def test_async_batch_multimodal_storage(self, client, test_collection):
         """Test storing multiple multimodal memories in batch."""
-        from nebula import Memory, ImageContent
+        from nebula import ImageContent, Memory
 
         # Download and encode all images concurrently
         image_data_list = await asyncio.gather(*[
@@ -522,7 +522,7 @@ class TestMultimodalIntegration:
 
     def test_mixed_content_workflow(self, client, test_collection):
         """Test a workflow with mixed text and multimodal content."""
-        from nebula import Memory, ImageContent, DocumentContent
+        from nebula import DocumentContent, ImageContent, Memory
 
         # 1. Store a text memory
         text_memory_id = client.store_memory(Memory(
@@ -607,7 +607,7 @@ def run_quick_test():
     
     Pass base64-encoded content with explicit type and media_type.
     """
-    from nebula import Nebula, Memory, ImageContent, DocumentContent
+    from nebula import DocumentContent, ImageContent, Memory, Nebula
     
     print("=" * 60)
     print("Nebula Multimodal Quick Test")
@@ -715,7 +715,7 @@ async def run_async_quick_test():
     
     Pass base64-encoded content with explicit type and media_type.
     """
-    from nebula import AsyncNebula, Memory, ImageContent
+    from nebula import AsyncNebula, ImageContent, Memory
     
     print("=" * 60)
     print("Nebula Async Multimodal Quick Test")

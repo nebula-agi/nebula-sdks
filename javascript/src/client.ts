@@ -16,9 +16,6 @@ import {
   NebulaValidationException,
   NebulaNotFoundException,
   MultimodalContentPart,
-  AudioContentPart,
-  DocumentContentPart,
-  ImageContentPart,
 } from './types';
 
 /**
@@ -526,14 +523,6 @@ export class Nebula {
     for (const [key, group] of Object.entries(convGroups)) {
       const collectionId = group[0].collection_id;
       let convId: string;
-      
-      // Check if any message has multimodal content
-      const hasMultimodalContent = group.some((m) => 
-        Array.isArray(m.content) && 
-        m.content.length > 0 && 
-        typeof m.content[0] === 'object' && 
-        'type' in m.content[0]
-      );
 
       // Prepare messages for the conversation
       const messages = group.map((m) => {
@@ -622,16 +611,12 @@ export class Nebula {
           return true;
         } catch {
           // Fall back to new unified endpoint
-          try {
-            console.log('[SDK] Falling back to POST /v1/memories/delete with single ID');
-            // Send the UUID string directly as body (not wrapped in {ids: ...})
-            const response = await this._makeRequest('POST', '/v1/memories/delete', memoryIds);
-            return typeof response === 'object' && response.success !== undefined
-              ? response.success
-              : true;
-          } catch (error) {
-            throw error;
-          }
+          console.log('[SDK] Falling back to POST /v1/memories/delete with single ID');
+          // Send the UUID string directly as body (not wrapped in {ids: ...})
+          const response = await this._makeRequest('POST', '/v1/memories/delete', memoryIds);
+          return typeof response === 'object' && response.success !== undefined
+            ? response.success
+            : true;
         }
       } else {
         console.log('[SDK] Batch deletion path for IDs:', memoryIds);
