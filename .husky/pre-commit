@@ -2,10 +2,16 @@
 # Auto-bump SDK versions when code changes
 # Only bumps version if current version is successfully published to PyPI/npm
 
+# Never block commits. If version checks fail or can't be verified, skip bumps.
+# Note: Husky typically runs hooks with `sh -e`, so we explicitly disable errexit.
+set +e
+
 # Check Python SDK
 if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^python/pyproject.toml"; then
-  echo "Python SDK code changes detected, checking if current version is published..."
-  cd python || exit 1
+  echo "Python SDK changes detected, checking if current version is published..."
+  if ! cd python; then
+    echo "Could not enter python/ directory, skipping Python version bump"
+  else
 
   CURRENT_VERSION=$(python3 - << 'EOF'
 import re
@@ -20,11 +26,14 @@ for line in text.splitlines():
         match = re.match(r'\s*version\s*=\s*"([^"]+)"', line)
         if match:
             print(match.group(1))
-            raise SystemExit(0)
-
-raise SystemExit("Could not find [project].version in pyproject.toml")
+            break
 EOF
   )
+
+  if [ -z "$CURRENT_VERSION" ]; then
+    echo "Could not read current version from python/pyproject.toml, skipping Python version bump"
+    cd ..
+  else
 
   # Check if current version exists on PyPI
   echo "Checking if version $CURRENT_VERSION is published on PyPI..."
@@ -37,7 +46,7 @@ import os
 version = os.environ.get('CURRENT_VERSION', '')
 if not version:
     print("error")
-    sys.exit(2)
+    sys.exit(0)
 
 try:
     url = f"https://pypi.org/pypi/nebula-client/{version}/json"
@@ -48,13 +57,13 @@ try:
 except urllib.error.HTTPError as e:
     if e.code == 404:
         print("not_published")
-        sys.exit(1)
+        sys.exit(0)
     else:
         print("error")
-        sys.exit(2)
+        sys.exit(0)
 except Exception:
     print("error")
-    sys.exit(2)
+    sys.exit(0)
 EOF
  2>/dev/null)
 
@@ -122,14 +131,22 @@ EOF
     git add pyproject.toml
     cd ..
   fi
+  fi
+  fi
 fi
 
 # Check JavaScript SDK
 if git diff --cached --name-only | grep -q "^javascript/src/"; then
   echo "JavaScript SDK changes detected, checking if current version is published..."
-  cd javascript || exit 1
+  if ! cd javascript; then
+    echo "Could not enter javascript/ directory, skipping JavaScript version bump"
+  else
 
-  CURRENT_VERSION=$(node -p "require('./package.json').version")
+  CURRENT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null)
+  if [ -z "$CURRENT_VERSION" ]; then
+    echo "Could not read current version from javascript/package.json, skipping JavaScript version bump"
+    cd ..
+  else
 
   # Check if current version exists on npm
   echo "Checking if version $CURRENT_VERSION is published on npm..."
@@ -151,4 +168,8 @@ if git diff --cached --name-only | grep -q "^javascript/src/"; then
     git add package.json
     cd ..
   fi
+  fi
+  fi
 fi
+
+exit 0
