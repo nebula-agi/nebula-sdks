@@ -1071,7 +1071,16 @@ export class Nebula {
 
   private async _sha256(message: string): Promise<string> {
     const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', msgBuffer);
+    // Use Web Crypto API: prefer globalThis.crypto (browser/Node 18+), fallback to Node's crypto.webcrypto
+    let crypto: Crypto;
+    if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle) {
+      crypto = globalThis.crypto;
+    } else {
+      // Node.js environment: use built-in crypto module's webcrypto
+      const nodeCrypto = await import('crypto');
+      crypto = nodeCrypto.webcrypto as Crypto;
+    }
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
     return hashHex;

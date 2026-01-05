@@ -5,8 +5,8 @@ This guide will help you get started with Nebula's official SDKs for JavaScript/
 ## Prerequisites
 
 - A Nebula account and API key (sign up at [nebulacloud.app](https://nebulacloud.app))
-- Node.js 16+ (for JavaScript SDK)
-- Python 3.8+ (for Python SDK)
+- Node.js 18.0.0 or higher (for JavaScript SDK)
+- Python 3.10 or higher (for Python SDK)
 
 ## Quick Start
 
