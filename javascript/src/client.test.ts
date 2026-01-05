@@ -272,8 +272,7 @@ describe('Nebula', () => {
 
       const results = await client.search({
         query: 'test query',
-        collection_ids: 'collection-123',
-        limit: 5
+        collection_ids: 'collection-123'
       });
 
       expect(results.query).toBe('test query');

@@ -4,7 +4,7 @@
 
 # Check Python SDK
 if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^python/pyproject.toml"; then
-  echo "Python SDK changes detected, checking if current version is published..."
+  echo "Python SDK code changes detected, checking if current version is published..."
   cd python || exit 1
 
   CURRENT_VERSION=$(python3 - << 'EOF'
@@ -60,27 +60,22 @@ EOF
 
   if [ "$PYPI_CHECK" != "published" ]; then
     if [ "$PYPI_CHECK" = "not_published" ]; then
-      echo "⚠️  Warning: Version $CURRENT_VERSION is not published on PyPI"
-      echo "⚠️  Skipping version bump to prevent version gaps"
-      echo "⚠️  Please ensure the current version is published before making changes"
+      echo "Version $CURRENT_VERSION is not published on PyPI, skipping version bump"
     else
-      echo "⚠️  Warning: Could not verify if version $CURRENT_VERSION is published on PyPI"
-      echo "⚠️  Skipping version bump to prevent version gaps"
-      echo "⚠️  Please check your network connection and try again"
+      echo "Could not verify if version $CURRENT_VERSION is published on PyPI, skipping version bump"
     fi
     cd ..
-    exit 1
-  fi
+  else
 
-  echo "✅ Version $CURRENT_VERSION is published on PyPI, proceeding with bump..."
+    echo "✅ Version $CURRENT_VERSION is published on PyPI, proceeding with bump..."
 
-  # Parse and bump patch version
-  IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-  NEW_VERSION="${major}.${minor}.$((patch + 1))"
+    # Parse and bump patch version
+    IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+    NEW_VERSION="${major}.${minor}.$((patch + 1))"
 
-  echo "Bumping Python SDK: $CURRENT_VERSION -> $NEW_VERSION"
+    echo "Bumping Python SDK: $CURRENT_VERSION -> $NEW_VERSION"
 
-  python3 - << 'EOF' "$NEW_VERSION"
+    python3 - << 'EOF' "$NEW_VERSION"
 import re
 import sys
 from pathlib import Path
@@ -108,9 +103,9 @@ if not updated:
 path.write_text("\n".join(lines) + ("\n" if text.endswith("\n") else ""))
 EOF
 
-  # Also update __init__.py if it exists
-  if [ -f "nebula/__init__.py" ]; then
-    python3 - << 'EOF' "$NEW_VERSION"
+    # Also update __init__.py if it exists
+    if [ -f "nebula/__init__.py" ]; then
+      python3 - << 'EOF' "$NEW_VERSION"
 import re
 import sys
 from pathlib import Path
@@ -121,11 +116,12 @@ text = path.read_text()
 text = re.sub(r'__version__\s*=\s*"[^"]+"', f'__version__ = "{new_version}"', text)
 path.write_text(text)
 EOF
-    git add nebula/__init__.py
-  fi
+      git add nebula/__init__.py
+    fi
 
-  git add pyproject.toml
-  cd ..
+    git add pyproject.toml
+    cd ..
+  fi
 fi
 
 # Check JavaScript SDK
@@ -138,24 +134,21 @@ if git diff --cached --name-only | grep -q "^javascript/src/"; then
   # Check if current version exists on npm
   echo "Checking if version $CURRENT_VERSION is published on npm..."
   if ! npm view "@nebula-ai/sdk@$CURRENT_VERSION" version >/dev/null 2>&1; then
-    echo "⚠️  Warning: Version $CURRENT_VERSION is not published on npm"
-    echo "⚠️  Skipping version bump to prevent version gaps"
-    echo "⚠️  Please ensure the current version is published before making changes"
+    echo "Version $CURRENT_VERSION is not published on npm, skipping version bump"
     cd ..
-    exit 1
+  else
+    echo "✅ Version $CURRENT_VERSION is published on npm, proceeding with bump..."
+
+    # Parse and bump patch version
+    IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+    NEW_VERSION="${major}.${minor}.$((patch + 1))"
+
+    echo "Bumping JavaScript SDK: $CURRENT_VERSION -> $NEW_VERSION"
+
+    # Update version
+    npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
+
+    git add package.json
+    cd ..
   fi
-
-  echo "✅ Version $CURRENT_VERSION is published on npm, proceeding with bump..."
-
-  # Parse and bump patch version
-  IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-  NEW_VERSION="${major}.${minor}.$((patch + 1))"
-
-  echo "Bumping JavaScript SDK: $CURRENT_VERSION -> $NEW_VERSION"
-
-  # Update version
-  npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
-
-  git add package.json
-  cd ..
 fi

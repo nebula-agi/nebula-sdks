@@ -256,7 +256,7 @@ wheels = [
 
 [[package]]
 name = "nebula-client"
-version = "2.1.10"
+version = "2.1.13"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

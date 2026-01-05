@@ -247,7 +247,6 @@ class TestNebula:
         results = self.client.search(
             query="test query",
             collection_ids=["cluster-123"],
-            limit=5,
             filters={"test": "filter"},
         )
 
