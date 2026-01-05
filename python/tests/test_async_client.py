@@ -208,7 +208,11 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
     create_calls = [c for c in calls if c["endpoint"] == "/v1/memories"]
     assert create_calls, "No create call made"
     msg_payload = create_calls[0]["json"] or {}
-    assert "messages" in msg_payload and isinstance(msg_payload["messages"], list) and msg_payload["messages"]
+    assert (
+        "messages" in msg_payload
+        and isinstance(msg_payload["messages"], list)
+        and msg_payload["messages"]
+    )
     first_msg = msg_payload["messages"][0]
     assert first_msg.get("authority") == 0.9
 
@@ -224,7 +228,12 @@ def test_store_memory_document_metadata_includes_authority(monkeypatch):
         params: dict[str, Any] | None = None,
     ):
         calls.append(
-            {"method": method, "endpoint": endpoint, "json": json_data, "params": params}
+            {
+                "method": method,
+                "endpoint": endpoint,
+                "json": json_data,
+                "params": params,
+            }
         )
         if endpoint == "/v1/memories":
             return {"results": {"engram_id": "doc_123", "id": "doc_123"}}

@@ -412,7 +412,9 @@ class AsyncNebula:
                 "POST", "/v1/memories", json_data=payload
             )
             if isinstance(response, dict) and "results" in response:
-                conv_id = response["results"].get("engram_id") or response["results"].get("id")
+                conv_id = response["results"].get("engram_id") or response[
+                    "results"
+                ].get("id")
                 if not conv_id:
                     raise NebulaClientException(
                         "Failed to create conversation: no id returned"
@@ -542,7 +544,11 @@ class AsyncNebula:
                 # Skip empty messages
                 if not text.strip():
                     continue
-                msg: dict[str, Any] = {"content": text, "role": m.role, "metadata": msg_meta}
+                msg: dict[str, Any] = {
+                    "content": text,
+                    "role": m.role,
+                    "metadata": msg_meta,
+                }
                 if m.authority is not None:
                     msg["authority"] = float(m.authority)
                 messages.append(msg)
@@ -560,12 +566,18 @@ class AsyncNebula:
                     "messages": messages,
                     "metadata": {},
                 }
-                resp = await self._make_request_async("POST", "/v1/memories", json_data=payload)
+                resp = await self._make_request_async(
+                    "POST", "/v1/memories", json_data=payload
+                )
                 if not (isinstance(resp, dict) and "results" in resp):
-                    raise NebulaClientException("Failed to create conversation: invalid response format")
+                    raise NebulaClientException(
+                        "Failed to create conversation: invalid response format"
+                    )
                 conv_id = resp["results"].get("engram_id") or resp["results"].get("id")
                 if not conv_id:
-                    raise NebulaClientException("Failed to create conversation: no id returned")
+                    raise NebulaClientException(
+                        "Failed to create conversation: no id returned"
+                    )
                 results.extend([str(conv_id)] * len(group))
             else:
                 conv_id = key
