@@ -1,9 +1,10 @@
 #!/bin/sh
 # Auto-bump SDK versions when code changes
+# Only bumps version if current version is successfully published to PyPI/npm
 
 # Check Python SDK
 if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^python/pyproject.toml"; then
-  echo "Python SDK changes detected, bumping version..."
+  echo "Python SDK changes detected, checking if current version is published..."
   cd python || exit 1
 
   CURRENT_VERSION=$(python3 - << 'EOF'
@@ -24,6 +25,49 @@ for line in text.splitlines():
 raise SystemExit("Could not find [project].version in pyproject.toml")
 EOF
   )
+
+  # Check if current version exists on PyPI
+  echo "Checking if version $CURRENT_VERSION is published on PyPI..."
+  PYPI_CHECK=$(python3 - << 'EOF'
+import sys
+import urllib.request
+import urllib.error
+
+version = sys.argv[1]
+try:
+    url = f"https://pypi.org/pypi/nebula-client/{version}/json"
+    with urllib.request.urlopen(url, timeout=5) as response:
+        data = response.read()
+        print("published")
+        sys.exit(0)
+except urllib.error.HTTPError as e:
+    if e.code == 404:
+        print("not_published")
+        sys.exit(1)
+    else:
+        print("error")
+        sys.exit(2)
+except Exception:
+    print("error")
+    sys.exit(2)
+EOF
+"$CURRENT_VERSION" 2>/dev/null)
+
+  if [ "$PYPI_CHECK" != "published" ]; then
+    if [ "$PYPI_CHECK" = "not_published" ]; then
+      echo "⚠️  Warning: Version $CURRENT_VERSION is not published on PyPI"
+      echo "⚠️  Skipping version bump to prevent version gaps"
+      echo "⚠️  Please ensure the current version is published before making changes"
+    else
+      echo "⚠️  Warning: Could not verify if version $CURRENT_VERSION is published on PyPI"
+      echo "⚠️  Skipping version bump to prevent version gaps"
+      echo "⚠️  Please check your network connection and try again"
+    fi
+    cd ..
+    exit 1
+  fi
+
+  echo "✅ Version $CURRENT_VERSION is published on PyPI, proceeding with bump..."
 
   # Parse and bump patch version
   IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
@@ -59,16 +103,44 @@ if not updated:
 path.write_text("\n".join(lines) + ("\n" if text.endswith("\n") else ""))
 EOF
 
+  # Also update __init__.py if it exists
+  if [ -f "nebula/__init__.py" ]; then
+    python3 - << 'EOF' "$NEW_VERSION"
+import re
+import sys
+from pathlib import Path
+
+new_version = sys.argv[1]
+path = Path("nebula/__init__.py")
+text = path.read_text()
+text = re.sub(r'__version__\s*=\s*"[^"]+"', f'__version__ = "{new_version}"', text)
+path.write_text(text)
+EOF
+    git add nebula/__init__.py
+  fi
+
   git add pyproject.toml
   cd ..
 fi
 
 # Check JavaScript SDK
 if git diff --cached --name-only | grep -q "^javascript/src/"; then
-  echo "JavaScript SDK changes detected, bumping version..."
+  echo "JavaScript SDK changes detected, checking if current version is published..."
   cd javascript || exit 1
 
   CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+  # Check if current version exists on npm
+  echo "Checking if version $CURRENT_VERSION is published on npm..."
+  if ! npm view "@nebula-ai/sdk@$CURRENT_VERSION" version >/dev/null 2>&1; then
+    echo "⚠️  Warning: Version $CURRENT_VERSION is not published on npm"
+    echo "⚠️  Skipping version bump to prevent version gaps"
+    echo "⚠️  Please ensure the current version is published before making changes"
+    cd ..
+    exit 1
+  fi
+
+  echo "✅ Version $CURRENT_VERSION is published on npm, proceeding with bump..."
 
   # Parse and bump patch version
   IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"

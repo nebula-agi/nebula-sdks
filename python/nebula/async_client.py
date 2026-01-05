@@ -732,7 +732,6 @@ class AsyncNebula:
         collection_ids: list[str] | None = None,
         limit: int = 10,
         filters: dict[str, Any] | None = None,
-        search_mode: str = "super",
         search_settings: dict[str, Any] | None = None,
     ) -> MemoryRecall:
         """
@@ -743,10 +742,14 @@ class AsyncNebula:
             collection_ids: Optional list of collection IDs or names to search within.
                         Can be UUIDs or collection names.
                         If not provided, searches across all your accessible collections.
-            limit: Maximum number of results to return
+            limit: Maximum number of results to return (default: 10, max: 1000)
             filters: Optional filters to apply to the search. Supports comprehensive metadata filtering
                     with MongoDB-like operators for both vector/chunk search and graph search.
-            search_settings: Optional search configuration including search_mode ('basic'|'advanced')
+            search_settings: Optional advanced search settings including:
+                - semantic_weight: Weight for semantic search (0-1, default: 0.8)
+                - fulltext_weight: Weight for fulltext search (0-1, default: 0.2)
+                - include_metadata: Whether to include metadata in results (default: False)
+                - include_scores: Whether to include scores in results (default: True)
 
         Filter Examples:
             Basic equality:
@@ -811,46 +814,34 @@ class AsyncNebula:
             MemoryRecall object containing hierarchical memory structure with entities, facts,
             and utterances
         """
-        # Build effective search settings with simplified structure
-        effective_settings: dict[str, Any] = dict(search_settings or {})
-        effective_settings["limit"] = limit
-        # Retrieval type is now handled internally by the backend
-        user_filters: dict[str, Any] = dict(effective_settings.get("filters", {}))
-        if filters:
-            user_filters.update(filters)
-        # Add cluster filter if collection_ids provided (supports both UUIDs and names)
+        # Build request data - pass params directly to API (no wrapping needed)
+        data: dict[str, Any] = {
+            "query": query,
+            "limit": limit,
+        }
+
+        # Add optional params only if provided
         if collection_ids:
             # Filter out empty/invalid collection IDs
             valid_collection_ids = [
                 cid for cid in collection_ids if cid and str(cid).strip()
             ]
             if valid_collection_ids:
-                user_filters["collection_ids"] = {"$overlap": valid_collection_ids}
-        effective_settings["filters"] = user_filters
+                data["collection_ids"] = valid_collection_ids
 
-        data = {
-            "query": query,
-            "search_mode": search_mode,
-            "search_settings": effective_settings,
-        }
+        if filters:
+            data["filters"] = filters
+
+        if search_settings:
+            data["search_settings"] = search_settings
+
         response = await self._make_request_async(
             "POST", "/v1/memories/search", json_data=data
         )
 
         # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
-        if isinstance(response, dict) and "results" in response:
-            return MemoryRecall.from_dict(response["results"], query)
-
-        # Fallback to empty MemoryRecall
-        return MemoryRecall(
-            query=query,
-            entities=[],
-            facts=[],
-            utterances=[],
-            fact_to_chunks={},
-            entity_to_facts={},
-            retrieved_at="",
-        )
+        # The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
+        return MemoryRecall.from_dict(response["results"], query)
 
     async def health_check(self) -> dict[str, Any]:
         return await self._make_request_async("GET", "/v1/health")

@@ -1151,19 +1151,8 @@ class Nebula:
         response = self._make_request("POST", "/v1/memories/search", json_data=data)
 
         # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
-        if isinstance(response, dict) and "results" in response:
-            return MemoryRecall.from_dict(response["results"], query)
-
-        # Fallback to empty MemoryRecall
-        return MemoryRecall(
-            query=query,
-            entities=[],
-            facts=[],
-            utterances=[],
-            fact_to_chunks={},
-            entity_to_facts={},
-            retrieved_at="",
-        )
+        # The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
+        return MemoryRecall.from_dict(response["results"], query)
 
     def health_check(self) -> dict[str, Any]:
         """

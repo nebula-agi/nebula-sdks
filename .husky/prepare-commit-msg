@@ -1,0 +1,90 @@
+#!/bin/sh
+# Append SDK version to commit message when versions are bumped
+
+COMMIT_MSG_FILE="$1"
+COMMIT_SOURCE="$2"
+
+# Only modify commit messages (not merge commits, etc.)
+if [ "$COMMIT_SOURCE" != "" ] && [ "$COMMIT_SOURCE" != "message" ] && [ "$COMMIT_SOURCE" != "template" ]; then
+  exit 0
+fi
+
+PY_VERSION=""
+JS_VERSION=""
+
+# Check if Python SDK version was changed
+if git diff --cached --name-only | grep -q "^python/pyproject.toml$"; then
+  cd python || exit 0
+  
+  PY_VERSION=$(python3 - << 'EOF'
+import re
+from pathlib import Path
+
+text = Path("pyproject.toml").read_text()
+in_project = False
+for line in text.splitlines():
+    if line.strip().startswith("["):
+        in_project = line.strip() == "[project]"
+    if in_project:
+        match = re.match(r'\s*version\s*=\s*"([^"]+)"', line)
+        if match:
+            print(match.group(1))
+            raise SystemExit(0)
+
+raise SystemExit("Could not find [project].version in pyproject.toml")
+EOF
+  ) 2>/dev/null
+  
+  cd ..
+fi
+
+# Check if JavaScript SDK version was changed
+if git diff --cached --name-only | grep -q "^javascript/package.json$"; then
+  cd javascript || exit 0
+  
+  JS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null)
+  
+  cd ..
+fi
+
+# Build version tags
+VERSION_TAGS=""
+if [ -n "$PY_VERSION" ]; then
+  VERSION_TAGS="[py-$PY_VERSION]"
+fi
+if [ -n "$JS_VERSION" ]; then
+  if [ -n "$VERSION_TAGS" ]; then
+    VERSION_TAGS="$VERSION_TAGS [js-$JS_VERSION]"
+  else
+    VERSION_TAGS="[js-$JS_VERSION]"
+  fi
+fi
+
+# Append version tags to commit message if versions were bumped
+if [ -n "$VERSION_TAGS" ]; then
+  # Read current commit message
+  CURRENT_MSG=$(cat "$COMMIT_MSG_FILE" 2>/dev/null)
+  
+  # Get first line (subject)
+  FIRST_LINE=$(echo "$CURRENT_MSG" | head -n 1)
+  REMAINING_LINES=$(echo "$CURRENT_MSG" | tail -n +2)
+  
+  # Check if version tags already exist
+  if echo "$FIRST_LINE" | grep -qE "\[py-[0-9.]+\]|\[js-[0-9.]+\]"; then
+    # Remove existing version tags and add new ones
+    FIRST_LINE=$(echo "$FIRST_LINE" | sed -E 's/ \[py-[0-9.]+\]//g' | sed -E 's/ \[js-[0-9.]+\]//g' | sed -E 's/\[py-[0-9.]+\] //g' | sed -E 's/\[js-[0-9.]+\] //g')
+    FIRST_LINE="$FIRST_LINE $VERSION_TAGS"
+  else
+    # Append version tags
+    FIRST_LINE="$FIRST_LINE $VERSION_TAGS"
+  fi
+  
+  # Write updated commit message
+  {
+    echo "$FIRST_LINE"
+    [ -n "$REMAINING_LINES" ] && echo "$REMAINING_LINES"
+  } > "$COMMIT_MSG_FILE"
+fi
+
+exit 0
+

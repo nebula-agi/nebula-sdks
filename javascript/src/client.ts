@@ -872,14 +872,21 @@ export class Nebula {
     const response = await this._makeRequest('POST', '/v1/memories/search', data);
 
     // Backend returns MemoryRecall wrapped in { results: MemoryRecall }
-    const memoryRecall: MemoryRecall = response.results || {
-      query: options.query,
-      entities: [],
-      facts: [],
-      utterances: [],
-      fact_to_chunks: {},
-      entity_to_facts: {},
-      retrieved_at: new Date().toISOString(),
+    // The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
+    const memoryRecallData = response.results;
+
+    // Ensure we have a proper MemoryRecall structure with all fields
+    const memoryRecall: MemoryRecall = {
+      query: memoryRecallData.query || options.query,
+      entities: memoryRecallData.entities || [],
+      facts: memoryRecallData.facts || [],
+      utterances: memoryRecallData.utterances || [],
+      fact_to_chunks: memoryRecallData.fact_to_chunks || {},
+      entity_to_facts: memoryRecallData.entity_to_facts || {},
+      retrieved_at: memoryRecallData.retrieved_at || new Date().toISOString(),
+      focus: memoryRecallData.focus,
+      total_traversal_time_ms: memoryRecallData.total_traversal_time_ms,
+      query_intent: memoryRecallData.query_intent,
     };
 
     return memoryRecall;
