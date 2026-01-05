@@ -40,17 +40,6 @@ class _DummyHttpClient:
         self.posts.append(
             {"url": url, "data": data, "headers": headers, "files": files}
         )
-        # Check if this is a conversation creation (has engram_type in files)
-        if files and files.get("engram_type"):
-            engram_type_val = (
-                files["engram_type"][1]
-                if isinstance(files["engram_type"], tuple)
-                else files["engram_type"]
-            )
-            if engram_type_val == "conversation":
-                return _DummyResponse(
-                    200, {"results": {"engram_id": "conv_123", "id": "conv_123"}}
-                )
         # Default successful create with document id
         return _DummyResponse(
             200, {"results": {"engram_id": "doc_123", "id": "doc_123"}}
@@ -67,11 +56,7 @@ def run(coro):
 def test_store_memory_conversation_creates_and_posts(monkeypatch):
     client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
 
-    # Inject dummy HTTP client
-    dummy = _DummyHttpClient()
-    client._client = dummy  # type: ignore[attr-defined]
-
-    # Track calls to _make_request_async for append operations
+    # Track calls to _make_request_async (conversation creation)
     calls: list[dict[str, Any]] = []
 
     async def _fake_request(
@@ -88,9 +73,9 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
                 "params": params,
             }
         )
-        # Handle append operations
-        if endpoint.startswith("/v1/memories/") and endpoint.endswith("/append"):
-            return {"ok": True}
+        # Conversation creation uses JSON POST /v1/memories.
+        if endpoint == "/v1/memories":
+            return {"results": {"engram_id": "conv_123", "id": "conv_123"}}
         raise AssertionError(f"Unexpected call: {method} {endpoint}")
 
     client._make_request_async = _fake_request  # type: ignore[assignment]
@@ -101,10 +86,7 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
     conv_id = run(client.store_memory(mem))
 
     assert conv_id == "conv_123"
-    # Ensure conversation was created via direct HTTP POST
-    assert any(p["url"].endswith("/v1/memories") for p in dummy.posts)
-    # Ensure append was called for initial message
-    assert any(c["endpoint"].endswith("/append") for c in calls)
+    assert any(c["endpoint"] == "/v1/memories" for c in calls)
 
 
 def test_store_memory_text_engram_posts(monkeypatch):
@@ -112,22 +94,31 @@ def test_store_memory_text_engram_posts(monkeypatch):
     dummy = _DummyHttpClient()
     client._client = dummy  # type: ignore[attr-defined]
 
-    # No _make_request_async used in engram path
+    # Patch _make_request_async to return a stable doc ID for JSON create.
+    async def _fake_request(
+        method: str,
+        endpoint: str,
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        if endpoint == "/v1/memories":
+            return {"results": {"engram_id": "doc_123", "id": "doc_123"}}
+        raise AssertionError(f"Unexpected call: {method} {endpoint}")
+
+    client._make_request_async = _fake_request  # type: ignore[assignment]
+
     mem = Memory(
         collection_id="cluster_1", content="some text", metadata={"foo": "bar"}
     )
     doc_id = run(client.store_memory(mem))
 
     assert doc_id == "doc_123"
-    # Verify it posted to memories endpoint
-    assert any(p["url"].endswith("/v1/memories") for p in dummy.posts)
+    # Verify it used the JSON /v1/memories call (not multipart POST)
+    assert dummy.posts == []
 
 
 def test_store_memories_mixed_batch(monkeypatch):
     client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
-    dummy = _DummyHttpClient()
-    client._client = dummy  # type: ignore[attr-defined]
-
     calls: list[dict[str, Any]] = []
 
     async def _fake_request(
@@ -144,6 +135,11 @@ def test_store_memories_mixed_batch(monkeypatch):
                 "params": params,
             }
         )
+        # Handle create conversation/doc
+        if endpoint == "/v1/memories":
+            if json_data and json_data.get("messages"):
+                return {"results": {"engram_id": "conv_123", "id": "conv_123"}}
+            return {"results": {"engram_id": "doc_123", "id": "doc_123"}}
         # Handle append operations
         if endpoint.startswith("/v1/memories/") and endpoint.endswith("/append"):
             return {"ok": True}
@@ -169,16 +165,13 @@ def test_store_memories_mixed_batch(monkeypatch):
     assert "conv_123" in results  # New conversation created via HTTP POST
     assert "conv_existing" in results  # Existing conversation (appended)
     assert "doc_123" in results  # Document created via HTTP POST
-    # Append endpoint should be called twice: once for new conversation initial message, once for existing
+    # Append endpoint should be called once: for existing conversation only
     append_calls = [c for c in calls if c["endpoint"].endswith("/append")]
-    assert len(append_calls) == 2
+    assert len(append_calls) == 1
 
 
 def test_store_memory_conversation_includes_authority(monkeypatch):
     client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
-
-    dummy = _DummyHttpClient()
-    client._client = dummy  # type: ignore[attr-defined]
 
     calls: list[dict[str, Any]] = []
 
@@ -196,9 +189,8 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
                 "params": params,
             }
         )
-        # Handle append operations
-        if endpoint.startswith("/v1/memories/") and endpoint.endswith("/append"):
-            return {"ok": True}
+        if endpoint == "/v1/memories":
+            return {"results": {"engram_id": "conv_123", "id": "conv_123"}}
         raise AssertionError(f"Unexpected call: {method} {endpoint}")
 
     client._make_request_async = _fake_request  # type: ignore[assignment]
@@ -213,20 +205,32 @@ def test_store_memory_conversation_includes_authority(monkeypatch):
     conv_id = run(client.store_memory(mem))
 
     assert conv_id == "conv_123"
-    # Find append calls and verify authority in messages
-    append_calls = [c for c in calls if c["endpoint"].endswith("/append")]
-    assert append_calls, "No append call made"
-    msg_payload = append_calls[0]["json"]
-    assert "messages" in msg_payload and isinstance(msg_payload["messages"], list)
+    create_calls = [c for c in calls if c["endpoint"] == "/v1/memories"]
+    assert create_calls, "No create call made"
+    msg_payload = create_calls[0]["json"] or {}
+    assert "messages" in msg_payload and isinstance(msg_payload["messages"], list) and msg_payload["messages"]
     first_msg = msg_payload["messages"][0]
     assert first_msg.get("authority") == 0.9
 
 
 def test_store_memory_document_metadata_includes_authority(monkeypatch):
     client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
+    calls: list[dict[str, Any]] = []
 
-    dummy = _DummyHttpClient()
-    client._client = dummy  # type: ignore[attr-defined]
+    async def _fake_request(
+        method: str,
+        endpoint: str,
+        json_data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        calls.append(
+            {"method": method, "endpoint": endpoint, "json": json_data, "params": params}
+        )
+        if endpoint == "/v1/memories":
+            return {"results": {"engram_id": "doc_123", "id": "doc_123"}}
+        raise AssertionError(f"Unexpected call: {method} {endpoint}")
+
+    client._make_request_async = _fake_request  # type: ignore[assignment]
 
     mem = Memory(
         collection_id="cluster_docs",
@@ -237,17 +241,8 @@ def test_store_memory_document_metadata_includes_authority(monkeypatch):
     doc_id = run(client.store_memory(mem))
 
     assert doc_id == "doc_123"
-    # Inspect form-data sent via files parameter; metadata field should include authority
-    posted = next((p for p in dummy.posts if p["url"].endswith("/v1/memories")), None)
-    assert posted is not None
-    # Documents use files parameter for multipart form-data
-    files_data = posted.get("files")
-    assert files_data is not None
-    metadata_tuple = files_data.get("metadata")
-    assert metadata_tuple is not None
-    # The tuple is (None, json_string)
-    metadata_json = metadata_tuple[1]
-    import json as _json
-
-    md = _json.loads(metadata_json)
+    create_calls = [c for c in calls if c["endpoint"] == "/v1/memories"]
+    assert create_calls, "No create call made"
+    payload = create_calls[0]["json"] or {}
+    md = payload.get("metadata") or {}
     assert md.get("authority") == 0.8

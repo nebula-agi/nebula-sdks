@@ -280,7 +280,6 @@ class AsyncNebula:
         """
         payload = {
             "collection_id": collection_id,
-            "engram_type": "document",
             "raw_text": raw_text,
             "metadata": metadata or {},
             "ingestion_mode": ingestion_mode,
@@ -317,7 +316,6 @@ class AsyncNebula:
         """
         payload = {
             "collection_id": collection_id,
-            "engram_type": "document",
             "chunks": chunks,
             "metadata": metadata or {},
             "ingestion_mode": ingestion_mode,
@@ -386,77 +384,42 @@ class AsyncNebula:
 
         # Handle conversation creation
         if memory_type == "conversation":
-            doc_metadata = dict(memory.metadata or {})
-            # Use files= to send as multipart/form-data (FastAPI expects this with Form(...))
-            # Note: Parse UUID from string if needed
-            try:
-                from uuid import UUID
+            # Use JSON format matching the backend CreateMemoryRequest model.
+            # Backend infers type from `messages` presence; we intentionally omit `engram_type`.
+            messages: list[dict[str, Any]] = []
+            if memory.content and memory.role:
+                msg: dict[str, Any] = {
+                    "role": memory.role,
+                    "content": str(memory.content),
+                    "metadata": memory.metadata or {},
+                }
+                if memory.authority is not None:
+                    msg["authority"] = float(memory.authority)
+                messages.append(msg)
 
-                collection_uuid: UUID | str = UUID(memory.collection_id)
-            except (ValueError, TypeError):
-                collection_uuid = memory.collection_id
-
-            files = {
-                "engram_type": (None, "conversation"),
-                "name": (None, name or "Conversation"),
-                "metadata": (None, json.dumps(doc_metadata)),
-                "collection_ids": (None, json.dumps([str(collection_uuid)])),
-            }
-
-            url = f"{self.base_url}/v1/memories"
-            headers = self._build_auth_headers(include_content_type=False)
-            # Debug logging
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.info(f"Creating conversation with files: {files}")
-            response = await self._client.post(url, files=files, headers=headers)
-            logger.info(
-                f"Response status: {response.status_code}, content: {response.text if response.content else 'empty'}"
-            )
-            if response.status_code not in (200, 202):
-                error_data = response.json() if response.content else {}
-                logger.error(f"Failed to create conversation. Error data: {error_data}")
-                raise NebulaException(
-                    error_data.get(
-                        "message",
-                        f"Failed to create conversation: {response.status_code}",
-                    ),
-                    response.status_code,
-                    error_data,
+            if not messages:
+                raise NebulaClientException(
+                    "Cannot create conversation without messages. Provide content and role."
                 )
-            resp_data = response.json()
-            if isinstance(resp_data, dict) and "results" in resp_data:
-                conv_id = resp_data["results"].get("engram_id") or resp_data[
-                    "results"
-                ].get("id")
+
+            payload: dict[str, Any] = {
+                "collection_id": memory.collection_id,
+                "messages": messages,
+                "metadata": dict(memory.metadata or {}),
+            }
+            payload["name"] = name or "Conversation"
+
+            response = await self._make_request_async(
+                "POST", "/v1/memories", json_data=payload
+            )
+            if isinstance(response, dict) and "results" in response:
+                conv_id = response["results"].get("engram_id") or response["results"].get("id")
                 if not conv_id:
                     raise NebulaClientException(
                         "Failed to create conversation: no id returned"
                     )
-
-                # If content and role provided, append initial message
-                if memory.content and memory.role:
-                    append_memory = Memory(
-                        collection_id=memory.collection_id,
-                        content=[  # type: ignore[arg-type]
-                            {
-                                "content": str(memory.content),
-                                "role": memory.role,
-                                "metadata": memory.metadata,
-                                **(
-                                    {"authority": float(memory.authority)}
-                                    if memory.authority is not None
-                                    else {}
-                                ),
-                            }
-                        ],
-                        memory_id=conv_id,
-                        metadata={},
-                    )
-                    await self._append_to_memory(conv_id, append_memory)
-
                 return str(conv_id)
+
             raise NebulaClientException(
                 "Failed to create conversation: invalid response format"
             )
@@ -478,32 +441,21 @@ class AsyncNebula:
                     doc_metadata["authority"] = auth_val
             except Exception:
                 pass
-        # Use files= to send as multipart/form-data (FastAPI expects this with Form(...))
-        files = {
-            "metadata": (None, json.dumps(doc_metadata)),
-            "ingestion_mode": (None, "fast"),
-            "collection_ids": (None, json.dumps([memory.collection_id])),
-            "raw_text": (None, content_text),
+        payload = {
+            "collection_id": memory.collection_id,
+            "raw_text": content_text,
+            "metadata": doc_metadata,
+            "ingestion_mode": "fast",
         }
 
-        url = f"{self.base_url}/v1/memories"
-        headers = self._build_auth_headers(include_content_type=False)
-        response = await self._client.post(url, files=files, headers=headers)
-        if response.status_code not in (200, 202):
-            error_data = response.json() if response.content else {}
-            raise NebulaException(
-                error_data.get(
-                    "message", f"Failed to create engram: {response.status_code}"
-                ),
-                response.status_code,
-                error_data,
-            )
-        response_data = response.json()
-        if isinstance(response_data, dict) and "results" in response_data:
-            if "engram_id" in response_data["results"]:
-                return str(response_data["results"]["engram_id"])
-            if "id" in response_data["results"]:
-                return str(response_data["results"]["id"])
+        response = await self._make_request_async(
+            "POST", "/v1/memories", json_data=payload
+        )
+        if isinstance(response, dict) and "results" in response:
+            if "engram_id" in response["results"]:
+                return str(response["results"]["engram_id"])
+            if "id" in response["results"]:
+                return str(response["results"]["id"])
         return ""
 
     async def _append_to_memory(self, memory_id: str, memory: Memory) -> str:
@@ -583,33 +535,50 @@ class AsyncNebula:
         for key, group in conv_groups.items():
             collection_id = group[0].collection_id
 
-            # Create conversation if needed
-            if key.startswith("__new__::"):
-                # Pass a placeholder role to trigger conversation creation
-                conv_id = await self.store_memory(
-                    collection_id=collection_id,
-                    content="",
-                    role="assistant",  # Placeholder role to infer conversation type
-                    name="Conversation",
-                )
-            else:
-                conv_id = key
-
-            # Append messages using new unified API
-            messages = []
+            # Prepare messages for the conversation
+            messages: list[dict[str, Any]] = []
             for m in group:
                 text = str(m.content or "")
                 msg_meta = dict(m.metadata or {})
-                messages.append({"content": text, "role": m.role, "metadata": msg_meta})
+                # Skip empty messages
+                if not text.strip():
+                    continue
+                msg: dict[str, Any] = {"content": text, "role": m.role, "metadata": msg_meta}
+                if m.authority is not None:
+                    msg["authority"] = float(m.authority)
+                messages.append(msg)
 
-            append_mem = Memory(
-                collection_id=collection_id,
-                content=messages,  # type: ignore[arg-type]
-                memory_id=conv_id,
-                metadata={},
-            )
-            await self._append_to_memory(conv_id, append_mem)
-            results.extend([str(conv_id)] * len(group))
+            if not messages:
+                raise NebulaClientException(
+                    "Cannot create/append conversation without messages. Provide non-empty content."
+                )
+
+            if key.startswith("__new__::"):
+                # Create conversation with initial messages using JSON body (single request).
+                payload: dict[str, Any] = {
+                    "collection_id": collection_id,
+                    "name": "Conversation",
+                    "messages": messages,
+                    "metadata": {},
+                }
+                resp = await self._make_request_async("POST", "/v1/memories", json_data=payload)
+                if not (isinstance(resp, dict) and "results" in resp):
+                    raise NebulaClientException("Failed to create conversation: invalid response format")
+                conv_id = resp["results"].get("engram_id") or resp["results"].get("id")
+                if not conv_id:
+                    raise NebulaClientException("Failed to create conversation: no id returned")
+                results.extend([str(conv_id)] * len(group))
+            else:
+                conv_id = key
+                # Append messages to existing conversation
+                append_mem = Memory(
+                    collection_id=collection_id,
+                    content=messages,  # type: ignore[arg-type]
+                    memory_id=conv_id,
+                    metadata={},
+                )
+                await self._append_to_memory(conv_id, append_mem)
+                results.extend([str(conv_id)] * len(group))
 
         # Process others (text/json) individually
         for m in others:

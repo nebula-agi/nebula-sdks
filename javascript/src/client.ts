@@ -257,33 +257,15 @@ export class Nebula {
       timestamp: new Date().toISOString(),
     } as Record<string, any>;
 
-    const data = {
-      metadata: JSON.stringify(docMetadata),
-      ingestion_mode: 'fast',
-      collection_ids: JSON.stringify([collectionId]),
+    const payload = {
+      collection_id: collectionId,
       raw_text: String(content || ''),
+      metadata: docMetadata,
+      ingestion_mode: 'fast',
     } as const;
 
-    const url = `${this.baseUrl}/v1/memories`;
-    const headers = this._buildAuthHeaders(false);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: this._formDataFromObject(data as any),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new NebulaException(
-        errorData.message || `Failed to create engram: ${response.status}`,
-        response.status,
-        errorData
-      );
-    }
-
-    const respData = await response.json();
-    const id = respData?.results?.engram_id || respData?.results?.id || respData?.id || '';
+    const response = await this._makeRequest('POST', '/v1/memories', payload);
+    const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
 
     const result: MemoryResponse = {
       id: String(id),
@@ -350,7 +332,6 @@ export class Nebula {
       }
 
       const data = {
-        engram_type: 'conversation',
         collection_id: mem.collection_id,
         name: name || 'Conversation',
         messages: messages,
@@ -387,37 +368,16 @@ export class Nebula {
       }
     }
 
-    const data = {
-      metadata: JSON.stringify(docMetadata),
-      ingestion_mode: 'fast',
-      collection_ids: JSON.stringify([mem.collection_id]),
+    const payload = {
+      collection_id: mem.collection_id,
       raw_text: contentText,
+      metadata: docMetadata,
+      ingestion_mode: 'fast',
     } as const;
 
-    const url = `${this.baseUrl}/v1/memories`;
-    const headers = this._buildAuthHeaders(false);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: this._formDataFromObject(data as any),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new NebulaException(
-        errorData.message || `Failed to create engram: ${response.status}`,
-        response.status,
-        errorData
-      );
-    }
-
-    const respData = await response.json();
-    if (respData.results) {
-      if (respData.results.engram_id) return String(respData.results.engram_id);
-      if (respData.results.id) return String(respData.results.id);
-    }
-    return '';
+    const response = await this._makeRequest('POST', '/v1/memories', payload);
+    const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
+    return String(id || '');
   }
 
   /**
@@ -505,7 +465,6 @@ export class Nebula {
       if (key.startsWith('__new__::')) {
         // Create conversation with initial messages using JSON body
         const data = {
-          engram_type: 'conversation',
           collection_id: collectionId,
           name: 'Conversation',
           messages: messages,
@@ -1116,13 +1075,5 @@ export class Nebula {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
-  }
-
-  private _formDataFromObject(obj: Record<string, any>): FormData {
-    const formData = new FormData();
-    Object.entries(obj).forEach(([key, value]) => {
-      formData.append(key, value as any);
-    });
-    return formData;
   }
 }

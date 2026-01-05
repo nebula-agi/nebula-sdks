@@ -524,7 +524,6 @@ class Nebula:
         """
         payload = {
             "collection_id": collection_id,
-            "engram_type": "document",
             "raw_text": raw_text,
             "metadata": metadata or {},
             "ingestion_mode": ingestion_mode,
@@ -559,7 +558,6 @@ class Nebula:
         """
         payload = {
             "collection_id": collection_id,
-            "engram_type": "document",
             "chunks": chunks,
             "metadata": metadata or {},
             "ingestion_mode": ingestion_mode,
@@ -645,7 +643,6 @@ class Nebula:
 
             payload = {
                 "collection_id": memory.collection_id,
-                "engram_type": "conversation",
                 "messages": messages,
                 "metadata": doc_metadata,
             }
@@ -688,7 +685,6 @@ class Nebula:
         # Use JSON format matching the backend CreateMemoryRequest model
         payload = {
             "collection_id": memory.collection_id,
-            "engram_type": "document",
             "raw_text": content_text,
             "metadata": doc_metadata,
             "ingestion_mode": "fast",
