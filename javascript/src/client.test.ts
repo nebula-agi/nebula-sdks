@@ -347,7 +347,7 @@ describe('Nebula', () => {
         expect.stringContaining('/v1/memories'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('"engram_type":"conversation"')
+          body: expect.stringContaining('"messages"')
         })
       );
     });
