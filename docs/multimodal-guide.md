@@ -49,20 +49,6 @@ await client.storeMemory({
 | `audio` | MP3, WAV, M4A, OGG, FLAC | Whisper transcription |
 | `document` | PDF, DOC, DOCX, TXT | OCR / text extraction |
 
-## Large Files (>5MB)
+## Large Files
 
-Upload to S3 first, then reference:
-
-```python
-# 1. Get upload URL
-upload_info = client.get_upload_url(filename='large.pdf', content_type='application/pdf', file_size=50_000_000)
-
-# 2. Upload to S3
-requests.put(upload_info['upload_url'], data=open('large.pdf', 'rb'), headers={'Content-Type': 'application/pdf'})
-
-# 3. Store with S3 reference
-client.store_memory(Memory(
-    collection_id='my-collection',
-    content=[S3FileRef(s3_key=upload_info['s3_key'], media_type='application/pdf', filename='large.pdf')]
-))
-```
+Files larger than 5MB are automatically uploaded to cloud storage. Just use `store_memory()` as usual - no extra steps needed. Maximum file size is 100MB.

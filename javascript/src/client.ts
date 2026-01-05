@@ -27,6 +27,9 @@ export class Nebula {
   private baseUrl: string;
   private timeout: number;
 
+  // Files larger than 5MB are automatically uploaded to S3
+  private static readonly MAX_INLINE_SIZE = 5 * 1024 * 1024; // 5MB
+
   constructor(config: NebulaClientConfig) {
     this.apiKey = config.apiKey;
     if (!this.apiKey) {
@@ -391,11 +394,14 @@ export class Nebula {
     }
     
     if (isMultimodal) {
+      // Process content parts, auto-uploading large files to S3
+      const processedParts = await this._processContentParts(mem.content as any[]);
+      
       // Use JSON format for multimodal content
       const data: Record<string, any> = {
         engram_type: 'document',
         collection_ref: mem.collection_id,
-        content_parts: mem.content,
+        content_parts: processedParts,
         metadata: docMetadata,
         ingestion_mode: 'fast',
       };
@@ -1161,5 +1167,83 @@ export class Nebula {
       formData.append(key, value as any);
     });
     return formData;
+  }
+
+  /**
+   * Process content parts, automatically uploading large files to S3.
+   * Files larger than 5MB are uploaded to S3 and converted to s3_ref.
+   */
+  private async _processContentParts(contentParts: any[]): Promise<any[]> {
+    const processed: any[] = [];
+    
+    for (const part of contentParts) {
+      const partType = part.type;
+      
+      // Check if this is a binary content part with base64 data
+      if (['image', 'audio', 'document'].includes(partType) && part.data) {
+        // Calculate decoded size (base64 is ~4/3 of original)
+        const dataSize = Math.floor(part.data.length * 3 / 4);
+        
+        if (dataSize > Nebula.MAX_INLINE_SIZE) {
+          // Auto-upload to S3
+          const filename = part.filename || `file.${partType}`;
+          const mediaType = part.media_type || 'application/octet-stream';
+          
+          // Get presigned URL
+          const uploadInfo = await this.getUploadUrl({
+            filename,
+            content_type: mediaType,
+            file_size: dataSize,
+          });
+          
+          // Decode base64 and upload to S3
+          const binaryString = atob(part.data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          await fetch(uploadInfo.upload_url, {
+            method: 'PUT',
+            body: bytes,
+            headers: { 'Content-Type': mediaType },
+          });
+          
+          // Convert to S3 reference
+          processed.push({
+            type: 's3_ref',
+            s3_key: uploadInfo.s3_key,
+            media_type: mediaType,
+            filename,
+          });
+          continue;
+        }
+      }
+      
+      // Keep as-is for small files or other content types
+      processed.push(part);
+    }
+    
+    return processed;
+  }
+
+  /**
+   * Get a presigned URL for uploading large files to S3.
+   */
+  async getUploadUrl(options: {
+    filename: string;
+    content_type: string;
+    file_size: number;
+  }): Promise<{ upload_url: string; s3_key: string; bucket: string; expires_in: number }> {
+    const response = await this._makeRequest('POST', '/v1/upload-url', undefined, {
+      filename: options.filename,
+      content_type: options.content_type,
+      file_size: options.file_size,
+    });
+    
+    if (response.results) {
+      return response.results;
+    }
+    return response;
   }
 }

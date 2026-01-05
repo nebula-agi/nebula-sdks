@@ -27,6 +27,9 @@ class Nebula:
     focusing on the core functionality without the complexity of the underlying Nebula system.
     """
 
+    # Files larger than 5MB are automatically uploaded to S3
+    MAX_INLINE_SIZE = 5 * 1024 * 1024  # 5MB
+
     def __init__(
         self,
         api_key: str | None = None,
@@ -106,17 +109,55 @@ class Nebula:
             hasattr(first, "__dataclass_fields__")
         )
 
-    @staticmethod
-    def _convert_content_parts(content: list) -> list[dict[str, Any]]:
-        """Convert a list of content parts (dataclasses or dicts) to API format."""
+    def _convert_content_parts(self, content: list) -> list[dict[str, Any]]:
+        """Convert content parts to API format, auto-uploading large files to S3."""
+        import base64
         parts = []
         for part in content:
+            # Convert dataclass to dict
             if hasattr(part, "__dataclass_fields__"):
-                parts.append({k: getattr(part, k) for k in part.__dataclass_fields__.keys()})
+                part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
             elif isinstance(part, dict):
-                parts.append(part)
+                part_dict = part.copy()
             else:
                 parts.append({"type": "text", "text": str(part)})
+                continue
+            
+            # Check if this is a binary content part with base64 data
+            part_type = part_dict.get("type", "")
+            if part_type in ("image", "audio", "document") and "data" in part_dict:
+                # Calculate decoded size (base64 is ~4/3 of original)
+                data_size = len(part_dict["data"]) * 3 // 4
+                
+                if data_size > self.MAX_INLINE_SIZE:
+                    # Auto-upload to S3
+                    filename = part_dict.get("filename", f"file.{part_type}")
+                    media_type = part_dict.get("media_type", "application/octet-stream")
+                    
+                    # Get presigned URL
+                    upload_info = self.get_upload_url(
+                        filename=filename,
+                        content_type=media_type,
+                        file_size=data_size,
+                    )
+                    
+                    # Decode base64 and upload to S3
+                    file_bytes = base64.b64decode(part_dict["data"])
+                    self._client.put(
+                        upload_info["upload_url"],
+                        content=file_bytes,
+                        headers={"Content-Type": media_type},
+                    )
+                    
+                    # Convert to S3 reference
+                    part_dict = {
+                        "type": "s3_ref",
+                        "s3_key": upload_info["s3_key"],
+                        "media_type": media_type,
+                        "filename": filename,
+                    }
+            
+            parts.append(part_dict)
         return parts
 
     def _make_request(
