@@ -730,7 +730,7 @@ class AsyncNebula:
         query: str,
         *,
         collection_ids: list[str] | None = None,
-        limit: int = 10,
+        effort: str | None = None,
         filters: dict[str, Any] | None = None,
         search_settings: dict[str, Any] | None = None,
     ) -> MemoryRecall:
@@ -742,7 +742,7 @@ class AsyncNebula:
             collection_ids: Optional list of collection IDs or names to search within.
                         Can be UUIDs or collection names.
                         If not provided, searches across all your accessible collections.
-            limit: Maximum number of results to return (default: 10, max: 1000)
+            effort: Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryRecall size.
             filters: Optional filters to apply to the search. Supports comprehensive metadata filtering
                     with MongoDB-like operators for both vector/chunk search and graph search.
             search_settings: Optional advanced search settings including:
@@ -817,8 +817,10 @@ class AsyncNebula:
         # Build request data - pass params directly to API (no wrapping needed)
         data: dict[str, Any] = {
             "query": query,
-            "limit": limit,
         }
+
+        if effort:
+            data["effort"] = effort
 
         # Add optional params only if provided
         if collection_ids:

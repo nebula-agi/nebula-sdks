@@ -28,12 +28,17 @@ EOF
 
   # Check if current version exists on PyPI
   echo "Checking if version $CURRENT_VERSION is published on PyPI..."
-  PYPI_CHECK=$(python3 - << 'EOF'
+  PYPI_CHECK=$(CURRENT_VERSION="$CURRENT_VERSION" python3 - << 'EOF'
 import sys
 import urllib.request
 import urllib.error
+import os
 
-version = sys.argv[1]
+version = os.environ.get('CURRENT_VERSION', '')
+if not version:
+    print("error")
+    sys.exit(2)
+
 try:
     url = f"https://pypi.org/pypi/nebula-client/{version}/json"
     with urllib.request.urlopen(url, timeout=5) as response:
@@ -51,7 +56,7 @@ except Exception:
     print("error")
     sys.exit(2)
 EOF
-"$CURRENT_VERSION" 2>/dev/null)
+ 2>/dev/null)
 
   if [ "$PYPI_CHECK" != "published" ]; then
     if [ "$PYPI_CHECK" = "not_published" ]; then

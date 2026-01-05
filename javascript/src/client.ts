@@ -747,8 +747,7 @@ export class Nebula {
    * @param options - Search configuration
    * @param options.query - Search query string
    * @param options.collection_ids - One or more collection IDs to search within
-   * @param options.limit - Maximum number of results to return (default: 10)
-   * @param options.retrieval_type - Retrieval strategy (default: ADVANCED)
+   * @param options.effort - Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryRecall size.
    * @param options.filters - Optional filters to apply to the search. Supports comprehensive metadata filtering
    *                          with MongoDB-like operators for both vector/chunk search and graph search.
    * @param options.searchSettings - Optional search configuration
@@ -840,15 +839,18 @@ export class Nebula {
   async search(options: {
     query: string;
     collection_ids?: string | string[];
-    limit?: number;
+    effort?: 'auto' | 'low' | 'medium' | 'high';
     filters?: Record<string, any>;
     searchSettings?: Record<string, any>;
   }): Promise<MemoryRecall> {
     // Build request data - pass params directly to API (no wrapping needed)
     const data: Record<string, any> = {
       query: options.query,
-      limit: options.limit ?? 10,
     };
+
+    if (options.effort) {
+      data.effort = options.effort;
+    }
 
     // Add collection_ids if provided
     if (options.collection_ids) {
