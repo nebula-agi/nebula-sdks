@@ -2,7 +2,6 @@
 Main client for the Nebula Client SDK
 """
 
-import hashlib
 import os
 from typing import Any
 from urllib.parse import urljoin
@@ -17,7 +16,14 @@ from .exceptions import (
     NebulaRateLimitException,
     NebulaValidationException,
 )
-from .models import Collection, Memory, MemoryRecall, MemoryResponse
+from .models import (
+    Collection,
+    ContentPart,
+    Memory,
+    MemoryRecall,
+    MemoryResponse,
+    TextContent,
+)
 
 
 class Nebula:
@@ -27,6 +33,9 @@ class Nebula:
     This client provides a clean interface to Nebula's memory and retrieval capabilities,
     focusing on the core functionality without the complexity of the underlying Nebula system.
     """
+
+    # Files larger than 5MB are automatically uploaded to S3
+    MAX_INLINE_SIZE = 5 * 1024 * 1024  # 5MB
 
     def __init__(
         self,
@@ -65,11 +74,11 @@ class Nebula:
         self._client.close()
 
     def _is_nebula_api_key(self, token: str | None = None) -> bool:
-        """Detect if a token looks like an Nebula API key (public.raw).
+        """Detect if a token looks like a Nebula API key (public.raw).
 
         Heuristic:
         - Exactly one dot
-        - Public part starts with "key_"
+        - Public part starts with "key_" or "neb_"
         """
         candidate = token or self.api_key
         if not candidate:
@@ -77,7 +86,9 @@ class Nebula:
         if candidate.count(".") != 1:
             return False
         public_part, raw_part = candidate.split(".", 1)
-        return public_part.startswith("key_") and len(raw_part) > 0
+        return (
+            public_part.startswith("key_") or public_part.startswith("neb_")
+        ) and len(raw_part) > 0
 
     def _build_auth_headers(self, include_content_type: bool = True) -> dict[str, str]:
         """Build authentication headers.
@@ -96,11 +107,100 @@ class Nebula:
             headers["Content-Type"] = "application/json"
         return headers
 
+    @staticmethod
+    def _is_multimodal_content(content: Any) -> bool:
+        """Check if content is a list of multimodal content parts (images, audio, documents)."""
+        if not isinstance(content, list) or len(content) == 0:
+            return False
+        # Detect any typed part in the list (strings are allowed and will be wrapped as text).
+        for part in content:
+            if isinstance(part, dict) and "type" in part:
+                return True
+            if hasattr(part, "__dataclass_fields__"):
+                return True
+        return False
+
+    @staticmethod
+    def _normalize_content_parts(content: Any) -> list[ContentPart]:
+        """Normalize arbitrary content into a list of ContentPart items.
+
+        - If content is a list, strings are wrapped as TextContent, other items are passed through.
+        - If content is not a list, it is wrapped as a single TextContent block.
+        """
+        from typing import cast
+
+        if isinstance(content, list):
+            normalized: list[ContentPart] = []
+            for part in content:
+                if isinstance(part, str):
+                    normalized.append(TextContent(text=part))
+                else:
+                    normalized.append(cast(ContentPart, part))
+            return normalized
+
+        return [TextContent(text=str(content))]
+
+    def _convert_content_parts(
+        self, content: list[ContentPart]
+    ) -> list[dict[str, Any]]:
+        """Convert content parts to API format, auto-uploading large files to S3."""
+        import base64
+
+        parts = []
+        for part in content:
+            # Convert dataclass to dict
+            if hasattr(part, "__dataclass_fields__"):
+                part_dict = {
+                    k: getattr(part, k) for k in part.__dataclass_fields__.keys()
+                }
+            elif isinstance(part, dict):
+                part_dict = part.copy()
+            else:
+                parts.append({"type": "text", "text": str(part)})
+                continue
+
+            # Check if this is a binary content part with base64 data
+            part_type = part_dict.get("type", "")
+            if part_type in ("image", "audio", "document") and "data" in part_dict:
+                # Calculate decoded size (base64 is ~4/3 of original)
+                data_size = len(part_dict["data"]) * 3 // 4
+
+                if data_size > self.MAX_INLINE_SIZE:
+                    # Auto-upload to S3
+                    filename = part_dict.get("filename", f"file.{part_type}")
+                    media_type = part_dict.get("media_type", "application/octet-stream")
+
+                    # Get presigned URL
+                    upload_info = self.get_upload_url(
+                        filename=filename,
+                        content_type=media_type,
+                        file_size=data_size,
+                    )
+
+                    # Decode base64 and upload to S3
+                    file_bytes = base64.b64decode(part_dict["data"])
+                    self._client.put(
+                        upload_info["upload_url"],
+                        content=file_bytes,
+                        headers={"Content-Type": media_type},
+                    )
+
+                    # Convert to S3 reference
+                    part_dict = {
+                        "type": "s3_ref",
+                        "s3_key": upload_info["s3_key"],
+                        "media_type": media_type,
+                        "filename": filename,
+                    }
+
+            parts.append(part_dict)
+        return parts
+
     def _make_request(
         self,
         method: str,
         endpoint: str,
-        json_data: dict[str, Any] | None = None,
+        json_data: Any | None = None,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
@@ -626,30 +726,47 @@ class Nebula:
 
         # Handle conversation creation
         if memory_type == "conversation":
-            # Use JSON format matching the backend CreateMemoryRequest model
             doc_metadata = dict(memory.metadata or {})
+            is_multimodal = self._is_multimodal_content(memory.content)
 
             # Build messages array if content and role are provided
             messages = []
             if memory.content and memory.role:
+                if is_multimodal:
+                    import json
+
+                    msg_content = json.dumps(
+                        self._convert_content_parts(
+                            self._normalize_content_parts(memory.content)
+                        )
+                    )
+                else:
+                    msg_content = str(memory.content)
                 msg: dict[str, Any] = {
                     "role": memory.role,
-                    "content": str(memory.content),
+                    "content": msg_content,
                     "metadata": memory.metadata or {},
                 }
                 if memory.authority is not None:
                     msg["authority"] = float(memory.authority)
                 messages.append(msg)
 
-            payload = {
+            if not messages:
+                raise NebulaClientException(
+                    "Cannot create conversation without messages. Provide content and role."
+                )
+
+            # Backend infers engram_type from payload shape; omit engram_type.
+            conv_payload: dict[str, Any] = {
                 "collection_id": memory.collection_id,
                 "messages": messages,
                 "metadata": doc_metadata,
+                "name": name or "Conversation",
             }
-            if name:
-                payload["name"] = name
 
-            response = self._make_request("POST", "/v1/memories", json_data=payload)
+            response = self._make_request(
+                "POST", "/v1/memories", json_data=conv_payload
+            )
 
             if isinstance(response, dict) and "results" in response:
                 conv_id = response["results"].get("id") or response["results"].get(
@@ -665,14 +782,9 @@ class Nebula:
             )
 
         # Handle document/text memory
-        content_text = str(memory.content or "")
-        if not content_text:
-            raise NebulaClientException("Content is required for document memories")
-
-        content_hash = hashlib.sha256(content_text.encode("utf-8")).hexdigest()
         doc_metadata = dict(memory.metadata or {})
         doc_metadata["memory_type"] = "memory"
-        doc_metadata["content_hash"] = content_hash
+
         # If authority provided for document, persist in metadata for chunk ranking
         if memory.authority is not None:
             try:
@@ -682,15 +794,29 @@ class Nebula:
             except Exception:
                 pass
 
-        # Use JSON format matching the backend CreateMemoryRequest model
-        payload = {
+        # Backend infers engram_type from payload shape; omit engram_type.
+        doc_payload: dict[str, Any] = {
             "collection_id": memory.collection_id,
-            "raw_text": content_text,
             "metadata": doc_metadata,
             "ingestion_mode": "fast",
         }
 
-        response = self._make_request("POST", "/v1/memories", json_data=payload)
+        # Handle multimodal vs plain text content
+        if self._is_multimodal_content(memory.content):
+            import json
+
+            doc_payload["raw_text"] = json.dumps(
+                self._convert_content_parts(
+                    self._normalize_content_parts(memory.content)
+                )
+            )
+        else:
+            content_text = str(memory.content or "")
+            if not content_text:
+                raise NebulaClientException("Content is required for document memories")
+            doc_payload["raw_text"] = content_text
+
+        response = self._make_request("POST", "/v1/memories", json_data=doc_payload)
 
         if isinstance(response, dict) and "results" in response:
             if "engram_id" in response["results"]:
@@ -730,8 +856,12 @@ class Nebula:
                 # List of strings (chunks)
                 payload["chunks"] = content
         elif isinstance(content, str):
-            # Raw text string
-            payload["raw_text"] = content
+            # If role is present, wrap as a message for conversation append
+            if memory.role:
+                payload["messages"] = [{"content": content, "role": memory.role}]
+            else:
+                # Raw text string for document append
+                payload["raw_text"] = content
         else:
             raise NebulaClientException(
                 "content must be a string, list of strings, or list of message dicts"
@@ -757,7 +887,8 @@ class Nebula:
 
         All items are processed identically to `store_memory`:
         - Conversations are grouped by conversation memory_id and sent in batches
-        - Text/JSON memories are stored individually with consistent metadata generation
+        - Text/JSON/multimodal memories are stored individually
+        - Multimodal content (images, audio, documents) is automatically processed
 
         Returns: list of memory_ids in the same order as input memories
         """
@@ -777,36 +908,69 @@ class Nebula:
         for key, group in conv_groups.items():
             collection_id = group[0].collection_id
 
-            # Create conversation if needed
-            if key.startswith("__new__::"):
-                # Use new POST /v1/memories endpoint
-                # Pass a placeholder role to trigger conversation creation
-                conv_id = self.store_memory(
-                    collection_id=collection_id,
-                    content="",
-                    role="assistant",  # Placeholder role to infer conversation type
-                    name="Conversation",
+            # Prepare messages for the conversation
+            messages: list[dict[str, Any]] = []
+            for m in group:
+                if self._is_multimodal_content(m.content):
+                    import json
+
+                    msg_content = json.dumps(
+                        self._convert_content_parts(
+                            self._normalize_content_parts(m.content)
+                        )
+                    )
+                else:
+                    msg_content = str(m.content or "")
+                # Skip empty messages
+                if not msg_content.strip():
+                    continue
+                msg_meta = dict(m.metadata or {})
+                msg: dict[str, Any] = {
+                    "content": msg_content,
+                    "role": m.role,
+                    "metadata": msg_meta,
+                }
+                if m.authority is not None:
+                    msg["authority"] = float(m.authority)
+                messages.append(msg)
+
+            if not messages:
+                raise NebulaClientException(
+                    "Cannot create/append conversation without messages. Provide non-empty content."
                 )
+
+            if key.startswith("__new__::"):
+                # Create conversation with initial messages using JSON body (single request).
+                payload: dict[str, Any] = {
+                    "collection_id": collection_id,
+                    "name": "Conversation",
+                    "messages": messages,
+                    "metadata": {},
+                }
+                resp = self._make_request("POST", "/v1/memories", json_data=payload)
+                if not (isinstance(resp, dict) and "results" in resp):
+                    raise NebulaClientException(
+                        "Failed to create conversation: invalid response format"
+                    )
+                conv_id = resp["results"].get("engram_id") or resp["results"].get("id")
+                if not conv_id:
+                    raise NebulaClientException(
+                        "Failed to create conversation: no id returned"
+                    )
+                results.extend([str(conv_id)] * len(group))
             else:
                 conv_id = key
+                # Append messages to existing conversation
+                append_mem = Memory(
+                    collection_id=collection_id,
+                    content=messages,  # type: ignore[arg-type]
+                    memory_id=conv_id,
+                    metadata={},
+                )
+                self._append_to_memory(conv_id, append_mem)
+                results.extend([str(conv_id)] * len(group))
 
-            # Append messages using new unified API
-            messages = []
-            for m in group:
-                text = str(m.content or "")
-                msg_meta = dict(m.metadata or {})
-                messages.append({"content": text, "role": m.role, "metadata": msg_meta})
-
-            append_mem = Memory(
-                collection_id=collection_id,
-                content=messages,  # type: ignore[arg-type]
-                memory_id=conv_id,
-                metadata={},
-            )
-            self._append_to_memory(conv_id, append_mem)
-            results.extend([str(conv_id)] * len(group))
-
-        # Process others (text/json) individually
+        # Process others (text/json/multimodal) individually - store_memory handles multimodal
         for m in others:
             results.append(self.store_memory(m))
         return results
@@ -830,28 +994,22 @@ class Nebula:
                 return True
             except Exception:
                 # Try new unified endpoint
-                try:
-                    response = self._make_request(
-                        "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
-                    )
-                    result: bool | dict[str, Any] = (
-                        response.get("success", False)
-                        if isinstance(response, dict)
-                        else True
-                    )
-                    return result
-                except Exception as e:
-                    raise
+                response = self._make_request(
+                    "POST", "/v1/memories/delete", json_data=memory_ids
+                )
+                result: bool | dict[str, Any] = (
+                    response.get("success", False)
+                    if isinstance(response, dict)
+                    else True
+                )
+                return result
         else:
             # Batch deletion
-            try:
-                response = self._make_request(
-                    "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
-                )
-                batch_result: bool | dict[str, Any] = response
-                return batch_result
-            except Exception as e:
-                raise
+            response = self._make_request(
+                "POST", "/v1/memories/delete", json_data=memory_ids
+            )
+            batch_result: bool | dict[str, Any] = response
+            return batch_result
 
     def delete_chunk(self, chunk_id: str) -> bool:
         """
@@ -1164,3 +1322,65 @@ class Nebula:
             Health status information
         """
         return self._make_request("GET", "/v1/health")
+
+    def get_upload_url(
+        self,
+        filename: str,
+        content_type: str,
+        file_size: int,
+    ) -> dict[str, Any]:
+        """
+        Get a presigned URL for uploading large files directly to S3.
+
+        Use this for files larger than 5MB that cannot be sent inline as base64.
+        After uploading, reference the file in memory creation using S3FileRef.
+
+        Args:
+            filename: Original filename (e.g., "image.jpg")
+            content_type: MIME type (e.g., "image/jpeg", "application/pdf")
+            file_size: File size in bytes (max 100MB)
+
+        Returns:
+            dict with:
+            - upload_url: Presigned URL for PUT request (expires in 1 hour)
+            - s3_key: The S3 key to use in S3FileRef
+            - bucket: S3 bucket name
+            - expires_in: Seconds until URL expires
+            - max_size: Maximum allowed file size
+
+        Example:
+            # Get upload URL
+            result = client.get_upload_url(
+                filename="large_image.jpg",
+                content_type="image/jpeg",
+                file_size=10_000_000  # 10MB
+            )
+
+            # Upload file directly to S3
+            import requests
+            with open("large_image.jpg", "rb") as f:
+                requests.put(
+                    result["upload_url"],
+                    data=f,
+                    headers={"Content-Type": "image/jpeg"}
+                )
+
+            # Use s3_key in memory creation
+            from nebula import Memory, S3FileRef
+            client.store_memory(Memory(
+                collection_id="my-collection",
+                content=[S3FileRef(s3_key=result["s3_key"], media_type="image/jpeg")]
+            ))
+        """
+        response = self._make_request(
+            "POST",
+            "/v1/memories/upload",
+            params={
+                "filename": filename,
+                "content_type": content_type,
+                "file_size": file_size,
+            },
+        )
+        if isinstance(response, dict) and "results" in response:
+            return dict(response["results"])
+        return dict(response)

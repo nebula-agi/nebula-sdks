@@ -7,6 +7,7 @@ Complete API reference for both JavaScript and Python SDKs.
 - [Client Initialization](#client-initialization)
 - [Collections](#collections)
 - [Memories](#memories)
+- [Multimodal Content](#multimodal-content)
 - [Search](#search)
 - [Graph Queries](#graph-queries)
 - [Error Handling](#error-handling)
@@ -224,6 +225,59 @@ await client.deleteMemory(memoryId: string);
 **Python:**
 ```python
 client.delete_memory(memory_id: str)
+```
+
+---
+
+## Multimodal Content
+
+Nebula supports storing and processing images, audio, and documents.
+
+> **Full Guide**: See [Multimodal Content Guide](./multimodal-guide.md) for comprehensive examples.
+
+### Content Part Types
+
+```typescript
+// Image
+{ type: 'image', data: 'base64...', media_type: 'image/jpeg', filename?: string }
+
+// Audio  
+{ type: 'audio', data: 'base64...', media_type: 'audio/mp3', filename?: string }
+
+// Document
+{ type: 'document', data: 'base64...', media_type: 'application/pdf', filename?: string }
+
+// S3 Reference (for large files)
+{ type: 's3_ref', s3_key: 'path/to/file', media_type: string }
+```
+
+### Store Multimodal Memory
+
+All multimodal processing is handled automatically by `storeMemory()` / `store_memory()`.
+
+**JavaScript:**
+```typescript
+await client.storeMemory({
+  collection_id: 'my-collection',
+  content: [
+    { type: 'text', text: 'Description of the image' },
+    { type: 'image', data: imageBase64, media_type: 'image/jpeg' }
+  ],
+  metadata: {},
+});
+```
+
+**Python:**
+```python
+from nebula import Memory, ImageContent, DocumentContent
+
+client.store_memory(Memory(
+    collection_id='my-collection',
+    content=[
+        {'type': 'text', 'text': 'Description of the image'},
+        ImageContent(data=image_base64, media_type='image/jpeg')
+    ],
+))
 ```
 
 ---

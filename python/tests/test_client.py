@@ -2,12 +2,14 @@
 Tests for the Nebula class
 """
 
+import json
 from unittest.mock import Mock, patch
 
 import pytest
 
 from nebula import (
     Collection,
+    ImageContent,
     MemoryRecall,
     Nebula,
     NebulaAuthenticationException,
@@ -80,6 +82,33 @@ class TestNebula:
         assert headers["Authorization"] == f"Bearer {client.api_key}"
         assert "X-API-Key" not in headers
         assert headers["Content-Type"] == "application/json"
+
+    def test_is_multimodal_content_detects_mixed_list(self):
+        client = Nebula(api_key="test-key")
+        # Leading text + typed content part should still be detected as multimodal
+        assert (
+            client._is_multimodal_content(["hello", {"type": "image", "data": "Zg=="}])
+            is True
+        )
+        assert (
+            client._is_multimodal_content(["hello", ImageContent(data="Zg==")]) is True
+        )
+
+    def test_normalize_content_parts_wraps_scalar_as_text(self):
+        parts = self.client._normalize_content_parts("hello")
+        assert len(parts) == 1
+        assert parts[0].type == "text"
+        assert parts[0].text == "hello"
+
+    def test_normalize_content_parts_wraps_string_items_in_list(self):
+        parts = self.client._normalize_content_parts(
+            ["hello", {"type": "image", "data": "Zg==", "media_type": "image/png"}]
+        )
+        assert len(parts) == 2
+        assert parts[0].type == "text"
+        assert parts[0].text == "hello"
+        assert isinstance(parts[1], dict)
+        assert parts[1]["type"] == "image"
 
     @patch("httpx.Client.request")
     def test_create_collection(self, mock_request):
@@ -206,6 +235,36 @@ class TestNebula:
 
         assert isinstance(memory_id, str)
         assert memory_id == "memory-123"
+
+    @patch("httpx.Client.request")
+    def test_store_memory_multimodal_document_serializes_raw_text(self, mock_request):
+        """Multimodal document payload should be sent via raw_text as JSON string (no content_parts field)."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": {"engram_id": "doc_123", "id": "doc_123"}
+        }
+        mock_request.return_value = mock_response
+
+        client = Nebula(api_key="test-key", base_url="https://example.com")
+        doc_id = client.store_memory(
+            collection_id="cluster_docs",
+            content=[
+                "A caption",
+                ImageContent(data="Zg==", media_type="image/jpeg", filename="x.jpg"),
+            ],
+            metadata={"k": "v"},
+        )
+        assert doc_id == "doc_123"
+
+        call_args = mock_request.call_args
+        assert call_args is not None
+        payload = call_args.kwargs.get("json") or {}
+        assert "content_parts" not in payload
+        assert isinstance(payload.get("raw_text"), str)
+        decoded = json.loads(payload["raw_text"])
+        assert isinstance(decoded, list)
+        assert any(isinstance(p, dict) and p.get("type") == "image" for p in decoded)
 
     @patch("httpx.Client.request")
     def test_search_memories(self, mock_request):

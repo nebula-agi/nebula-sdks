@@ -2,7 +2,6 @@
 Async client for the Nebula Client SDK
 """
 
-import hashlib
 import os
 from typing import Any
 from urllib.parse import urljoin
@@ -19,9 +18,11 @@ from .exceptions import (
 )
 from .models import (
     Collection,
+    ContentPart,
     Memory,
     MemoryRecall,
     MemoryResponse,
+    TextContent,
 )
 
 
@@ -80,7 +81,9 @@ class AsyncNebula:
         if candidate.count(".") != 1:
             return False
         public_part, raw_part = candidate.split(".", 1)
-        return public_part.startswith("key_") and len(raw_part) > 0
+        return (
+            public_part.startswith("key_") or public_part.startswith("neb_")
+        ) and len(raw_part) > 0
 
     def _build_auth_headers(self, include_content_type: bool = True) -> dict[str, str]:
         """Build authentication headers.
@@ -99,11 +102,61 @@ class AsyncNebula:
             headers["Content-Type"] = "application/json"
         return headers
 
+    @staticmethod
+    def _is_multimodal_content(content: Any) -> bool:
+        """Check if content is a list of multimodal content parts (images, audio, documents)."""
+        if not isinstance(content, list) or len(content) == 0:
+            return False
+        # Detect any typed part in the list (strings are allowed and will be wrapped as text).
+        for part in content:
+            if isinstance(part, dict) and "type" in part:
+                return True
+            if hasattr(part, "__dataclass_fields__"):
+                return True
+        return False
+
+    @staticmethod
+    def _normalize_content_parts(content: Any) -> list[ContentPart]:
+        """Normalize arbitrary content into a list of ContentPart items.
+
+        - If content is a list, strings are wrapped as TextContent, other items are passed through.
+        - If content is not a list, it is wrapped as a single TextContent block.
+        """
+        from typing import cast
+
+        if isinstance(content, list):
+            normalized: list[ContentPart] = []
+            for part in content:
+                if isinstance(part, str):
+                    normalized.append(TextContent(text=part))
+                else:
+                    normalized.append(cast(ContentPart, part))
+            return normalized
+
+        return [TextContent(text=str(content))]
+
+    @staticmethod
+    def _convert_content_parts(content: list[ContentPart]) -> list[dict[str, Any]]:
+        """Convert a list of content parts (dataclasses or dicts) to API format."""
+        parts = []
+        for part in content:
+            if hasattr(part, "__dataclass_fields__"):
+                # Dataclass - convert to dict
+                parts.append(
+                    {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
+                )
+            elif isinstance(part, dict):
+                parts.append(part)
+            else:
+                # Plain string - wrap as text
+                parts.append({"type": "text", "text": str(part)})
+        return parts
+
     async def _make_request_async(
         self,
         method: str,
         endpoint: str,
-        json_data: dict[str, Any] | None = None,
+        json_data: dict[str, Any] | list[str] | str | None = None,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
@@ -341,10 +394,11 @@ class AsyncNebula:
         Behavior:
         - If memory_id is absent → creates new memory
         - If memory_id is present → appends to existing memory
+        - Automatically handles multimodal content (images, audio, documents)
 
         Accepts either a `Memory` object or equivalent keyword arguments:
         - collection_id: str (required)
-        - content: str | List[str] | List[Dict] (required)
+        - content: str | List[ContentPart] (required) - can include ImageContent, AudioContent, DocumentContent
         - memory_id: Optional[str] (if provided, appends to existing memory)
         - name: str (optional, used for conversation names)
         - role: Optional[str] (if provided, creates a conversation; otherwise creates a document)
@@ -353,7 +407,7 @@ class AsyncNebula:
         Returns: memory_id (for both conversations and documents)
 
         Raises:
-            NebulaNotFoundException: If engram_id is provided but doesn't exist
+            NebulaNotFoundException: If memory_id is provided but doesn't exist
         """
         if memory is None:
             memory = Memory(
@@ -374,7 +428,7 @@ class AsyncNebula:
                 authority=memory.get("authority"),
             )
 
-        # If engram_id is present, append to existing engram
+        # If memory_id is present, append to existing memory
         if memory.memory_id:
             return await self._append_to_memory(memory.memory_id, memory)
 
@@ -383,13 +437,25 @@ class AsyncNebula:
 
         # Handle conversation creation
         if memory_type == "conversation":
-            # Use JSON format matching the backend CreateMemoryRequest model.
-            # Backend infers type from `messages` presence; we intentionally omit `engram_type`.
-            messages: list[dict[str, Any]] = []
+            doc_metadata = dict(memory.metadata or {})
+            is_multimodal = self._is_multimodal_content(memory.content)
+
+            # Build messages array if content and role are provided
+            messages = []
             if memory.content and memory.role:
+                if is_multimodal:
+                    import json
+
+                    msg_content = json.dumps(
+                        self._convert_content_parts(
+                            self._normalize_content_parts(memory.content)
+                        )
+                    )
+                else:
+                    msg_content = str(memory.content)
                 msg: dict[str, Any] = {
                     "role": memory.role,
-                    "content": str(memory.content),
+                    "content": msg_content,
                     "metadata": memory.metadata or {},
                 }
                 if memory.authority is not None:
@@ -401,39 +467,35 @@ class AsyncNebula:
                     "Cannot create conversation without messages. Provide content and role."
                 )
 
-            payload: dict[str, Any] = {
+            # Backend infers engram_type from payload shape; omit engram_type.
+            conv_payload: dict[str, Any] = {
                 "collection_id": memory.collection_id,
                 "messages": messages,
-                "metadata": dict(memory.metadata or {}),
+                "metadata": doc_metadata,
+                "name": name or "Conversation",
             }
-            payload["name"] = name or "Conversation"
 
             response = await self._make_request_async(
-                "POST", "/v1/memories", json_data=payload
+                "POST", "/v1/memories", json_data=conv_payload
             )
+
             if isinstance(response, dict) and "results" in response:
-                conv_id = response["results"].get("engram_id") or response[
-                    "results"
-                ].get("id")
+                conv_id = response["results"].get("id") or response["results"].get(
+                    "engram_id"
+                )
                 if not conv_id:
                     raise NebulaClientException(
                         "Failed to create conversation: no id returned"
                     )
                 return str(conv_id)
-
             raise NebulaClientException(
                 "Failed to create conversation: invalid response format"
             )
 
         # Handle document/text memory
-        content_text = str(memory.content or "")
-        if not content_text:
-            raise NebulaClientException("Content is required for document memories")
-
-        content_hash = hashlib.sha256(content_text.encode("utf-8")).hexdigest()
         doc_metadata = dict(memory.metadata or {})
         doc_metadata["memory_type"] = "memory"
-        doc_metadata["content_hash"] = content_hash
+
         # If authority provided for document, persist in metadata for chunk ranking
         if memory.authority is not None:
             try:
@@ -442,15 +504,32 @@ class AsyncNebula:
                     doc_metadata["authority"] = auth_val
             except Exception:
                 pass
-        payload = {
+        # Backend infers engram_type from payload shape; omit engram_type.
+        doc_payload: dict[str, Any] = {
             "collection_id": memory.collection_id,
-            "raw_text": content_text,
             "metadata": doc_metadata,
             "ingestion_mode": "fast",
         }
 
+        # Handle multimodal vs plain text content.
+        # The JSON create_memory endpoint requires a string `raw_text` (or `chunks`), so
+        # we serialize multimodal parts as JSON text.
+        if self._is_multimodal_content(memory.content):
+            import json
+
+            doc_payload["raw_text"] = json.dumps(
+                self._convert_content_parts(
+                    self._normalize_content_parts(memory.content)
+                )
+            )
+        else:
+            content_text = str(memory.content or "")
+            if not content_text:
+                raise NebulaClientException("Content is required for document memories")
+            doc_payload["raw_text"] = content_text
+
         response = await self._make_request_async(
-            "POST", "/v1/memories", json_data=payload
+            "POST", "/v1/memories", json_data=doc_payload
         )
         if isinstance(response, dict) and "results" in response:
             if "engram_id" in response["results"]:
@@ -470,7 +549,7 @@ class AsyncNebula:
             The memory_id (same as input)
 
         Raises:
-            NebulaNotFoundException: If engram_id doesn't exist
+            NebulaNotFoundException: If memory_id doesn't exist
         """
         collection_id = memory.collection_id
         content = memory.content
@@ -517,7 +596,8 @@ class AsyncNebula:
 
         All items are processed identically to `store_memory`:
         - Conversations are grouped by conversation memory_id and sent in batches
-        - Text/JSON memories are stored individually with consistent metadata generation
+        - Text/JSON/multimodal memories are stored individually
+        - Multimodal content (images, audio, documents) is automatically processed
 
         Returns: list of memory_ids in the same order as input memories
         """
@@ -539,7 +619,16 @@ class AsyncNebula:
             # Prepare messages for the conversation
             messages: list[dict[str, Any]] = []
             for m in group:
-                text = str(m.content or "")
+                if self._is_multimodal_content(m.content):
+                    import json
+
+                    text = json.dumps(
+                        self._convert_content_parts(
+                            self._normalize_content_parts(m.content)
+                        )
+                    )
+                else:
+                    text = str(m.content or "")
                 msg_meta = dict(m.metadata or {})
                 # Skip empty messages
                 if not text.strip():
@@ -591,7 +680,7 @@ class AsyncNebula:
                 await self._append_to_memory(conv_id, append_mem)
                 results.extend([str(conv_id)] * len(group))
 
-        # Process others (text/json) individually
+        # Process others (text/json/multimodal) individually - store_memory handles multimodal
         for m in others:
             results.append(await self.store_memory(m))
         return results
@@ -615,22 +704,23 @@ class AsyncNebula:
                 return True
             except Exception:
                 # Try new unified endpoint
-                try:
-                    response = await self._make_request_async(
-                        "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
-                    )
-                    result: bool | dict[str, Any] = (
-                        response.get("success", False)
-                        if isinstance(response, dict)
-                        else True
-                    )
-                    return result
-                except Exception as e:
-                    raise
+                response = await self._make_request_async(
+                    "POST",
+                    "/v1/memories/delete",
+                    json_data=memory_ids,  # type: ignore[arg-type]
+                )
+                result: bool | dict[str, Any] = (
+                    response.get("success", False)
+                    if isinstance(response, dict)
+                    else True
+                )
+                return result
         else:
             # Batch deletion
             response = await self._make_request_async(
-                "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
+                "POST",
+                "/v1/memories/delete",
+                json_data=memory_ids,  # type: ignore[arg-type]
             )
             batch_result: bool | dict[str, Any] = response
             return batch_result

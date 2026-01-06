@@ -194,9 +194,9 @@ describe('Nebula', () => {
       const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
       expect(String(url)).toContain('/v1/memories');
       expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
-      expect(typeof (requestInit as any).body).toBe('string');
+      expect(typeof (requestInit as { body?: unknown }).body).toBe('string');
 
-      const body = JSON.parse(String((requestInit as any).body));
+      const body = JSON.parse(String((requestInit as { body?: unknown }).body));
       expect(body.collection_id).toBe('collection-123');
       expect(body.raw_text).toBe('Test content');
       expect(body.metadata).toEqual(expect.objectContaining({ test: 'metadata', memory_type: 'memory' }));
@@ -225,9 +225,9 @@ describe('Nebula', () => {
       const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
       expect(String(url)).toContain('/v1/memories');
       expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
-      expect(typeof (requestInit as any).body).toBe('string');
+      expect(typeof (requestInit as { body?: unknown }).body).toBe('string');
 
-      const body = JSON.parse(String((requestInit as any).body));
+      const body = JSON.parse(String((requestInit as { body?: unknown }).body));
       expect(body.collection_id).toBe('collection-123');
       expect(body.raw_text).toBe('Doc content');
       expect(body.metadata).toEqual(expect.objectContaining({ tag: 'x', memory_type: 'memory' }));
