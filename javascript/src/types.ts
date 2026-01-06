@@ -109,6 +109,7 @@ export interface SearchResult {
   source_role?: string;
   memory_id?: string; // Parent memory/conversation container
   owner_id?: string;
+  engram_id?: string; // Engram ID for graph results
 
   // Chunk fields
   content?: string;

@@ -15,7 +15,11 @@ import {
   NebulaRateLimitException,
   NebulaValidationException,
   NebulaNotFoundException,
+  Chunk,
+  MultimodalContentPart,
 } from './types';
+
+type ApiEnvelope<T> = { results: T };
 
 /**
  * Official Nebula JavaScript/TypeScript SDK
@@ -83,6 +87,54 @@ export class Nebula {
     }
 
     return headers;
+  }
+
+  private _isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private _unwrapResults<T>(value: unknown): T {
+    if (this._isRecord(value) && 'results' in value) {
+      return (value as ApiEnvelope<T>).results;
+    }
+    return value as T;
+  }
+
+  private _unwrapResultsArray<T>(value: unknown): T[] {
+    const unwrapped = this._unwrapResults<unknown>(value);
+    if (Array.isArray(unwrapped)) {
+      return unwrapped as T[];
+    }
+    if (unwrapped === undefined || unwrapped === null) {
+      return [];
+    }
+    return [unwrapped as T];
+  }
+
+  private _looksLikeMultimodalContent(content: unknown): content is unknown[] {
+    if (!Array.isArray(content)) return false;
+    return content.some((part) => this._isRecord(part) && typeof part.type === 'string');
+  }
+
+  private _normalizeContentParts(contentParts: unknown[]): MultimodalContentPart[] {
+    return contentParts.map((part) => {
+      if (!this._isRecord(part) || typeof part.type !== 'string') {
+        return { type: 'text', text: String(part) } satisfies MultimodalContentPart;
+      }
+      return part as unknown as MultimodalContentPart;
+    });
+  }
+
+  private async _serializeContentAsText(content: unknown): Promise<string> {
+    if (this._looksLikeMultimodalContent(content)) {
+      const normalized = this._normalizeContentParts(content);
+      const processed = await this._processContentParts(normalized);
+      return JSON.stringify(processed);
+    }
+    if (Array.isArray(content)) {
+      return JSON.stringify(content);
+    }
+    return String(content ?? '');
   }
 
   /** Make an HTTP request to the Nebula API */
@@ -179,22 +231,22 @@ export class Nebula {
     if (options.description) data.description = options.description;
     if (options.metadata) data.metadata = options.metadata;
 
-    const response = await this._makeRequest('POST', '/v1/collections', data);
-    const result = response.results || response;
+    const response = await this._makeRequest('POST', '/v1/collections', data) as { results?: Record<string, unknown> } | Record<string, unknown>;
+    const result = (response as { results?: Record<string, unknown> }).results || response as Record<string, unknown>;
     return this._collectionFromDict(result);
   }
 
   /** Get a specific collection by ID */
   async getCollection(collectionId: string): Promise<Collection> {
-    const response = await this._makeRequest('GET', `/v1/collections/${collectionId}`);
-    const result = response.results || response;
+    const response = await this._makeRequest('GET', `/v1/collections/${collectionId}`) as { results?: Record<string, unknown> } | Record<string, unknown>;
+    const result = (response as { results?: Record<string, unknown> }).results || response as Record<string, unknown>;
     return this._collectionFromDict(result);
   }
 
   /** Get a specific collection by name */
   async getCollectionByName(name: string): Promise<Collection> {
-    const response = await this._makeRequest('GET', `/v1/collections/name/${name}`);
-    const result = response.results || response;
+    const response = await this._makeRequest('GET', `/v1/collections/name/${name}`) as { results?: Record<string, unknown> } | Record<string, unknown>;
+    const result = (response as { results?: Record<string, unknown> }).results || response as Record<string, unknown>;
     return this._collectionFromDict(result);
   }
 
@@ -214,15 +266,15 @@ export class Nebula {
     const response = await this._makeRequest('GET', '/v1/collections', undefined, params) as { results?: unknown[] } | unknown[] | unknown;
 
     let collections: unknown[];
-    if (response.results) {
-      collections = response.results;
+    if (typeof response === 'object' && response !== null && 'results' in response) {
+      collections = (response as { results: unknown[] }).results;
     } else if (Array.isArray(response)) {
       collections = response;
     } else {
       collections = [response];
     }
 
-    return collections.map((collection) => this._collectionFromDict(collection));
+    return collections.map((collection) => this._collectionFromDict(collection as Record<string, unknown>));
   }
 
   /** Update a collection */
@@ -237,8 +289,8 @@ export class Nebula {
     if (options.description !== undefined) data.description = options.description;
     if (options.metadata !== undefined) data.metadata = options.metadata;
 
-    const response = await this._makeRequest('POST', `/v1/collections/${options.collectionId}`, data);
-    const result = response.results || response;
+    const response = await this._makeRequest('POST', `/v1/collections/${options.collectionId}`, data) as { results?: Record<string, unknown> } | Record<string, unknown>;
+    const result = (response as { results?: Record<string, unknown> }).results || response as Record<string, unknown>;
     return this._collectionFromDict(result);
   }
 
@@ -267,16 +319,17 @@ export class Nebula {
       ingestion_mode: 'fast',
     } as const;
 
-    const response = await this._makeRequest('POST', '/v1/memories', payload);
+    const response = await this._makeRequest('POST', '/v1/memories', payload) as { results?: { engram_id?: string; id?: string }; id?: string };
     const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
 
+    const timestamp = docMetadata.timestamp as string | undefined;
     const result: MemoryResponse = {
       id: String(id),
       content: String(content || ''),
       metadata: docMetadata,
       collection_ids: [collectionId],
-      created_at: docMetadata.timestamp,
-      updated_at: docMetadata.timestamp,
+      created_at: timestamp,
+      updated_at: timestamp,
     };
     return result;
   }
@@ -323,14 +376,7 @@ export class Nebula {
 
       // If content and role provided, include as initial message
       if (mem.content && mem.role) {
-        // Check if content is multimodal (array of content parts)
-        const isMultimodal =
-          Array.isArray(mem.content) &&
-          mem.content.some((part) => part && typeof part === 'object' && 'type' in (part as Record<string, unknown>));
-
-        const msgContent = isMultimodal
-          ? JSON.stringify(await this._processContentParts(mem.content as unknown[]))
-          : String(mem.content);
+        const msgContent = await this._serializeContentAsText(mem.content);
         
         const memRecord = mem as Memory & { authority?: number };
         messages.push({
@@ -366,11 +412,6 @@ export class Nebula {
     }
 
     // Handle document/text memory
-    // Check if content is multimodal (array of content parts)
-    const isMultimodal =
-      Array.isArray(mem.content) &&
-      mem.content.some((part) => part && typeof part === 'object' && 'type' in (part as Record<string, unknown>));
-    
     const docMetadata = { ...mem.metadata } as Record<string, unknown>;
     docMetadata.memory_type = 'memory';
     
@@ -383,36 +424,35 @@ export class Nebula {
       }
     }
 
-    if (isMultimodal) {
-      // Process content parts, auto-uploading large files to S3 when needed
-      const processedParts = await this._processContentParts(mem.content as unknown[]);
-
-      // Backend JSON create_memory expects a string `raw_text` (or `chunks`),
-      // so we serialize multimodal parts as JSON text.
-      const payload: Record<string, unknown> = {
+    // If content is multimodal, serialize multimodal parts as JSON string (raw_text).
+    // If content is an array of strings, send `chunks` (backend supports both raw_text and chunks).
+    let payload: Record<string, unknown>;
+    if (this._looksLikeMultimodalContent(mem.content)) {
+      payload = {
         collection_id: mem.collection_id,
-        raw_text: JSON.stringify(processedParts),
+        raw_text: await this._serializeContentAsText(mem.content),
         metadata: docMetadata,
         ingestion_mode: 'fast',
       };
-
-      const response = await this._makeRequest('POST', '/v1/memories', payload) as { results?: { engram_id?: string; id?: string }; id?: string };
-      const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
-      return String(id || '');
+    } else if (Array.isArray(mem.content) && mem.content.every((x) => typeof x === 'string')) {
+      payload = {
+        collection_id: mem.collection_id,
+        chunks: mem.content,
+        metadata: docMetadata,
+        ingestion_mode: 'fast',
+      };
+    } else {
+      const contentText = String(mem.content || '');
+      if (!contentText) {
+        throw new NebulaClientException('Content is required for document memories');
+      }
+      payload = {
+        collection_id: mem.collection_id,
+        raw_text: contentText,
+        metadata: docMetadata,
+        ingestion_mode: 'fast',
+      };
     }
-
-    // Plain text content
-    const contentText = String(mem.content || '');
-    if (!contentText) {
-      throw new NebulaClientException('Content is required for document memories');
-    }
-
-    const payload = {
-      collection_id: mem.collection_id,
-      raw_text: contentText,
-      metadata: docMetadata,
-      ingestion_mode: 'fast',
-    } as const;
 
     const response = await this._makeRequest('POST', '/v1/memories', payload) as { results?: { engram_id?: string; id?: string }; id?: string };
     const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
@@ -495,13 +535,7 @@ export class Nebula {
       // Prepare messages for the conversation
       const messages: Array<{ content: string; role: string; metadata?: Record<string, unknown>; authority?: number }> = [];
       for (const m of group) {
-        const isMultimodal =
-          Array.isArray(m.content) &&
-          (m.content as unknown[]).some((part) => part && typeof part === 'object' && 'type' in (part as Record<string, unknown>));
-
-        const text = isMultimodal
-          ? JSON.stringify(await this._processContentParts(m.content as unknown[]))
-          : String(m.content || '');
+        const text = await this._serializeContentAsText(m.content);
 
         if (!text.trim()) continue;
 
@@ -533,7 +567,7 @@ export class Nebula {
         const response = await this._makeRequest('POST', '/v1/memories', data) as { results?: { memory_id?: string; id?: string } };
 
         if (response.results) {
-          convId = response.results.memory_id || response.results.id;
+          convId = response.results.memory_id || response.results.id || '';
           if (!convId) {
             throw new NebulaClientException('Failed to create conversation: no id returned');
           }
@@ -601,7 +635,18 @@ export class Nebula {
         console.log('[SDK] Sending POST request with body:', memoryIds);
         // Batch deletion - send array directly as body (not wrapped in {ids: ...})
         // FastAPI Body() without embed=True expects the value directly
-        const response = await this._makeRequest('POST', '/v1/memories/delete', memoryIds);
+        const response = await this._makeRequest('POST', '/v1/memories/delete', memoryIds) as boolean | {
+          message: string;
+          results: {
+            successful: string[];
+            failed: Array<{ id: string; error: string }>;
+            summary: {
+              total: number;
+              succeeded: number;
+              failed: number;
+            };
+          };
+        };
         console.log('[SDK] Batch deletion response:', response);
         return response;
       }
@@ -766,15 +811,15 @@ export class Nebula {
     const response = await this._makeRequest('GET', '/v1/memories', undefined, params) as { results?: unknown[] } | unknown[] | unknown;
 
     let documents: unknown[];
-    if (response.results) {
-      documents = response.results;
+    if (typeof response === 'object' && response !== null && 'results' in response) {
+      documents = (response as { results: unknown[] }).results;
     } else if (Array.isArray(response)) {
       documents = response;
     } else {
       documents = [response];
     }
 
-    return documents.map((doc) => this._memoryResponseFromDict(doc, ids));
+    return documents.map((doc) => this._memoryResponseFromDict(doc as Record<string, unknown>, ids));
   }
 
   /** Get a specific memory by engram ID */
@@ -960,25 +1005,33 @@ export class Nebula {
   private _collectionFromDict(data: Record<string, unknown>): Collection {
     let createdAt: string | undefined;
     if (data.created_at) {
-      createdAt = typeof data.created_at === 'string' ? data.created_at : data.created_at.toISOString();
+      if (typeof data.created_at === 'string') {
+        createdAt = data.created_at;
+      } else if (data.created_at instanceof Date) {
+        createdAt = data.created_at.toISOString();
+      }
     }
 
     let updatedAt: string | undefined;
     if (data.updated_at) {
-      updatedAt = typeof data.updated_at === 'string' ? data.updated_at : data.updated_at.toISOString();
+      if (typeof data.updated_at === 'string') {
+        updatedAt = data.updated_at;
+      } else if (data.updated_at instanceof Date) {
+        updatedAt = data.updated_at.toISOString();
+      }
     }
 
     const collectionId = String(data.id || '');
-    const collectionName = data.name || '';
-    const collectionDescription = data.description;
+    const collectionName = String(data.name || '');
+    const collectionDescription = typeof data.description === 'string' ? data.description : undefined;
     const collectionOwnerId = data.owner_id ? String(data.owner_id) : undefined;
-    const memoryCount = data.document_count || 0;
+    const memoryCount = typeof data.document_count === 'number' ? data.document_count : 0;
 
-    const metadata = {
-      graph_collection_status: data.graph_collection_status || '',
-      graph_sync_status: data.graph_sync_status || '',
-      user_count: data.user_count || 0,
-      document_count: data.document_count || 0,
+    const metadata: Record<string, unknown> = {
+      graph_collection_status: String(data.graph_collection_status || ''),
+      graph_sync_status: String(data.graph_sync_status || ''),
+      user_count: typeof data.user_count === 'number' ? data.user_count : 0,
+      document_count: typeof data.document_count === 'number' ? data.document_count : 0,
     };
 
     return {
@@ -990,46 +1043,63 @@ export class Nebula {
       updated_at: updatedAt,
       memory_count: memoryCount,
       owner_id: collectionOwnerId,
-    } as Collection;
+    };
   }
 
   private _memoryResponseFromDict(data: Record<string, unknown>, collectionIds: string[]): MemoryResponse {
     let createdAt: string | undefined;
     if (data.created_at) {
-      createdAt = typeof data.created_at === 'string' ? data.created_at : data.created_at.toISOString();
+      if (typeof data.created_at === 'string') {
+        createdAt = data.created_at;
+      } else if (data.created_at instanceof Date) {
+        createdAt = data.created_at.toISOString();
+      }
     }
 
     let updatedAt: string | undefined;
     if (data.updated_at) {
-      updatedAt = typeof data.updated_at === 'string' ? data.updated_at : data.updated_at.toISOString();
-    }
-
-    const engramId = String(data.id || '');
-    const content = data.content || data.text;
-    let chunks: string[] | undefined;
-
-    if (data.chunks && Array.isArray(data.chunks)) {
-      if (data.chunks.every((x: unknown) => typeof x === 'string')) {
-        chunks = data.chunks as string[];
-      } else {
-        chunks = (data.chunks as Array<Record<string, unknown>>)
-          .filter((item: Record<string, unknown>) => item && typeof item === 'object' && 'text' in item)
-          .map((item: Record<string, unknown>) => item.text as string);
+      if (typeof data.updated_at === 'string') {
+        updatedAt = data.updated_at;
+      } else if (data.updated_at instanceof Date) {
+        updatedAt = data.updated_at.toISOString();
       }
     }
 
-    const metadata = { ...(data.metadata as Record<string, unknown> || {}) };
+    const engramId = String(data.id || '');
+    const content = typeof data.content === 'string' ? data.content : (typeof data.text === 'string' ? data.text : undefined);
+    let chunks: Chunk[] | undefined;
+
+    if (data.chunks && Array.isArray(data.chunks)) {
+      if (data.chunks.every((x: unknown) => typeof x === 'string')) {
+        chunks = (data.chunks as string[]).map((text: string) => ({
+          id: '',
+          content: text,
+          metadata: {},
+        }));
+      } else {
+        chunks = (data.chunks as Array<Record<string, unknown>>)
+          .filter((item: Record<string, unknown>) => item && typeof item === 'object' && ('text' in item || 'content' in item))
+          .map((item: Record<string, unknown>) => ({
+            id: String(item.id || ''),
+            content: String(item.text || item.content || ''),
+            metadata: typeof item.metadata === 'object' && item.metadata !== null ? item.metadata as Record<string, unknown> : {},
+            role: typeof item.role === 'string' ? item.role : undefined,
+          }));
+      }
+    }
+
+    const metadata: Record<string, unknown> = { ...(typeof data.metadata === 'object' && data.metadata !== null ? data.metadata as Record<string, unknown> : {}) };
     if (data.engram_id) {
       metadata.engram_id = data.engram_id;
     }
 
     let finalId = engramId;
     if (data.engram_id && !engramId) {
-      finalId = data.engram_id;
+      finalId = String(data.engram_id);
     }
 
-    if (data.document_metadata) {
-      Object.assign(metadata, data.document_metadata);
+    if (data.document_metadata && typeof data.document_metadata === 'object') {
+      Object.assign(metadata, data.document_metadata as Record<string, unknown>);
     }
 
     return {
@@ -1037,34 +1107,35 @@ export class Nebula {
       content,
       chunks,
       metadata,
-      collection_ids: data.collection_ids || collectionIds,
+      collection_ids: Array.isArray(data.collection_ids) ? data.collection_ids as string[] : collectionIds,
       created_at: createdAt,
       updated_at: updatedAt,
-    } as MemoryResponse;
+    };
   }
 
   private _searchResultFromDict(data: Record<string, unknown>): SearchResult {
-    const content = data.content || data.text || '';
-    const resultId = data.id || data.chunk_id || '';
+    const content = typeof data.content === 'string' ? data.content : (typeof data.text === 'string' ? data.text : '');
+    const resultId = String(data.id || data.chunk_id || '');
 
     return {
       id: String(resultId),
       content: String(content),
-      score: Number(data.score || 0.0),
-      metadata: data.metadata || {},
-      source: data.source,
+      score: typeof data.score === 'number' ? data.score : Number(data.score || 0.0),
+      metadata: typeof data.metadata === 'object' && data.metadata !== null ? data.metadata as Record<string, unknown> : {},
+      source: typeof data.source === 'string' ? data.source : undefined,
     };
   }
 
   private _searchResultFromGraphDict(data: Record<string, unknown>): SearchResult {
     const rid = data.id ? String(data.id) : '';
+    const resultTypeStr = typeof data.result_type === 'string' ? data.result_type : 'entity';
     const rtype =
-      GraphSearchResultType[(data.result_type || 'entity').toUpperCase() as keyof typeof GraphSearchResultType] ||
+      GraphSearchResultType[resultTypeStr.toUpperCase() as keyof typeof GraphSearchResultType] ||
       GraphSearchResultType.ENTITY;
-    const content = (data.content || {}) as Record<string, unknown>;
+    const content = (typeof data.content === 'object' && data.content !== null ? data.content : {}) as Record<string, unknown>;
     const score = data.score !== undefined ? Number(data.score) : 0.0;
-    const metadata = data.metadata || {};
-    const chunkIds = Array.isArray(data.chunk_ids) ? data.chunk_ids : undefined;
+    const metadata: Record<string, unknown> = typeof data.metadata === 'object' && data.metadata !== null ? data.metadata as Record<string, unknown> : {};
+    const chunkIds = Array.isArray(data.chunk_ids) ? data.chunk_ids as string[] : undefined;
     let timestamp: string | undefined;
     if (data.timestamp) {
       if (typeof data.timestamp === 'string') {
@@ -1072,7 +1143,7 @@ export class Nebula {
       } else if (data.timestamp instanceof Date) {
         timestamp = data.timestamp.toISOString();
       } else {
-        const parsed = new Date(data.timestamp);
+        const parsed = new Date(String(data.timestamp));
         if (!Number.isNaN(parsed.valueOf())) {
           timestamp = parsed.toISOString();
         }
@@ -1091,27 +1162,27 @@ export class Nebula {
     if (rtype === GraphSearchResultType.ENTITY) {
       entity = {
         id: content.id ? String(content.id) : undefined,
-        name: content.name || '',
-        description: content.description || '',
-        metadata: content.metadata || {},
+        name: String(content.name || ''),
+        description: String(content.description || ''),
+        metadata: typeof content.metadata === 'object' && content.metadata !== null ? content.metadata as Record<string, unknown> : {},
       };
     } else if (rtype === GraphSearchResultType.RELATIONSHIP) {
       rel = {
         id: content.id ? String(content.id) : undefined,
-        subject: content.subject || '',
-        predicate: content.predicate || '',
-        object: content.object || '',
+        subject: String(content.subject || ''),
+        predicate: String(content.predicate || ''),
+        object: String(content.object || ''),
         subject_id: content.subject_id ? String(content.subject_id) : undefined,
         object_id: content.object_id ? String(content.object_id) : undefined,
-        description: content.description,
-        metadata: content.metadata || {},
+        description: typeof content.description === 'string' ? content.description : undefined,
+        metadata: typeof content.metadata === 'object' && content.metadata !== null ? content.metadata as Record<string, unknown> : {},
       };
     } else {
       comm = {
         id: content.id ? String(content.id) : undefined,
-        name: content.name || '',
-        summary: content.summary || '',
-        metadata: content.metadata || {},
+        name: String(content.name || ''),
+        summary: String(content.summary || ''),
+        metadata: typeof content.metadata === 'object' && content.metadata !== null ? content.metadata as Record<string, unknown> : {},
       };
     }
 
@@ -1131,7 +1202,7 @@ export class Nebula {
       source_role: sourceRole,
       engram_id: engramId,
       owner_id: ownerId,
-    } as SearchResult;
+    };
   }
 
   private async _sha256(message: string): Promise<string> {
@@ -1162,30 +1233,20 @@ export class Nebula {
   /**
    * Convert and process multimodal content parts, auto-uploading large base64 files to S3.
    *
-   * - Strings/unknown values are wrapped as `{ type: 'text', text: '...' }`
    * - Binary parts (`image`/`audio`/`document` with `data`) larger than 5MB are uploaded to S3 and converted to `s3_ref`.
    */
-  private async _processContentParts(contentParts: unknown[]): Promise<unknown[]> {
-    const processed: unknown[] = [];
+  private async _processContentParts(contentParts: MultimodalContentPart[]): Promise<MultimodalContentPart[]> {
+    const processed: MultimodalContentPart[] = [];
 
     for (const part of contentParts) {
-      // Wrap primitive parts as text blocks
-      if (!part || typeof part !== 'object' || !('type' in (part as Record<string, unknown>))) {
-        processed.push({ type: 'text', text: String(part) });
-        continue;
-      }
-
-      const partRecord = part as Record<string, unknown>;
-      const partType = partRecord.type as string;
-
       // Check if this is a binary content part with base64 data
-      if (['image', 'audio', 'document'].includes(partType) && partRecord.data) {
+      if ((part.type === 'image' || part.type === 'audio' || part.type === 'document') && part.data) {
         // Calculate decoded size (base64 is ~4/3 of original)
-        const dataSize = Math.floor(String(partRecord.data).length * 3 / 4);
+        const dataSize = Math.floor(String(part.data).length * 3 / 4);
 
         if (dataSize > Nebula.MAX_INLINE_SIZE) {
-          const filename = (partRecord.filename as string) || `file.${partType}`;
-          const mediaType = (partRecord.media_type as string) || 'application/octet-stream';
+          const filename = part.filename || `file.${part.type}`;
+          const mediaType = part.media_type || 'application/octet-stream';
 
           const uploadInfo = await this.getUploadUrl({
             filename,
@@ -1195,9 +1256,9 @@ export class Nebula {
 
           // Decode base64 and upload to S3
           let bytes: Uint8Array;
-          const globalThisRecord = globalThis as Record<string, unknown>;
-          if (typeof globalThisRecord.atob === 'function') {
-            const binaryString = (globalThisRecord.atob as (data: string) => string)(String(partRecord.data));
+          const atobFn = (globalThis as unknown as { atob?: (data: string) => string }).atob;
+          if (typeof atobFn === 'function') {
+            const binaryString = atobFn(String(part.data));
             bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
               bytes[i] = binaryString.charCodeAt(i);
@@ -1205,12 +1266,12 @@ export class Nebula {
           } else {
             // Node.js fallback
             const { Buffer } = await import('buffer');
-            bytes = Uint8Array.from(Buffer.from(String(partRecord.data), 'base64'));
+            bytes = Uint8Array.from(Buffer.from(String(part.data), 'base64'));
           }
 
           await fetch(uploadInfo.upload_url, {
             method: 'PUT',
-            body: bytes,
+            body: bytes as unknown as BodyInit,
             headers: { 'Content-Type': mediaType },
           });
 

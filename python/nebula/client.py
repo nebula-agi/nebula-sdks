@@ -16,7 +16,14 @@ from .exceptions import (
     NebulaRateLimitException,
     NebulaValidationException,
 )
-from .models import Collection, Memory, MemoryRecall, MemoryResponse
+from .models import (
+    Collection,
+    ContentPart,
+    Memory,
+    MemoryRecall,
+    MemoryResponse,
+    TextContent,
+)
 
 
 class Nebula:
@@ -113,7 +120,29 @@ class Nebula:
                 return True
         return False
 
-    def _convert_content_parts(self, content: list) -> list[dict[str, Any]]:
+    @staticmethod
+    def _normalize_content_parts(content: Any) -> list[ContentPart]:
+        """Normalize arbitrary content into a list of ContentPart items.
+
+        - If content is a list, strings are wrapped as TextContent, other items are passed through.
+        - If content is not a list, it is wrapped as a single TextContent block.
+        """
+        from typing import cast
+
+        if isinstance(content, list):
+            normalized: list[ContentPart] = []
+            for part in content:
+                if isinstance(part, str):
+                    normalized.append(TextContent(text=part))
+                else:
+                    normalized.append(cast(ContentPart, part))
+            return normalized
+
+        return [TextContent(text=str(content))]
+
+    def _convert_content_parts(
+        self, content: list[ContentPart]
+    ) -> list[dict[str, Any]]:
         """Convert content parts to API format, auto-uploading large files to S3."""
         import base64
 
@@ -707,7 +736,9 @@ class Nebula:
                     import json
 
                     msg_content = json.dumps(
-                        self._convert_content_parts(memory.content)
+                        self._convert_content_parts(
+                            self._normalize_content_parts(memory.content)
+                        )
                     )
                 else:
                     msg_content = str(memory.content)
@@ -726,14 +757,16 @@ class Nebula:
                 )
 
             # Backend infers engram_type from payload shape; omit engram_type.
-            payload: dict[str, Any] = {
+            conv_payload: dict[str, Any] = {
                 "collection_id": memory.collection_id,
                 "messages": messages,
                 "metadata": doc_metadata,
                 "name": name or "Conversation",
             }
 
-            response = self._make_request("POST", "/v1/memories", json_data=payload)
+            response = self._make_request(
+                "POST", "/v1/memories", json_data=conv_payload
+            )
 
             if isinstance(response, dict) and "results" in response:
                 conv_id = response["results"].get("id") or response["results"].get(
@@ -762,7 +795,7 @@ class Nebula:
                 pass
 
         # Backend infers engram_type from payload shape; omit engram_type.
-        payload: dict[str, Any] = {
+        doc_payload: dict[str, Any] = {
             "collection_id": memory.collection_id,
             "metadata": doc_metadata,
             "ingestion_mode": "fast",
@@ -772,16 +805,18 @@ class Nebula:
         if self._is_multimodal_content(memory.content):
             import json
 
-            payload["raw_text"] = json.dumps(
-                self._convert_content_parts(memory.content)
+            doc_payload["raw_text"] = json.dumps(
+                self._convert_content_parts(
+                    self._normalize_content_parts(memory.content)
+                )
             )
         else:
             content_text = str(memory.content or "")
             if not content_text:
                 raise NebulaClientException("Content is required for document memories")
-            payload["raw_text"] = content_text
+            doc_payload["raw_text"] = content_text
 
-        response = self._make_request("POST", "/v1/memories", json_data=payload)
+        response = self._make_request("POST", "/v1/memories", json_data=doc_payload)
 
         if isinstance(response, dict) and "results" in response:
             if "engram_id" in response["results"]:
@@ -879,7 +914,11 @@ class Nebula:
                 if self._is_multimodal_content(m.content):
                     import json
 
-                    msg_content = json.dumps(self._convert_content_parts(m.content))
+                    msg_content = json.dumps(
+                        self._convert_content_parts(
+                            self._normalize_content_parts(m.content)
+                        )
+                    )
                 else:
                     msg_content = str(m.content or "")
                 # Skip empty messages
@@ -1343,5 +1382,5 @@ class Nebula:
             },
         )
         if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
+            return dict(response["results"])
+        return dict(response)

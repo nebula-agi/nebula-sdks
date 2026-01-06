@@ -94,6 +94,22 @@ class TestNebula:
             client._is_multimodal_content(["hello", ImageContent(data="Zg==")]) is True
         )
 
+    def test_normalize_content_parts_wraps_scalar_as_text(self):
+        parts = self.client._normalize_content_parts("hello")
+        assert len(parts) == 1
+        assert getattr(parts[0], "type") == "text"
+        assert getattr(parts[0], "text") == "hello"
+
+    def test_normalize_content_parts_wraps_string_items_in_list(self):
+        parts = self.client._normalize_content_parts(
+            ["hello", {"type": "image", "data": "Zg==", "media_type": "image/png"}]
+        )
+        assert len(parts) == 2
+        assert getattr(parts[0], "type") == "text"
+        assert getattr(parts[0], "text") == "hello"
+        assert isinstance(parts[1], dict)
+        assert parts[1]["type"] == "image"
+
     @patch("httpx.Client.request")
     def test_create_collection(self, mock_request):
         """Test creating a collection"""
