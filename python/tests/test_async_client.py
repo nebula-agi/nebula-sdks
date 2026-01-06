@@ -89,9 +89,13 @@ def test_store_memory_conversation_creates_and_posts(monkeypatch):
     assert conv_id == "conv_123"
     assert any(c["endpoint"] == "/v1/memories" for c in calls)
 
+
 def test_is_multimodal_content_detects_mixed_list():
     client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
-    assert client._is_multimodal_content(["hello", {"type": "image", "data": "Zg=="}]) is True
+    assert (
+        client._is_multimodal_content(["hello", {"type": "image", "data": "Zg=="}])
+        is True
+    )
     assert client._is_multimodal_content(["hello", ImageContent(data="Zg==")]) is True
 
 
@@ -273,7 +277,14 @@ def test_store_memory_multimodal_document_serializes_raw_text(monkeypatch):
         json_data: Any | None = None,
         params: dict[str, Any] | None = None,
     ):
-        calls.append({"method": method, "endpoint": endpoint, "json": json_data, "params": params})
+        calls.append(
+            {
+                "method": method,
+                "endpoint": endpoint,
+                "json": json_data,
+                "params": params,
+            }
+        )
         if endpoint == "/v1/memories":
             return {"results": {"engram_id": "doc_123", "id": "doc_123"}}
         raise AssertionError(f"Unexpected call: {method} {endpoint}")
@@ -282,7 +293,10 @@ def test_store_memory_multimodal_document_serializes_raw_text(monkeypatch):
 
     mem = Memory(
         collection_id="cluster_docs",
-        content=["A caption", ImageContent(data="Zg==", media_type="image/jpeg", filename="x.jpg")],
+        content=[
+            "A caption",
+            ImageContent(data="Zg==", media_type="image/jpeg", filename="x.jpg"),
+        ],
         metadata={"k": "v"},
     )
     doc_id = run(client.store_memory(mem))

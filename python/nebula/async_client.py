@@ -79,7 +79,9 @@ class AsyncNebula:
         if candidate.count(".") != 1:
             return False
         public_part, raw_part = candidate.split(".", 1)
-        return (public_part.startswith("key_") or public_part.startswith("neb_")) and len(raw_part) > 0
+        return (
+            public_part.startswith("key_") or public_part.startswith("neb_")
+        ) and len(raw_part) > 0
 
     def _build_auth_headers(self, include_content_type: bool = True) -> dict[str, str]:
         """Build authentication headers.
@@ -118,7 +120,9 @@ class AsyncNebula:
         for part in content:
             if hasattr(part, "__dataclass_fields__"):
                 # Dataclass - convert to dict
-                parts.append({k: getattr(part, k) for k in part.__dataclass_fields__.keys()})
+                parts.append(
+                    {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
+                )
             elif isinstance(part, dict):
                 parts.append(part)
             else:
@@ -420,7 +424,9 @@ class AsyncNebula:
                 if is_multimodal:
                     import json
 
-                    msg_content = json.dumps(self._convert_content_parts(memory.content))
+                    msg_content = json.dumps(
+                        self._convert_content_parts(memory.content)
+                    )
                 else:
                     msg_content = str(memory.content)
                 msg: dict[str, Any] = {
@@ -445,14 +451,22 @@ class AsyncNebula:
                 "name": name or "Conversation",
             }
 
-            response = await self._make_request_async("POST", "/v1/memories", json_data=payload)
+            response = await self._make_request_async(
+                "POST", "/v1/memories", json_data=payload
+            )
 
             if isinstance(response, dict) and "results" in response:
-                conv_id = response["results"].get("id") or response["results"].get("engram_id")
+                conv_id = response["results"].get("id") or response["results"].get(
+                    "engram_id"
+                )
                 if not conv_id:
-                    raise NebulaClientException("Failed to create conversation: no id returned")
+                    raise NebulaClientException(
+                        "Failed to create conversation: no id returned"
+                    )
                 return str(conv_id)
-            raise NebulaClientException("Failed to create conversation: invalid response format")
+            raise NebulaClientException(
+                "Failed to create conversation: invalid response format"
+            )
 
         # Handle document/text memory
         doc_metadata = dict(memory.metadata or {})
@@ -479,14 +493,18 @@ class AsyncNebula:
         if self._is_multimodal_content(memory.content):
             import json
 
-            payload["raw_text"] = json.dumps(self._convert_content_parts(memory.content))
+            payload["raw_text"] = json.dumps(
+                self._convert_content_parts(memory.content)
+            )
         else:
             content_text = str(memory.content or "")
             if not content_text:
                 raise NebulaClientException("Content is required for document memories")
             payload["raw_text"] = content_text
 
-        response = await self._make_request_async("POST", "/v1/memories", json_data=payload)
+        response = await self._make_request_async(
+            "POST", "/v1/memories", json_data=payload
+        )
         if isinstance(response, dict) and "results" in response:
             if "engram_id" in response["results"]:
                 return str(response["results"]["engram_id"])

@@ -15,7 +15,6 @@ import {
   NebulaRateLimitException,
   NebulaValidationException,
   NebulaNotFoundException,
-  MultimodalContentPart,
 } from './types';
 
 /**
@@ -90,9 +89,9 @@ export class Nebula {
   private async _makeRequest(
     method: string,
     endpoint: string,
-    jsonData?: any,  // Can be object, array, or primitive for JSON body
-    params?: Record<string, any>
-  ): Promise<any> {
+    jsonData?: unknown,  // Can be object, array, or primitive for JSON body
+    params?: Record<string, unknown>
+  ): Promise<unknown> {
     const url = new URL(endpoint, this.baseUrl);
 
     if (params) {
@@ -174,9 +173,9 @@ export class Nebula {
   async createCollection(options: {
     name: string;
     description?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<Collection> {
-    const data: Record<string, any> = { name: options.name };
+    const data: Record<string, unknown> = { name: options.name };
     if (options.description) data.description = options.description;
     if (options.metadata) data.metadata = options.metadata;
 
@@ -205,16 +204,16 @@ export class Nebula {
     offset?: number;
     name?: string;
   }): Promise<Collection[]> {
-    const params: Record<string, any> = {
+    const params: Record<string, unknown> = {
       limit: options?.limit ?? 100,
       offset: options?.offset ?? 0
     };
     if (options?.name !== undefined) {
       params.name = options.name;
     }
-    const response = await this._makeRequest('GET', '/v1/collections', undefined, params);
+    const response = await this._makeRequest('GET', '/v1/collections', undefined, params) as { results?: unknown[] } | unknown[] | unknown;
 
-    let collections: any[];
+    let collections: unknown[];
     if (response.results) {
       collections = response.results;
     } else if (Array.isArray(response)) {
@@ -231,9 +230,9 @@ export class Nebula {
     collectionId: string;
     name?: string;
     description?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<Collection> {
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
     if (options.name !== undefined) data.name = options.name;
     if (options.description !== undefined) data.description = options.description;
     if (options.metadata !== undefined) data.metadata = options.metadata;
@@ -254,12 +253,12 @@ export class Nebula {
   /**
    * Legacy convenience: store raw text content into a collection as a document
    */
-  async store(content: string, collectionId: string, metadata: Record<string, any> = {}): Promise<MemoryResponse> {
+  async store(content: string, collectionId: string, metadata: Record<string, unknown> = {}): Promise<MemoryResponse> {
     const docMetadata = {
       ...metadata,
       memory_type: 'memory',
       timestamp: new Date().toISOString(),
-    } as Record<string, any>;
+    } as Record<string, unknown>;
 
     const payload = {
       collection_id: collectionId,
@@ -290,7 +289,7 @@ export class Nebula {
    * - Otherwise, creates a document
    */
   async storeMemory(
-    memory: Memory | Record<string, any>,
+    memory: Memory | Record<string, unknown>,
     name?: string
   ): Promise<string> {
     let mem: Memory;
@@ -299,12 +298,13 @@ export class Nebula {
       mem = memory as Memory;
     } else {
       // Support both camelCase (collectionId) and snake_case (collection_id)
+      const memRecord = memory as Record<string, unknown>;
       mem = {
-        collection_id: (memory as any).collection_id || (memory as any).collectionId,
-        content: (memory as any).content || '',
-        role: (memory as any).role,
-        memory_id: (memory as any).memory_id || (memory as any).memoryId,
-        metadata: (memory as any).metadata || {},
+        collection_id: (memRecord.collection_id as string) || (memRecord.collectionId as string) || '',
+        content: (memRecord.content as Memory['content']) || '',
+        role: memRecord.role as string | undefined,
+        memory_id: (memRecord.memory_id as string) || (memRecord.memoryId as string) || undefined,
+        metadata: (memRecord.metadata as Record<string, unknown>) || {},
       };
     }
 
@@ -326,17 +326,18 @@ export class Nebula {
         // Check if content is multimodal (array of content parts)
         const isMultimodal =
           Array.isArray(mem.content) &&
-          mem.content.some((part) => part && typeof part === 'object' && 'type' in (part as any));
+          mem.content.some((part) => part && typeof part === 'object' && 'type' in (part as Record<string, unknown>));
 
         const msgContent = isMultimodal
-          ? JSON.stringify(await this._processContentParts(mem.content as any[]))
+          ? JSON.stringify(await this._processContentParts(mem.content as unknown[]))
           : String(mem.content);
         
+        const memRecord = mem as Memory & { authority?: number };
         messages.push({
           content: msgContent,
           role: mem.role,
           metadata: mem.metadata || {},
-          ...(typeof (mem as any).authority === 'number' ? { authority: Number((mem as any).authority) } : {})
+          ...(typeof memRecord.authority === 'number' ? { authority: Number(memRecord.authority) } : {})
         });
       }
 
@@ -352,7 +353,7 @@ export class Nebula {
         metadata: mem.metadata || {},
       };
 
-      const response = await this._makeRequest('POST', '/v1/memories', data);
+      const response = await this._makeRequest('POST', '/v1/memories', data) as { results?: { memory_id?: string; id?: string } };
 
       if (response.results) {
         const convId = response.results.memory_id || response.results.id;
@@ -368,33 +369,34 @@ export class Nebula {
     // Check if content is multimodal (array of content parts)
     const isMultimodal =
       Array.isArray(mem.content) &&
-      mem.content.some((part) => part && typeof part === 'object' && 'type' in (part as any));
+      mem.content.some((part) => part && typeof part === 'object' && 'type' in (part as Record<string, unknown>));
     
-    const docMetadata = { ...mem.metadata } as Record<string, any>;
+    const docMetadata = { ...mem.metadata } as Record<string, unknown>;
     docMetadata.memory_type = 'memory';
     
     // If authority provided for document, persist in metadata for ranking
-    if (typeof (mem as any).authority === 'number') {
-      const v = Number((mem as any).authority);
+    const memRecord = mem as Memory & { authority?: number };
+    if (typeof memRecord.authority === 'number') {
+      const v = Number(memRecord.authority);
       if (!Number.isNaN(v) && v >= 0 && v <= 1) {
-        (docMetadata as any).authority = v;
+        docMetadata.authority = v;
       }
     }
 
     if (isMultimodal) {
       // Process content parts, auto-uploading large files to S3 when needed
-      const processedParts = await this._processContentParts(mem.content as any[]);
+      const processedParts = await this._processContentParts(mem.content as unknown[]);
 
       // Backend JSON create_memory expects a string `raw_text` (or `chunks`),
       // so we serialize multimodal parts as JSON text.
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         collection_id: mem.collection_id,
         raw_text: JSON.stringify(processedParts),
         metadata: docMetadata,
         ingestion_mode: 'fast',
       };
 
-      const response = await this._makeRequest('POST', '/v1/memories', payload);
+      const response = await this._makeRequest('POST', '/v1/memories', payload) as { results?: { engram_id?: string; id?: string }; id?: string };
       const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
       return String(id || '');
     }
@@ -412,7 +414,7 @@ export class Nebula {
       ingestion_mode: 'fast',
     } as const;
 
-    const response = await this._makeRequest('POST', '/v1/memories', payload);
+    const response = await this._makeRequest('POST', '/v1/memories', payload) as { results?: { engram_id?: string; id?: string }; id?: string };
     const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
     return String(id || '');
   }
@@ -431,7 +433,7 @@ export class Nebula {
       throw new NebulaClientException('collection_id is required');
     }
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       collection_id: collectionId,
     };
 
@@ -491,23 +493,24 @@ export class Nebula {
       let convId: string;
 
       // Prepare messages for the conversation
-      const messages: Array<{ content: string; role: string; metadata?: Record<string, any>; authority?: number }> = [];
+      const messages: Array<{ content: string; role: string; metadata?: Record<string, unknown>; authority?: number }> = [];
       for (const m of group) {
         const isMultimodal =
           Array.isArray(m.content) &&
-          (m.content as any[]).some((part) => part && typeof part === 'object' && 'type' in (part as any));
+          (m.content as unknown[]).some((part) => part && typeof part === 'object' && 'type' in (part as Record<string, unknown>));
 
         const text = isMultimodal
-          ? JSON.stringify(await this._processContentParts(m.content as any[]))
+          ? JSON.stringify(await this._processContentParts(m.content as unknown[]))
           : String(m.content || '');
 
         if (!text.trim()) continue;
 
+        const mRecord = m as Memory & { authority?: number };
         messages.push({
           content: text,
           role: m.role!,
           metadata: m.metadata || {},
-          ...(typeof (m as any).authority === 'number' ? { authority: Number((m as any).authority) } : {}),
+          ...(typeof mRecord.authority === 'number' ? { authority: Number(mRecord.authority) } : {}),
         });
       }
 
@@ -527,7 +530,7 @@ export class Nebula {
           metadata: {},
         };
 
-        const response = await this._makeRequest('POST', '/v1/memories', data);
+        const response = await this._makeRequest('POST', '/v1/memories', data) as { results?: { memory_id?: string; id?: string } };
 
         if (response.results) {
           convId = response.results.memory_id || response.results.id;
@@ -543,7 +546,7 @@ export class Nebula {
 
         const appendMem: Memory = {
           collection_id: collectionId,
-          content: messages as any,
+          content: messages as Memory['content'],
           memory_id: convId,
           metadata: {},
         };
@@ -588,7 +591,7 @@ export class Nebula {
           // Fall back to new unified endpoint
           console.log('[SDK] Falling back to POST /v1/memories/delete with single ID');
           // Send the UUID string directly as body (not wrapped in {ids: ...})
-          const response = await this._makeRequest('POST', '/v1/memories/delete', memoryIds);
+          const response = await this._makeRequest('POST', '/v1/memories/delete', memoryIds) as { success?: boolean } | boolean;
           return typeof response === 'object' && response.success !== undefined
             ? response.success
             : true;
@@ -628,9 +631,9 @@ export class Nebula {
   async updateChunk(
     chunkId: string,
     content: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<boolean> {
-    const payload: any = { content };
+    const payload: Record<string, unknown> = { content };
     if (metadata !== undefined) {
       payload.metadata = metadata;
     }
@@ -671,11 +674,11 @@ export class Nebula {
   async updateMemory(options: {
     memoryId: string;
     name?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     collectionIds?: string[];
     mergeMetadata?: boolean;
   }): Promise<boolean> {
-    const payload: any = {};
+    const payload: Record<string, unknown> = {};
 
     if (options.name !== undefined) {
       payload.name = options.name;
@@ -742,14 +745,14 @@ export class Nebula {
     collection_ids: string | string[];
     limit?: number;
     offset?: number;
-    metadata_filters?: Record<string, any>;
+    metadata_filters?: Record<string, unknown>;
   }): Promise<MemoryResponse[]> {
     const ids = Array.isArray(options.collection_ids) ? options.collection_ids : [options.collection_ids];
     if (!ids.length) {
       throw new NebulaClientException('collection_ids must be provided to list_memories().');
     }
 
-    const params: Record<string, any> = {
+    const params: Record<string, unknown> = {
       limit: options.limit ?? 100,
       offset: options.offset ?? 0,
       collection_ids: ids
@@ -760,9 +763,9 @@ export class Nebula {
       params.metadata_filters = JSON.stringify(options.metadata_filters);
     }
 
-    const response = await this._makeRequest('GET', '/v1/memories', undefined, params);
+    const response = await this._makeRequest('GET', '/v1/memories', undefined, params) as { results?: unknown[] } | unknown[] | unknown;
 
-    let documents: any[];
+    let documents: unknown[];
     if (response.results) {
       documents = response.results;
     } else if (Array.isArray(response)) {
@@ -776,7 +779,7 @@ export class Nebula {
 
   /** Get a specific memory by engram ID */
   async getMemory(memoryId: string): Promise<MemoryResponse> {
-    const response = await this._makeRequest('GET', `/v1/memories/${memoryId}`);
+    const response = await this._makeRequest('GET', `/v1/memories/${memoryId}`) as { text?: string; content?: string; chunks?: unknown[]; id?: string; metadata?: Record<string, unknown>; collection_ids?: string[] };
 
     const content = response.text || response.content;
     const chunks = Array.isArray(response.chunks) ? response.chunks : undefined;
@@ -893,11 +896,11 @@ export class Nebula {
     query: string;
     collection_ids?: string | string[];
     effort?: 'auto' | 'low' | 'medium' | 'high';
-    filters?: Record<string, any>;
-    searchSettings?: Record<string, any>;
+    filters?: Record<string, unknown>;
+    searchSettings?: Record<string, unknown>;
   }): Promise<MemoryRecall> {
     // Build request data - pass params directly to API (no wrapping needed)
-    const data: Record<string, any> = {
+    const data: Record<string, unknown> = {
       query: options.query,
     };
 
@@ -924,11 +927,11 @@ export class Nebula {
       data.search_settings = options.searchSettings;
     }
 
-    const response = await this._makeRequest('POST', '/v1/memories/search', data);
+    const response = await this._makeRequest('POST', '/v1/memories/search', data) as { results?: MemoryRecall };
 
     // Backend returns MemoryRecall wrapped in { results: MemoryRecall }
     // The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
-    const memoryRecallData = response.results;
+    const memoryRecallData = response.results as MemoryRecall;
 
     // Ensure we have a proper MemoryRecall structure with all fields
     const memoryRecall: MemoryRecall = {
@@ -948,13 +951,13 @@ export class Nebula {
   }
 
   // Health Check
-  async healthCheck(): Promise<Record<string, any>> {
-    return this._makeRequest('GET', '/v1/health');
+  async healthCheck(): Promise<Record<string, unknown>> {
+    return this._makeRequest('GET', '/v1/health') as Promise<Record<string, unknown>>;
   }
 
   // Helpers
 
-  private _collectionFromDict(data: any): Collection {
+  private _collectionFromDict(data: Record<string, unknown>): Collection {
     let createdAt: string | undefined;
     if (data.created_at) {
       createdAt = typeof data.created_at === 'string' ? data.created_at : data.created_at.toISOString();
@@ -990,7 +993,7 @@ export class Nebula {
     } as Collection;
   }
 
-  private _memoryResponseFromDict(data: any, collectionIds: string[]): MemoryResponse {
+  private _memoryResponseFromDict(data: Record<string, unknown>, collectionIds: string[]): MemoryResponse {
     let createdAt: string | undefined;
     if (data.created_at) {
       createdAt = typeof data.created_at === 'string' ? data.created_at : data.created_at.toISOString();
@@ -1006,18 +1009,18 @@ export class Nebula {
     let chunks: string[] | undefined;
 
     if (data.chunks && Array.isArray(data.chunks)) {
-      if (data.chunks.every((x: any) => typeof x === 'string')) {
-        chunks = data.chunks;
+      if (data.chunks.every((x: unknown) => typeof x === 'string')) {
+        chunks = data.chunks as string[];
       } else {
-        chunks = data.chunks
-          .filter((item: any) => item && typeof item === 'object' && 'text' in item)
-          .map((item: any) => item.text);
+        chunks = (data.chunks as Array<Record<string, unknown>>)
+          .filter((item: Record<string, unknown>) => item && typeof item === 'object' && 'text' in item)
+          .map((item: Record<string, unknown>) => item.text as string);
       }
     }
 
-    const metadata = { ...data.metadata };
+    const metadata = { ...(data.metadata as Record<string, unknown> || {}) };
     if (data.engram_id) {
-      (metadata as any).engram_id = data.engram_id;
+      metadata.engram_id = data.engram_id;
     }
 
     let finalId = engramId;
@@ -1040,7 +1043,7 @@ export class Nebula {
     } as MemoryResponse;
   }
 
-  private _searchResultFromDict(data: any): SearchResult {
+  private _searchResultFromDict(data: Record<string, unknown>): SearchResult {
     const content = data.content || data.text || '';
     const resultId = data.id || data.chunk_id || '';
 
@@ -1053,12 +1056,12 @@ export class Nebula {
     };
   }
 
-  private _searchResultFromGraphDict(data: any): SearchResult {
+  private _searchResultFromGraphDict(data: Record<string, unknown>): SearchResult {
     const rid = data.id ? String(data.id) : '';
     const rtype =
       GraphSearchResultType[(data.result_type || 'entity').toUpperCase() as keyof typeof GraphSearchResultType] ||
       GraphSearchResultType.ENTITY;
-    const content = data.content || {};
+    const content = (data.content || {}) as Record<string, unknown>;
     const score = data.score !== undefined ? Number(data.score) : 0.0;
     const metadata = data.metadata || {};
     const chunkIds = Array.isArray(data.chunk_ids) ? data.chunk_ids : undefined;
@@ -1148,10 +1151,10 @@ export class Nebula {
     return hashHex;
   }
 
-  private _formDataFromObject(obj: Record<string, any>): FormData {
+  private _formDataFromObject(obj: Record<string, unknown>): FormData {
     const formData = new FormData();
     Object.entries(obj).forEach(([key, value]) => {
-      formData.append(key, value as any);
+      formData.append(key, value as string | Blob);
     });
     return formData;
   }
@@ -1162,26 +1165,27 @@ export class Nebula {
    * - Strings/unknown values are wrapped as `{ type: 'text', text: '...' }`
    * - Binary parts (`image`/`audio`/`document` with `data`) larger than 5MB are uploaded to S3 and converted to `s3_ref`.
    */
-  private async _processContentParts(contentParts: any[]): Promise<any[]> {
-    const processed: any[] = [];
+  private async _processContentParts(contentParts: unknown[]): Promise<unknown[]> {
+    const processed: unknown[] = [];
 
     for (const part of contentParts) {
       // Wrap primitive parts as text blocks
-      if (!part || typeof part !== 'object' || !('type' in part)) {
+      if (!part || typeof part !== 'object' || !('type' in (part as Record<string, unknown>))) {
         processed.push({ type: 'text', text: String(part) });
         continue;
       }
 
-      const partType = (part as any).type as string;
+      const partRecord = part as Record<string, unknown>;
+      const partType = partRecord.type as string;
 
       // Check if this is a binary content part with base64 data
-      if (['image', 'audio', 'document'].includes(partType) && (part as any).data) {
+      if (['image', 'audio', 'document'].includes(partType) && partRecord.data) {
         // Calculate decoded size (base64 is ~4/3 of original)
-        const dataSize = Math.floor(String((part as any).data).length * 3 / 4);
+        const dataSize = Math.floor(String(partRecord.data).length * 3 / 4);
 
         if (dataSize > Nebula.MAX_INLINE_SIZE) {
-          const filename = (part as any).filename || `file.${partType}`;
-          const mediaType = (part as any).media_type || 'application/octet-stream';
+          const filename = (partRecord.filename as string) || `file.${partType}`;
+          const mediaType = (partRecord.media_type as string) || 'application/octet-stream';
 
           const uploadInfo = await this.getUploadUrl({
             filename,
@@ -1191,8 +1195,9 @@ export class Nebula {
 
           // Decode base64 and upload to S3
           let bytes: Uint8Array;
-          if (typeof (globalThis as any).atob === 'function') {
-            const binaryString = (globalThis as any).atob((part as any).data);
+          const globalThisRecord = globalThis as Record<string, unknown>;
+          if (typeof globalThisRecord.atob === 'function') {
+            const binaryString = (globalThisRecord.atob as (data: string) => string)(String(partRecord.data));
             bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
               bytes[i] = binaryString.charCodeAt(i);
@@ -1200,7 +1205,7 @@ export class Nebula {
           } else {
             // Node.js fallback
             const { Buffer } = await import('buffer');
-            bytes = Uint8Array.from(Buffer.from((part as any).data, 'base64'));
+            bytes = Uint8Array.from(Buffer.from(String(partRecord.data), 'base64'));
           }
 
           await fetch(uploadInfo.upload_url, {
@@ -1237,11 +1242,11 @@ export class Nebula {
       filename: options.filename,
       content_type: options.content_type,
       file_size: options.file_size,
-    });
+    }) as { results?: { upload_url: string; s3_key: string; bucket: string; expires_in: number }; upload_url?: string; s3_key?: string; bucket?: string; expires_in?: number };
 
     if (response.results) {
       return response.results;
     }
-    return response;
+    return response as { upload_url: string; s3_key: string; bucket: string; expires_in: number };
   }
 }

@@ -79,7 +79,9 @@ class Nebula:
         if candidate.count(".") != 1:
             return False
         public_part, raw_part = candidate.split(".", 1)
-        return (public_part.startswith("key_") or public_part.startswith("neb_")) and len(raw_part) > 0
+        return (
+            public_part.startswith("key_") or public_part.startswith("neb_")
+        ) and len(raw_part) > 0
 
     def _build_auth_headers(self, include_content_type: bool = True) -> dict[str, str]:
         """Build authentication headers.
@@ -114,35 +116,38 @@ class Nebula:
     def _convert_content_parts(self, content: list) -> list[dict[str, Any]]:
         """Convert content parts to API format, auto-uploading large files to S3."""
         import base64
+
         parts = []
         for part in content:
             # Convert dataclass to dict
             if hasattr(part, "__dataclass_fields__"):
-                part_dict = {k: getattr(part, k) for k in part.__dataclass_fields__.keys()}
+                part_dict = {
+                    k: getattr(part, k) for k in part.__dataclass_fields__.keys()
+                }
             elif isinstance(part, dict):
                 part_dict = part.copy()
             else:
                 parts.append({"type": "text", "text": str(part)})
                 continue
-            
+
             # Check if this is a binary content part with base64 data
             part_type = part_dict.get("type", "")
             if part_type in ("image", "audio", "document") and "data" in part_dict:
                 # Calculate decoded size (base64 is ~4/3 of original)
                 data_size = len(part_dict["data"]) * 3 // 4
-                
+
                 if data_size > self.MAX_INLINE_SIZE:
                     # Auto-upload to S3
                     filename = part_dict.get("filename", f"file.{part_type}")
                     media_type = part_dict.get("media_type", "application/octet-stream")
-                    
+
                     # Get presigned URL
                     upload_info = self.get_upload_url(
                         filename=filename,
                         content_type=media_type,
                         file_size=data_size,
                     )
-                    
+
                     # Decode base64 and upload to S3
                     file_bytes = base64.b64decode(part_dict["data"])
                     self._client.put(
@@ -150,7 +155,7 @@ class Nebula:
                         content=file_bytes,
                         headers={"Content-Type": media_type},
                     )
-                    
+
                     # Convert to S3 reference
                     part_dict = {
                         "type": "s3_ref",
@@ -158,7 +163,7 @@ class Nebula:
                         "media_type": media_type,
                         "filename": filename,
                     }
-            
+
             parts.append(part_dict)
         return parts
 
@@ -701,7 +706,9 @@ class Nebula:
                 if is_multimodal:
                     import json
 
-                    msg_content = json.dumps(self._convert_content_parts(memory.content))
+                    msg_content = json.dumps(
+                        self._convert_content_parts(memory.content)
+                    )
                 else:
                     msg_content = str(memory.content)
                 msg: dict[str, Any] = {
@@ -744,7 +751,7 @@ class Nebula:
         # Handle document/text memory
         doc_metadata = dict(memory.metadata or {})
         doc_metadata["memory_type"] = "memory"
-        
+
         # If authority provided for document, persist in metadata for chunk ranking
         if memory.authority is not None:
             try:
@@ -765,7 +772,9 @@ class Nebula:
         if self._is_multimodal_content(memory.content):
             import json
 
-            payload["raw_text"] = json.dumps(self._convert_content_parts(memory.content))
+            payload["raw_text"] = json.dumps(
+                self._convert_content_parts(memory.content)
+            )
         else:
             content_text = str(memory.content or "")
             if not content_text:
@@ -1283,15 +1292,15 @@ class Nebula:
     ) -> dict[str, Any]:
         """
         Get a presigned URL for uploading large files directly to S3.
-        
+
         Use this for files larger than 5MB that cannot be sent inline as base64.
         After uploading, reference the file in memory creation using S3FileRef.
-        
+
         Args:
             filename: Original filename (e.g., "image.jpg")
             content_type: MIME type (e.g., "image/jpeg", "application/pdf")
             file_size: File size in bytes (max 100MB)
-            
+
         Returns:
             dict with:
             - upload_url: Presigned URL for PUT request (expires in 1 hour)
@@ -1299,7 +1308,7 @@ class Nebula:
             - bucket: S3 bucket name
             - expires_in: Seconds until URL expires
             - max_size: Maximum allowed file size
-            
+
         Example:
             # Get upload URL
             result = client.get_upload_url(
@@ -1307,7 +1316,7 @@ class Nebula:
                 content_type="image/jpeg",
                 file_size=10_000_000  # 10MB
             )
-            
+
             # Upload file directly to S3
             import requests
             with open("large_image.jpg", "rb") as f:
@@ -1316,7 +1325,7 @@ class Nebula:
                     data=f,
                     headers={"Content-Type": "image/jpeg"}
                 )
-            
+
             # Use s3_key in memory creation
             from nebula import Memory, S3FileRef
             client.store_memory(Memory(
@@ -1331,7 +1340,7 @@ class Nebula:
                 "filename": filename,
                 "content_type": content_type,
                 "file_size": file_size,
-            }
+            },
         )
         if isinstance(response, dict) and "results" in response:
             return response["results"]

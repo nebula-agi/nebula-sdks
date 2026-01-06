@@ -86,8 +86,13 @@ class TestNebula:
     def test_is_multimodal_content_detects_mixed_list(self):
         client = Nebula(api_key="test-key")
         # Leading text + typed content part should still be detected as multimodal
-        assert client._is_multimodal_content(["hello", {"type": "image", "data": "Zg=="}]) is True
-        assert client._is_multimodal_content(["hello", ImageContent(data="Zg==")]) is True
+        assert (
+            client._is_multimodal_content(["hello", {"type": "image", "data": "Zg=="}])
+            is True
+        )
+        assert (
+            client._is_multimodal_content(["hello", ImageContent(data="Zg==")]) is True
+        )
 
     @patch("httpx.Client.request")
     def test_create_collection(self, mock_request):
@@ -220,13 +225,18 @@ class TestNebula:
         """Multimodal document payload should be sent via raw_text as JSON string (no content_parts field)."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"results": {"engram_id": "doc_123", "id": "doc_123"}}
+        mock_response.json.return_value = {
+            "results": {"engram_id": "doc_123", "id": "doc_123"}
+        }
         mock_request.return_value = mock_response
 
         client = Nebula(api_key="test-key", base_url="https://example.com")
         doc_id = client.store_memory(
             collection_id="cluster_docs",
-            content=["A caption", ImageContent(data="Zg==", media_type="image/jpeg", filename="x.jpg")],
+            content=[
+                "A caption",
+                ImageContent(data="Zg==", media_type="image/jpeg", filename="x.jpg"),
+            ],
             metadata={"k": "v"},
         )
         assert doc_id == "doc_123"

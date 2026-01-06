@@ -11,7 +11,7 @@ export enum GraphSearchResultType {
 export interface Chunk {
   id: string;
   content: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   role?: string; // For conversation messages
 }
 
@@ -29,7 +29,7 @@ export interface MemoryResponse {
   id: string;
   content?: string;
   chunks?: Chunk[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   collection_ids: string[];
   created_at?: string;
   updated_at?: string;
@@ -81,10 +81,10 @@ export type MultimodalContentPart =
 
 export interface Memory {
   collection_id: string;
-  content: string | string[] | MultimodalContentPart[] | Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, any>; authority?: number}>;
+  content: string | string[] | MultimodalContentPart[] | Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, unknown>; authority?: number}>;
   role?: string; // user, assistant, or custom
   memory_id?: string; // ID of existing memory to append to
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   authority?: number; // Optional authority score (0.0 - 1.0)
 }
 
@@ -92,7 +92,7 @@ export interface Collection {
   id: string;
   name: string;
   description?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
   memory_count: number;
@@ -102,7 +102,7 @@ export interface Collection {
 export interface SearchResult {
   id: string; // chunk_id
   score: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   source?: string;
   timestamp?: string;
   display_name?: string;
@@ -125,7 +125,7 @@ export interface GraphEntityResult {
   id?: string;
   name: string;
   description: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface GraphRelationshipResult {
@@ -136,19 +136,19 @@ export interface GraphRelationshipResult {
   subject_id?: string;
   object_id?: string;
   description?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface GraphCommunityResult {
   id?: string;
   name: string;
   summary: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface SearchOptions {
   limit: number;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   search_mode?: 'fast' | 'super';
 }
 
@@ -166,7 +166,7 @@ export interface ActivatedEntity {
   activation_score: number;
   activation_reason?: string;
   traversal_depth: number;
-  profile?: Record<string, any>;
+  profile?: Record<string, unknown>;
 }
 
 export interface ActivatedFact {
@@ -192,7 +192,7 @@ export interface GroundedUtterance {
   timestamp?: string;
   display_name?: string;
   supporting_fact_ids: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MemoryRecall {
@@ -220,7 +220,7 @@ export class NebulaException extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'NebulaException';
@@ -249,7 +249,7 @@ export class NebulaRateLimitException extends NebulaException {
 }
 
 export class NebulaValidationException extends NebulaException {
-  constructor(message: string = 'Validation error', public details?: any) {
+  constructor(message: string = 'Validation error', public details?: unknown) {
     super(message, 400);
     this.name = 'NebulaValidationException';
   }
