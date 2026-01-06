@@ -102,8 +102,8 @@ def test_is_multimodal_content_detects_mixed_list():
 def test_normalize_content_parts_wraps_scalar_as_text():
     parts = AsyncNebula._normalize_content_parts("hello")
     assert len(parts) == 1
-    assert getattr(parts[0], "type") == "text"
-    assert getattr(parts[0], "text") == "hello"
+    assert parts[0].type == "text"
+    assert parts[0].text == "hello"
 
 
 def test_normalize_content_parts_wraps_string_items_in_list():
@@ -111,8 +111,8 @@ def test_normalize_content_parts_wraps_string_items_in_list():
         ["hello", {"type": "image", "data": "Zg==", "media_type": "image/png"}]
     )
     assert len(parts) == 2
-    assert getattr(parts[0], "type") == "text"
-    assert getattr(parts[0], "text") == "hello"
+    assert parts[0].type == "text"
+    assert parts[0].text == "hello"
     assert isinstance(parts[1], dict)
     assert parts[1]["type"] == "image"
 
