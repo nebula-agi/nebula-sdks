@@ -1291,7 +1291,7 @@ class Nebula:
         """
         response = self._make_request(
             "POST",
-            "/v1/upload-url",
+            "/v1/memories/upload",
             params={
                 "filename": filename,
                 "content_type": content_type,

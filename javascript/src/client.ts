@@ -1221,7 +1221,7 @@ export class Nebula {
     content_type: string;
     file_size: number;
   }): Promise<{ upload_url: string; s3_key: string; bucket: string; expires_in: number }> {
-    const response = await this._makeRequest('POST', '/v1/upload-url', undefined, {
+    const response = await this._makeRequest('POST', '/v1/memories/upload', undefined, {
       filename: options.filename,
       content_type: options.content_type,
       file_size: options.file_size,
