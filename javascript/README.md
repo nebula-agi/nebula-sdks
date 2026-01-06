@@ -2,6 +2,10 @@
 
 Persistent memory layer for AI applications. Store, search, and retrieve information with semantic understanding.
 
+## Requirements
+
+- Node.js 18.0.0 or higher
+
 ## Installation
 
 ```bash

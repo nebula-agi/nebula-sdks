@@ -10,6 +10,8 @@ Official SDKs for the Nebula AI Memory platform. Build intelligent applications 
 ### [JavaScript/TypeScript SDK](./javascript/)
 [![npm version](https://img.shields.io/npm/v/@nebula-ai/sdk.svg)](https://www.npmjs.com/package/@nebula-ai/sdk)
 
+**Requirements:** Node.js 18.0.0 or higher
+
 ```bash
 npm install @nebula-ai/sdk
 ```
@@ -43,6 +45,8 @@ const results = await nebula.search({
 
 ### [Python SDK](./python/)
 [![PyPI version](https://img.shields.io/pypi/v/nebula-client.svg)](https://pypi.org/project/nebula-client/)
+
+**Requirements:** Python 3.10 or higher
 
 ```bash
 pip install nebula-client

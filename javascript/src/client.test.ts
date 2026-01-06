@@ -144,6 +144,34 @@ describe('Nebula', () => {
         })
       );
     });
+
+    it('should list collections with name filter', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          results: [
+            {
+              id: 'collection-123',
+              name: 'Work',
+              description: 'Work collection',
+              created_at: '2024-01-01T00:00:00Z'
+            }
+          ]
+        })
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.listCollections({ name: 'Work' });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Work');
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      const parsedUrl = new URL(url);
+      expect(parsedUrl.pathname).toBe('/v1/collections');
+      expect(parsedUrl.searchParams.get('name')).toBe('Work');
+      expect(requestInit).toEqual(expect.objectContaining({ method: 'GET' }));
+    });
   });
 
   describe('Memory Operations', () => {
@@ -163,13 +191,46 @@ describe('Nebula', () => {
 
       expect(result.content).toBe('Test content');
       expect(result.collection_ids).toContain('collection-123');
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/v1/memories'),
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.any(FormData)
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      expect(String(url)).toContain('/v1/memories');
+      expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
+      expect(typeof (requestInit as any).body).toBe('string');
+
+      const body = JSON.parse(String((requestInit as any).body));
+      expect(body.collection_id).toBe('collection-123');
+      expect(body.raw_text).toBe('Test content');
+      expect(body.metadata).toEqual(expect.objectContaining({ test: 'metadata', memory_type: 'memory' }));
+    });
+
+    it('should store document memory via storeMemory using JSON', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          results: {
+            id: 'doc-123'
+          }
         })
-      );
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const docId = await client.storeMemory({
+        collection_id: 'collection-123',
+        content: 'Doc content',
+        metadata: { tag: 'x' }
+      });
+
+      expect(docId).toBe('doc-123');
+
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      expect(String(url)).toContain('/v1/memories');
+      expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
+      expect(typeof (requestInit as any).body).toBe('string');
+
+      const body = JSON.parse(String((requestInit as any).body));
+      expect(body.collection_id).toBe('collection-123');
+      expect(body.raw_text).toBe('Doc content');
+      expect(body.metadata).toEqual(expect.objectContaining({ tag: 'x', memory_type: 'memory' }));
     });
 
     it('should search memories with correct parameters', async () => {
@@ -211,8 +272,7 @@ describe('Nebula', () => {
 
       const results = await client.search({
         query: 'test query',
-        collection_ids: 'collection-123',
-        limit: 5
+        collection_ids: 'collection-123'
       });
 
       expect(results.query).toBe('test query');
@@ -286,7 +346,7 @@ describe('Nebula', () => {
         expect.stringContaining('/v1/memories'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('"engram_type":"conversation"')
+          body: expect.stringContaining('"messages"')
         })
       );
     });
@@ -322,7 +382,6 @@ describe('Nebula', () => {
     });
   });
 });
-
 
 
 

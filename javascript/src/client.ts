@@ -203,11 +203,15 @@ export class Nebula {
   async listCollections(options?: {
     limit?: number;
     offset?: number;
+    name?: string;
   }): Promise<Collection[]> {
-    const params = {
+    const params: Record<string, any> = {
       limit: options?.limit ?? 100,
       offset: options?.offset ?? 0
     };
+    if (options?.name !== undefined) {
+      params.name = options.name;
+    }
     const response = await this._makeRequest('GET', '/v1/collections', undefined, params);
 
     let collections: any[];
@@ -257,33 +261,15 @@ export class Nebula {
       timestamp: new Date().toISOString(),
     } as Record<string, any>;
 
-    const data = {
-      metadata: JSON.stringify(docMetadata),
-      ingestion_mode: 'fast',
-      collection_ids: JSON.stringify([collectionId]),
+    const payload = {
+      collection_id: collectionId,
       raw_text: String(content || ''),
+      metadata: docMetadata,
+      ingestion_mode: 'fast',
     } as const;
 
-    const url = `${this.baseUrl}/v1/memories`;
-    const headers = this._buildAuthHeaders(false);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: this._formDataFromObject(data as any),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new NebulaException(
-        errorData.message || `Failed to create engram: ${response.status}`,
-        response.status,
-        errorData
-      );
-    }
-
-    const respData = await response.json();
-    const id = respData?.results?.engram_id || respData?.results?.id || respData?.id || '';
+    const response = await this._makeRequest('POST', '/v1/memories', payload);
+    const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
 
     const result: MemoryResponse = {
       id: String(id),
@@ -338,13 +324,16 @@ export class Nebula {
       // If content and role provided, include as initial message
       if (mem.content && mem.role) {
         // Check if content is multimodal (array of content parts)
-        const isMultimodal = Array.isArray(mem.content) && 
-          mem.content.length > 0 && 
-          typeof mem.content[0] === 'object' && 
-          'type' in mem.content[0];
+        const isMultimodal =
+          Array.isArray(mem.content) &&
+          mem.content.some((part) => part && typeof part === 'object' && 'type' in (part as any));
+
+        const msgContent = isMultimodal
+          ? JSON.stringify(await this._processContentParts(mem.content as any[]))
+          : String(mem.content);
         
         messages.push({
-          content: isMultimodal ? mem.content : String(mem.content),
+          content: msgContent,
           role: mem.role,
           metadata: mem.metadata || {},
           ...(typeof (mem as any).authority === 'number' ? { authority: Number((mem as any).authority) } : {})
@@ -356,9 +345,8 @@ export class Nebula {
         throw new NebulaClientException('Cannot create conversation without messages. Provide content and role.');
       }
 
-      const data: Record<string, any> = {
-        engram_type: 'conversation',
-        collection_ref: mem.collection_id,
+      const data = {
+        collection_id: mem.collection_id,
         name: name || 'Conversation',
         messages: messages,
         metadata: mem.metadata || {},
@@ -378,10 +366,9 @@ export class Nebula {
 
     // Handle document/text memory
     // Check if content is multimodal (array of content parts)
-    const isMultimodal = Array.isArray(mem.content) && 
-      mem.content.length > 0 && 
-      typeof mem.content[0] === 'object' && 
-      'type' in mem.content[0];
+    const isMultimodal =
+      Array.isArray(mem.content) &&
+      mem.content.some((part) => part && typeof part === 'object' && 'type' in (part as any));
     
     const docMetadata = { ...mem.metadata } as Record<string, any>;
     docMetadata.memory_type = 'memory';
@@ -393,54 +380,41 @@ export class Nebula {
         (docMetadata as any).authority = v;
       }
     }
-    
+
     if (isMultimodal) {
-      // Process content parts, auto-uploading large files to S3
+      // Process content parts, auto-uploading large files to S3 when needed
       const processedParts = await this._processContentParts(mem.content as any[]);
-      
-      // Use JSON format for multimodal content
-      const data: Record<string, any> = {
-        engram_type: 'document',
-        collection_ref: mem.collection_id,
-        content_parts: processedParts,
+
+      // Backend JSON create_memory expects a string `raw_text` (or `chunks`),
+      // so we serialize multimodal parts as JSON text.
+      const payload: Record<string, any> = {
+        collection_id: mem.collection_id,
+        raw_text: JSON.stringify(processedParts),
         metadata: docMetadata,
         ingestion_mode: 'fast',
       };
 
-      const response = await this._makeRequest('POST', '/v1/memories', data);
-      
-      if (response.results) {
-        if (response.results.engram_id) return String(response.results.engram_id);
-        if (response.results.id) return String(response.results.id);
-      }
-      return '';
+      const response = await this._makeRequest('POST', '/v1/memories', payload);
+      const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
+      return String(id || '');
     }
-    
+
     // Plain text content
     const contentText = String(mem.content || '');
     if (!contentText) {
       throw new NebulaClientException('Content is required for document memories');
     }
 
-    const contentHash = await this._sha256(contentText);
-    docMetadata.content_hash = contentHash;
-
-    // Use JSON format for consistency with other memory types
-    const data: Record<string, any> = {
-      engram_type: 'document',
-      collection_ref: mem.collection_id,
+    const payload = {
+      collection_id: mem.collection_id,
       raw_text: contentText,
       metadata: docMetadata,
       ingestion_mode: 'fast',
-    };
+    } as const;
 
-    const response = await this._makeRequest('POST', '/v1/memories', data);
-    
-    if (response.results) {
-      if (response.results.engram_id) return String(response.results.engram_id);
-      if (response.results.id) return String(response.results.id);
-    }
-    return '';
+    const response = await this._makeRequest('POST', '/v1/memories', payload);
+    const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
+    return String(id || '');
   }
 
   /**
@@ -517,28 +491,37 @@ export class Nebula {
       let convId: string;
 
       // Prepare messages for the conversation
-      const messages = group.map((m) => {
-        // Check if this message has multimodal content
-        const isMultimodal = Array.isArray(m.content) && 
-          m.content.length > 0 && 
-          typeof m.content[0] === 'object' && 
-          'type' in m.content[0];
-        
-        return {
-          // Preserve multimodal content as-is, only stringify plain text
-          content: isMultimodal ? m.content : String(m.content || ''),
+      const messages: Array<{ content: string; role: string; metadata?: Record<string, any>; authority?: number }> = [];
+      for (const m of group) {
+        const isMultimodal =
+          Array.isArray(m.content) &&
+          (m.content as any[]).some((part) => part && typeof part === 'object' && 'type' in (part as any));
+
+        const text = isMultimodal
+          ? JSON.stringify(await this._processContentParts(m.content as any[]))
+          : String(m.content || '');
+
+        if (!text.trim()) continue;
+
+        messages.push({
+          content: text,
           role: m.role!,
           metadata: m.metadata || {},
-          ...(typeof (m as any).authority === 'number' ? { authority: Number((m as any).authority) } : {})
-        };
-      });
+          ...(typeof (m as any).authority === 'number' ? { authority: Number((m as any).authority) } : {}),
+        });
+      }
+
+      if (!messages.length) {
+        throw new NebulaClientException(
+          'Cannot create/append conversation without messages. Provide non-empty content.'
+        );
+      }
 
       // Create conversation if needed
       if (key.startsWith('__new__::')) {
         // Create conversation with initial messages using JSON body
-        const data: Record<string, any> = {
-          engram_type: 'conversation',
-          collection_ref: collectionId,
+        const data = {
+          collection_id: collectionId,
           name: 'Conversation',
           messages: messages,
           metadata: {},
@@ -560,7 +543,7 @@ export class Nebula {
 
         const appendMem: Memory = {
           collection_id: collectionId,
-          content: messages as Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, any>; authority?: number}>,
+          content: messages as any,
           memory_id: convId,
           metadata: {},
         };
@@ -817,8 +800,7 @@ export class Nebula {
    * @param options - Search configuration
    * @param options.query - Search query string
    * @param options.collection_ids - One or more collection IDs to search within
-   * @param options.limit - Maximum number of results to return (default: 10)
-   * @param options.retrieval_type - Retrieval strategy (default: ADVANCED)
+   * @param options.effort - Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryRecall size.
    * @param options.filters - Optional filters to apply to the search. Supports comprehensive metadata filtering
    *                          with MongoDB-like operators for both vector/chunk search and graph search.
    * @param options.searchSettings - Optional search configuration
@@ -910,15 +892,18 @@ export class Nebula {
   async search(options: {
     query: string;
     collection_ids?: string | string[];
-    limit?: number;
+    effort?: 'auto' | 'low' | 'medium' | 'high';
     filters?: Record<string, any>;
     searchSettings?: Record<string, any>;
   }): Promise<MemoryRecall> {
     // Build request data - pass params directly to API (no wrapping needed)
     const data: Record<string, any> = {
       query: options.query,
-      limit: options.limit ?? 10,
     };
+
+    if (options.effort) {
+      data.effort = options.effort;
+    }
 
     // Add collection_ids if provided
     if (options.collection_ids) {
@@ -942,14 +927,21 @@ export class Nebula {
     const response = await this._makeRequest('POST', '/v1/memories/search', data);
 
     // Backend returns MemoryRecall wrapped in { results: MemoryRecall }
-    const memoryRecall: MemoryRecall = response.results || {
-      query: options.query,
-      entities: [],
-      facts: [],
-      utterances: [],
-      fact_to_chunks: {},
-      entity_to_facts: {},
-      retrieved_at: new Date().toISOString(),
+    // The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
+    const memoryRecallData = response.results;
+
+    // Ensure we have a proper MemoryRecall structure with all fields
+    const memoryRecall: MemoryRecall = {
+      query: memoryRecallData.query || options.query,
+      entities: memoryRecallData.entities || [],
+      facts: memoryRecallData.facts || [],
+      utterances: memoryRecallData.utterances || [],
+      fact_to_chunks: memoryRecallData.fact_to_chunks || {},
+      entity_to_facts: memoryRecallData.entity_to_facts || {},
+      retrieved_at: memoryRecallData.retrieved_at || new Date().toISOString(),
+      focus: memoryRecallData.focus,
+      total_traversal_time_ms: memoryRecallData.total_traversal_time_ms,
+      query_intent: memoryRecallData.query_intent,
     };
 
     return memoryRecall;
@@ -1141,6 +1133,15 @@ export class Nebula {
 
   private async _sha256(message: string): Promise<string> {
     const msgBuffer = new TextEncoder().encode(message);
+    // Use Web Crypto API: prefer globalThis.crypto (browser/Node 18+), fallback to Node's crypto.webcrypto
+    let crypto: Crypto;
+    if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.subtle) {
+      crypto = globalThis.crypto;
+    } else {
+      // Node.js environment: use built-in crypto module's webcrypto
+      const nodeCrypto = await import('crypto');
+      crypto = nodeCrypto.webcrypto as Crypto;
+    }
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -1156,46 +1157,58 @@ export class Nebula {
   }
 
   /**
-   * Process content parts, automatically uploading large files to S3.
-   * Files larger than 5MB are uploaded to S3 and converted to s3_ref.
+   * Convert and process multimodal content parts, auto-uploading large base64 files to S3.
+   *
+   * - Strings/unknown values are wrapped as `{ type: 'text', text: '...' }`
+   * - Binary parts (`image`/`audio`/`document` with `data`) larger than 5MB are uploaded to S3 and converted to `s3_ref`.
    */
   private async _processContentParts(contentParts: any[]): Promise<any[]> {
     const processed: any[] = [];
-    
+
     for (const part of contentParts) {
-      const partType = part.type;
-      
+      // Wrap primitive parts as text blocks
+      if (!part || typeof part !== 'object' || !('type' in part)) {
+        processed.push({ type: 'text', text: String(part) });
+        continue;
+      }
+
+      const partType = (part as any).type as string;
+
       // Check if this is a binary content part with base64 data
-      if (['image', 'audio', 'document'].includes(partType) && part.data) {
+      if (['image', 'audio', 'document'].includes(partType) && (part as any).data) {
         // Calculate decoded size (base64 is ~4/3 of original)
-        const dataSize = Math.floor(part.data.length * 3 / 4);
-        
+        const dataSize = Math.floor(String((part as any).data).length * 3 / 4);
+
         if (dataSize > Nebula.MAX_INLINE_SIZE) {
-          // Auto-upload to S3
-          const filename = part.filename || `file.${partType}`;
-          const mediaType = part.media_type || 'application/octet-stream';
-          
-          // Get presigned URL
+          const filename = (part as any).filename || `file.${partType}`;
+          const mediaType = (part as any).media_type || 'application/octet-stream';
+
           const uploadInfo = await this.getUploadUrl({
             filename,
             content_type: mediaType,
             file_size: dataSize,
           });
-          
+
           // Decode base64 and upload to S3
-          const binaryString = atob(part.data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+          let bytes: Uint8Array;
+          if (typeof (globalThis as any).atob === 'function') {
+            const binaryString = (globalThis as any).atob((part as any).data);
+            bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+          } else {
+            // Node.js fallback
+            const { Buffer } = await import('buffer');
+            bytes = Uint8Array.from(Buffer.from((part as any).data, 'base64'));
           }
-          
+
           await fetch(uploadInfo.upload_url, {
             method: 'PUT',
             body: bytes,
             headers: { 'Content-Type': mediaType },
           });
-          
-          // Convert to S3 reference
+
           processed.push({
             type: 's3_ref',
             s3_key: uploadInfo.s3_key,
@@ -1205,11 +1218,10 @@ export class Nebula {
           continue;
         }
       }
-      
-      // Keep as-is for small files or other content types
+
       processed.push(part);
     }
-    
+
     return processed;
   }
 
@@ -1226,7 +1238,7 @@ export class Nebula {
       content_type: options.content_type,
       file_size: options.file_size,
     });
-    
+
     if (response.results) {
       return response.results;
     }

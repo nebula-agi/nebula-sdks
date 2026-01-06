@@ -103,11 +103,13 @@ class Nebula:
         """Check if content is a list of multimodal content parts (images, audio, documents)."""
         if not isinstance(content, list) or len(content) == 0:
             return False
-        first = content[0]
-        return (
-            (isinstance(first, dict) and "type" in first) or
-            hasattr(first, "__dataclass_fields__")
-        )
+        # Detect any typed part in the list (strings are allowed and will be wrapped as text).
+        for part in content:
+            if isinstance(part, dict) and "type" in part:
+                return True
+            if hasattr(part, "__dataclass_fields__"):
+                return True
+        return False
 
     def _convert_content_parts(self, content: list) -> list[dict[str, Any]]:
         """Convert content parts to API format, auto-uploading large files to S3."""
@@ -164,7 +166,7 @@ class Nebula:
         self,
         method: str,
         endpoint: str,
-        json_data: dict[str, Any] | None = None,
+        json_data: Any | None = None,
         params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
@@ -286,6 +288,7 @@ class Nebula:
         self,
         limit: int = 100,
         offset: int = 0,
+        name: str | None = None,
     ) -> list[Collection]:
         """
         Get all collections
@@ -293,14 +296,23 @@ class Nebula:
         Args:
             limit: Maximum number of collections to return
             offset: Number of collections to skip
+            name: Optional name filter (case-insensitive exact match). Use this to find a collection ID by name.
 
         Returns:
             List of Collection objects
+
+        Example:
+            >>> # Find collection by name to get its ID
+            >>> collections = client.list_collections(name="my-collection")
+            >>> if collections:
+            ...     collection_id = collections[0].id
         """
-        params = {
+        params: dict[str, Any] = {
             "limit": limit,
             "offset": offset,
         }
+        if name is not None:
+            params["name"] = name
 
         response = self._make_request("GET", "/v1/collections", params=params)
 
@@ -552,7 +564,7 @@ class Nebula:
     # New unified write APIs
     def create_document_text(
         self,
-        collection_ref: str,
+        collection_id: str,
         raw_text: str,
         metadata: dict[str, Any] | None = None,
         ingestion_mode: str = "fast",
@@ -561,7 +573,7 @@ class Nebula:
         Create a new document from raw text.
 
         Args:
-            collection_ref: Collection UUID or name
+            collection_id: Collection UUID (required)
             raw_text: Text content of the document
             metadata: Optional document metadata
             ingestion_mode: Ingestion mode ("fast", "hi-res", or "custom")
@@ -570,14 +582,14 @@ class Nebula:
             Document ID (UUID string)
 
         Example:
+            >>> collection = client.collections.create(name="my-collection")
             >>> doc_id = client.create_document_text(
-            ...     collection_ref="my-collection",
+            ...     collection_id=collection.id,
             ...     raw_text="This is my document content."
             ... )
         """
         payload = {
-            "collection_ref": collection_ref,
-            "engram_type": "document",
+            "collection_id": collection_id,
             "raw_text": raw_text,
             "metadata": metadata or {},
             "ingestion_mode": ingestion_mode,
@@ -593,7 +605,7 @@ class Nebula:
 
     def create_document_chunks(
         self,
-        collection_ref: str,
+        collection_id: str,
         chunks: list[str],
         metadata: dict[str, Any] | None = None,
         ingestion_mode: str = "fast",
@@ -602,7 +614,7 @@ class Nebula:
         Create a new document from pre-chunked text.
 
         Args:
-            collection_ref: Collection UUID or name
+            collection_id: Collection UUID (required)
             chunks: List of text chunks
             metadata: Optional document metadata
             ingestion_mode: Ingestion mode ("fast", "hi-res", or "custom")
@@ -611,8 +623,7 @@ class Nebula:
             Document ID (UUID string)
         """
         payload = {
-            "collection_ref": collection_ref,
-            "engram_type": "document",
+            "collection_id": collection_id,
             "chunks": chunks,
             "metadata": metadata or {},
             "ingestion_mode": ingestion_mode,
@@ -687,7 +698,12 @@ class Nebula:
             # Build messages array if content and role are provided
             messages = []
             if memory.content and memory.role:
-                msg_content = self._convert_content_parts(memory.content) if is_multimodal else str(memory.content)
+                if is_multimodal:
+                    import json
+
+                    msg_content = json.dumps(self._convert_content_parts(memory.content))
+                else:
+                    msg_content = str(memory.content)
                 msg: dict[str, Any] = {
                     "role": memory.role,
                     "content": msg_content,
@@ -697,14 +713,18 @@ class Nebula:
                     msg["authority"] = float(memory.authority)
                 messages.append(msg)
 
+            if not messages:
+                raise NebulaClientException(
+                    "Cannot create conversation without messages. Provide content and role."
+                )
+
+            # Backend infers engram_type from payload shape; omit engram_type.
             payload: dict[str, Any] = {
-                "collection_ref": memory.collection_id,
-                "engram_type": "conversation",
+                "collection_id": memory.collection_id,
                 "messages": messages,
                 "metadata": doc_metadata,
+                "name": name or "Conversation",
             }
-            if name:
-                payload["name"] = name
 
             response = self._make_request("POST", "/v1/memories", json_data=payload)
 
@@ -734,17 +754,18 @@ class Nebula:
             except Exception:
                 pass
 
-        # Use JSON format matching the backend CreateMemoryRequest model
+        # Backend infers engram_type from payload shape; omit engram_type.
         payload: dict[str, Any] = {
-            "collection_ref": memory.collection_id,
-            "engram_type": "document",
+            "collection_id": memory.collection_id,
             "metadata": doc_metadata,
             "ingestion_mode": "fast",
         }
 
         # Handle multimodal vs plain text content
         if self._is_multimodal_content(memory.content):
-            payload["content_parts"] = self._convert_content_parts(memory.content)
+            import json
+
+            payload["raw_text"] = json.dumps(self._convert_content_parts(memory.content))
         else:
             content_text = str(memory.content or "")
             if not content_text:
@@ -843,34 +864,63 @@ class Nebula:
         for key, group in conv_groups.items():
             collection_id = group[0].collection_id
 
-            # Create conversation if needed
-            if key.startswith("__new__::"):
-                conv_id = self.store_memory(
-                    collection_id=collection_id,
-                    content="",
-                    role="assistant",
-                    name="Conversation",
-                )
-            else:
-                conv_id = key
-
-            # Append messages using new unified API
-            messages = []
+            # Prepare messages for the conversation
+            messages: list[dict[str, Any]] = []
             for m in group:
                 if self._is_multimodal_content(m.content):
-                    content = self._convert_content_parts(m.content)
+                    import json
+
+                    msg_content = json.dumps(self._convert_content_parts(m.content))
                 else:
-                    content = str(m.content or "")
+                    msg_content = str(m.content or "")
+                # Skip empty messages
+                if not msg_content.strip():
+                    continue
                 msg_meta = dict(m.metadata or {})
-                messages.append({"content": content, "role": m.role, "metadata": msg_meta})
+                msg: dict[str, Any] = {
+                    "content": msg_content,
+                    "role": m.role,
+                    "metadata": msg_meta,
+                }
+                if m.authority is not None:
+                    msg["authority"] = float(m.authority)
+                messages.append(msg)
 
-            payload: dict[str, Any] = {
-                "collection_id": collection_id,
-                "messages": messages,
-            }
+            if not messages:
+                raise NebulaClientException(
+                    "Cannot create/append conversation without messages. Provide non-empty content."
+                )
 
-            self._make_request("POST", f"/v1/memories/{conv_id}/append", json_data=payload)
-            results.extend([str(conv_id)] * len(group))
+            if key.startswith("__new__::"):
+                # Create conversation with initial messages using JSON body (single request).
+                payload: dict[str, Any] = {
+                    "collection_id": collection_id,
+                    "name": "Conversation",
+                    "messages": messages,
+                    "metadata": {},
+                }
+                resp = self._make_request("POST", "/v1/memories", json_data=payload)
+                if not (isinstance(resp, dict) and "results" in resp):
+                    raise NebulaClientException(
+                        "Failed to create conversation: invalid response format"
+                    )
+                conv_id = resp["results"].get("engram_id") or resp["results"].get("id")
+                if not conv_id:
+                    raise NebulaClientException(
+                        "Failed to create conversation: no id returned"
+                    )
+                results.extend([str(conv_id)] * len(group))
+            else:
+                conv_id = key
+                # Append messages to existing conversation
+                append_mem = Memory(
+                    collection_id=collection_id,
+                    content=messages,  # type: ignore[arg-type]
+                    memory_id=conv_id,
+                    metadata={},
+                )
+                self._append_to_memory(conv_id, append_mem)
+                results.extend([str(conv_id)] * len(group))
 
         # Process others (text/json/multimodal) individually - store_memory handles multimodal
         for m in others:
@@ -896,28 +946,22 @@ class Nebula:
                 return True
             except Exception:
                 # Try new unified endpoint
-                try:
-                    response = self._make_request(
-                        "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
-                    )
-                    result: bool | dict[str, Any] = (
-                        response.get("success", False)
-                        if isinstance(response, dict)
-                        else True
-                    )
-                    return result
-                except Exception as e:
-                    raise
+                response = self._make_request(
+                    "POST", "/v1/memories/delete", json_data=memory_ids
+                )
+                result: bool | dict[str, Any] = (
+                    response.get("success", False)
+                    if isinstance(response, dict)
+                    else True
+                )
+                return result
         else:
             # Batch deletion
-            try:
-                response = self._make_request(
-                    "POST", "/v1/memories/delete", json_data={"ids": memory_ids}
-                )
-                batch_result: bool | dict[str, Any] = response
-                return batch_result
-            except Exception as e:
-                raise
+            response = self._make_request(
+                "POST", "/v1/memories/delete", json_data=memory_ids
+            )
+            batch_result: bool | dict[str, Any] = response
+            return batch_result
 
     def delete_chunk(self, chunk_id: str) -> bool:
         """
@@ -1136,7 +1180,7 @@ class Nebula:
         query: str,
         *,
         collection_ids: list[str] | None = None,
-        limit: int = 10,
+        effort: str | None = None,
         filters: dict[str, Any] | None = None,
         search_settings: dict[str, Any] | None = None,
     ) -> MemoryRecall:
@@ -1148,7 +1192,7 @@ class Nebula:
             collection_ids: Optional list of collection IDs or names to search within.
                         Can be UUIDs or collection names.
                         If not provided, searches across all your accessible collections.
-            limit: Maximum number of results to return (default: 10, max: 1000)
+            effort: Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryRecall size.
             filters: Optional filters to apply to the search. Supports comprehensive metadata filtering
                     with MongoDB-like operators for both vector/chunk search and graph search.
             search_settings: Optional advanced search settings including:
@@ -1196,8 +1240,10 @@ class Nebula:
         # Build request data - pass params directly to API (no wrapping needed)
         data: dict[str, Any] = {
             "query": query,
-            "limit": limit,
         }
+
+        if effort:
+            data["effort"] = effort
 
         # Add optional params only if provided
         if collection_ids:
@@ -1217,19 +1263,8 @@ class Nebula:
         response = self._make_request("POST", "/v1/memories/search", json_data=data)
 
         # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
-        if isinstance(response, dict) and "results" in response:
-            return MemoryRecall.from_dict(response["results"], query)
-
-        # Fallback to empty MemoryRecall
-        return MemoryRecall(
-            query=query,
-            entities=[],
-            facts=[],
-            utterances=[],
-            fact_to_chunks={},
-            entity_to_facts={},
-            retrieved_at="",
-        )
+        # The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
+        return MemoryRecall.from_dict(response["results"], query)
 
     def health_check(self) -> dict[str, Any]:
         """

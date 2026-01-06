@@ -2,6 +2,10 @@
 
 Persistent memory layer for AI applications. Store, search, and retrieve information with semantic understanding.
 
+## Requirements
+
+- Python 3.10 or higher
+
 ## Installation
 
 ```bash
