@@ -810,7 +810,12 @@ class Nebula:
                 )
             )
         else:
-            content_text = str(memory.content or "")
+            if isinstance(memory.content, (list, dict)):
+                import json
+                content_text = json.dumps(memory.content)
+            else:
+                content_text = str(memory.content or "")
+            
             if not content_text:
                 raise NebulaClientException("Content is required for document memories")
             doc_payload["raw_text"] = content_text
@@ -1309,8 +1314,8 @@ class Nebula:
 
         response = self._make_request("POST", "/v1/memories/search", json_data=data)
 
-        # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
-        # The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
+        # Backend returns MemoryResponse wrapped in { results: MemoryResponse }
+        # The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}
         return MemoryResponse.from_dict(response["results"], query)
 
     def health_check(self) -> dict[str, Any]:

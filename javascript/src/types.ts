@@ -148,8 +148,17 @@ export interface ActivatedEntity {
   entity_category?: string;
   activation_score: number;
   activation_reason?: string;
-  traversal_depth: number;
-  profile?: Record<string, unknown>;
+  profile?: any;
+  facets?: ActivatedFacet[];
+}
+
+export interface ActivatedFacet {
+  facet_id: string;
+  facet_name: string;
+  relevance_score: number;
+  facts: ActivatedFact[];
+  coherence_score?: number;
+  is_noise: boolean;
 }
 
 export interface ActivatedFact {
@@ -170,10 +179,12 @@ export interface GroundedUtterance {
   chunk_id: string;
   text: string;
   activation_score: number;
-  speaker_name?: string;
-  source_role?: string;
   timestamp?: string;
+  source_role?: string;
+  speaker_name?: string;
   display_name?: string;
+  engram_id?: string;
+  owner_id?: string;
   supporting_fact_ids: string[];
   metadata?: Record<string, unknown>;
 }

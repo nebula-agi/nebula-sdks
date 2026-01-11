@@ -31,7 +31,6 @@ export class Nebula {
   private timeout: number;
 
   // Files larger than 5MB are automatically uploaded to S3
-  // Files larger than 5MB are automatically uploaded to S3
   private static readonly MAX_INLINE_SIZE = 5 * 1024 * 1024; // 5MB
 
   constructor(config: NebulaClientConfig = {} as NebulaClientConfig) {
@@ -132,7 +131,7 @@ export class Nebula {
       const processed = await this._processContentParts(normalized);
       return JSON.stringify(processed);
     }
-    if (Array.isArray(content)) {
+    if (typeof content === 'object' && content !== null) {
       return JSON.stringify(content);
     }
     return String(content ?? '');
@@ -444,8 +443,8 @@ export class Nebula {
         ingestion_mode: 'fast',
       };
     } else {
-      const contentText = String(mem.content || '');
-      if (!contentText) {
+      const contentText = await this._serializeContentAsText(mem.content);
+      if (!contentText || contentText === '""' || contentText === '[]' || contentText === '{}') {
         throw new NebulaClientException('Content is required for document memories');
       }
       payload = {
@@ -978,23 +977,23 @@ export class Nebula {
 
     // Backend returns MemoryRecall wrapped in { results: MemoryResponse }
     // The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}
-    const memoryRecallData = response.results as MemoryResponse;
+    const memoryResponseData = response.results as MemoryResponse;
 
     // Ensure we have a proper MemoryResponse structure with all fields
-    const memoryRecall: MemoryResponse = {
-      query: memoryRecallData.query || options.query,
-      entities: memoryRecallData.entities || [],
-      facts: memoryRecallData.facts || [],
-      utterances: memoryRecallData.utterances || [],
-      fact_to_chunks: memoryRecallData.fact_to_chunks || {},
-      entity_to_facts: memoryRecallData.entity_to_facts || {},
-      retrieved_at: memoryRecallData.retrieved_at || new Date().toISOString(),
-      focus: memoryRecallData.focus,
-      total_traversal_time_ms: memoryRecallData.total_traversal_time_ms,
-      query_intent: memoryRecallData.query_intent,
+    const memoryResponse: MemoryResponse = {
+      query: memoryResponseData.query || options.query,
+      entities: memoryResponseData.entities || [],
+      facts: memoryResponseData.facts || [],
+      utterances: memoryResponseData.utterances || [],
+      fact_to_chunks: memoryResponseData.fact_to_chunks || {},
+      entity_to_facts: memoryResponseData.entity_to_facts || {},
+      retrieved_at: memoryResponseData.retrieved_at || new Date().toISOString(),
+      focus: memoryResponseData.focus,
+      total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
+      query_intent: memoryResponseData.query_intent,
     };
 
-    return memoryRecall;
+    return memoryResponse;
   }
 
   // Health Check

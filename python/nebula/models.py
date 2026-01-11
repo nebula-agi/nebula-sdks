@@ -540,7 +540,7 @@ class SearchOptions:
     search_mode: str = "super"  # "fast" or "super"
 
 
-# Hierarchical Memory Recall types (matches backend MemoryRecall structure)
+# Hierarchical Memory Response types (matches backend MemoryRecall structure)
 
 
 @dataclass

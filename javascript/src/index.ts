@@ -73,6 +73,7 @@ export {
     RecallFocus,
     ActivatedEntity,
     ActivatedFact,
+    ActivatedFacet,
     GroundedUtterance,
     NebulaClientConfig,
     NebulaException,

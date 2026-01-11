@@ -930,8 +930,8 @@ class AsyncNebula:
             "POST", "/v1/memories/search", json_data=data
         )
 
-        # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
-        # The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
+        # Backend returns MemoryResponse wrapped in { results: MemoryResponse }
+        # The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}
         return MemoryResponse.from_dict(response["results"], query)
 
     async def health_check(self) -> dict[str, Any]:
