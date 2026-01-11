@@ -3,7 +3,6 @@ import {
   MemoryResponse,
   Collection,
   SearchResult,
-  MemoryRecall,
   GraphSearchResultType,
   GraphEntityResult,
   GraphRelationshipResult,
@@ -307,7 +306,7 @@ export class Nebula {
   /**
    * Legacy convenience: store raw text content into a collection as a document
    */
-  async store(content: string, collectionId: string, metadata: Record<string, unknown> = {}): Promise<MemoryResponse> {
+  async store(content: string, collectionId: string, metadata: Record<string, unknown> = {}): Promise<Memory> {
     const docMetadata = {
       ...metadata,
       memory_type: 'memory',
@@ -325,8 +324,9 @@ export class Nebula {
     const id = response?.results?.engram_id || response?.results?.id || response?.id || '';
 
     const timestamp = docMetadata.timestamp as string | undefined;
-    const result: MemoryResponse = {
+    const result: Memory = {
       id: String(id),
+      memory_id: String(id),
       content: String(content || ''),
       metadata: docMetadata,
       collection_ids: [collectionId],
@@ -793,7 +793,7 @@ export class Nebula {
     limit?: number;
     offset?: number;
     metadata_filters?: Record<string, unknown>;
-  }): Promise<MemoryResponse[]> {
+  }): Promise<Memory[]> {
     const ids = Array.isArray(options.collection_ids) ? options.collection_ids : [options.collection_ids];
     if (!ids.length) {
       throw new NebulaClientException('collection_ids must be provided to list_memories().');
@@ -825,7 +825,7 @@ export class Nebula {
   }
 
   /** Get a specific memory by engram ID */
-  async getMemory(memoryId: string): Promise<MemoryResponse> {
+  async getMemory(memoryId: string): Promise<Memory> {
     const response = await this._makeRequest('GET', `/v1/memories/${memoryId}`) as { text?: string; content?: string; chunks?: unknown[]; id?: string; metadata?: Record<string, unknown>; collection_ids?: string[] };
 
     const content = response.text || response.content;
@@ -850,7 +850,7 @@ export class Nebula {
    * @param options - Search configuration
    * @param options.query - Search query string
    * @param options.collection_ids - One or more collection IDs to search within
-   * @param options.effort - Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryRecall size.
+   * @param options.effort - Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryResponse size.
    * @param options.filters - Optional filters to apply to the search. Supports comprehensive metadata filtering
    *                          with MongoDB-like operators for both vector/chunk search and graph search.
    * @param options.searchSettings - Optional search configuration
@@ -945,7 +945,7 @@ export class Nebula {
     effort?: 'auto' | 'low' | 'medium' | 'high';
     filters?: Record<string, unknown>;
     searchSettings?: Record<string, unknown>;
-  }): Promise<MemoryRecall> {
+  }): Promise<MemoryResponse> {
     // Build request data - pass params directly to API (no wrapping needed)
     const data: Record<string, unknown> = {
       query: options.query,
@@ -974,14 +974,14 @@ export class Nebula {
       data.search_settings = options.searchSettings;
     }
 
-    const response = await this._makeRequest('POST', '/v1/memories/search', data) as { results?: MemoryRecall };
+    const response = await this._makeRequest('POST', '/v1/memories/search', data) as { results?: MemoryResponse };
 
-    // Backend returns MemoryRecall wrapped in { results: MemoryRecall }
-    // The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
-    const memoryRecallData = response.results as MemoryRecall;
+    // Backend returns MemoryRecall wrapped in { results: MemoryResponse }
+    // The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}
+    const memoryRecallData = response.results as MemoryResponse;
 
-    // Ensure we have a proper MemoryRecall structure with all fields
-    const memoryRecall: MemoryRecall = {
+    // Ensure we have a proper MemoryResponse structure with all fields
+    const memoryRecall: MemoryResponse = {
       query: memoryRecallData.query || options.query,
       entities: memoryRecallData.entities || [],
       facts: memoryRecallData.facts || [],
@@ -1047,7 +1047,7 @@ export class Nebula {
     };
   }
 
-  private _memoryResponseFromDict(data: Record<string, unknown>, collectionIds: string[]): MemoryResponse {
+  private _memoryResponseFromDict(data: Record<string, unknown>, collectionIds: string[]): Memory {
     let createdAt: string | undefined;
     if (data.created_at) {
       if (typeof data.created_at === 'string') {
@@ -1105,6 +1105,7 @@ export class Nebula {
 
     return {
       id: finalId,
+      memory_id: finalId,
       content,
       chunks,
       metadata,

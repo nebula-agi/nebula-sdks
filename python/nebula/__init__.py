@@ -20,14 +20,13 @@ from .models import (
     Collection,
     FileContent,
     Memory,
-    MemoryRecall,
     MemoryResponse,
     S3FileRef,
     SearchResult,
     TextContent,
 )
 
-__version__ = "2.1.13"
+__version__ = "2.1.14"
 __all__ = [
     "Nebula",
     "AsyncNebula",
@@ -39,7 +38,6 @@ __all__ = [
     "NebulaNotFoundException",
     "Memory",
     "MemoryResponse",
-    "MemoryRecall",
     "Collection",
     "SearchResult",
     "Chunk",

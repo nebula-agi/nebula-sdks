@@ -25,15 +25,6 @@ export interface StructuredChunk {
 }
 
 
-export interface MemoryResponse {
-  id: string;
-  content?: string;
-  chunks?: Chunk[];
-  metadata: Record<string, unknown>;
-  collection_ids: string[];
-  created_at?: string;
-  updated_at?: string;
-}
 
 // Multimodal content part types
 export interface TextContentPart {
@@ -64,12 +55,19 @@ export type MultimodalContentPart =
   | S3FileReferencePart;
 
 export interface Memory {
-  collection_id: string;
-  content: string | string[] | MultimodalContentPart[] | Array<{ content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, unknown>; authority?: number }>;
+  collection_id?: string;
+  content?: string | string[] | MultimodalContentPart[] | Array<{ content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, unknown>; authority?: number }>;
   role?: string; // user, assistant, or custom
-  memory_id?: string; // ID of existing memory to append to
+  id?: string; // Memory/Engram UUID
+  memory_id?: string; // Alias for id, for backward compatibility
   metadata: Record<string, unknown>;
   authority?: number; // Optional authority score (0.0 - 1.0)
+
+  // Read-only fields (populated from server response)
+  chunks?: Chunk[];
+  collection_ids?: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Collection {
@@ -180,7 +178,7 @@ export interface GroundedUtterance {
   metadata?: Record<string, unknown>;
 }
 
-export interface MemoryRecall {
+export interface MemoryResponse {
   query: string;
   entities: ActivatedEntity[];
   facts: ActivatedFact[];

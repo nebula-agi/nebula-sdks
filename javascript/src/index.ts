@@ -74,7 +74,6 @@ export {
     ActivatedEntity,
     ActivatedFact,
     GroundedUtterance,
-    MemoryRecall,
     NebulaClientConfig,
     NebulaException,
     NebulaClientException,

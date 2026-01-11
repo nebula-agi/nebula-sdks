@@ -3,7 +3,7 @@ Data models for the Nebula Client SDK
 """
 
 import base64
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -52,112 +52,6 @@ class Chunk:
     content: str
     metadata: dict[str, Any] = field(default_factory=dict)
     role: str | None = None  # For conversation messages
-
-
-@dataclass
-class MemoryResponse:
-    """Read model returned by list/get operations.
-
-    Notes:
-    - Exactly one of `content` or `chunks` is typically present for text memories
-    - `chunks` contains individual chunks with their IDs for granular operations
-    - `collection_ids` reflects collections the memory belongs to
-    - Not used for writes; use `Memory` for store_memory/store_memories
-    """
-
-    id: str
-    content: str | None = None
-    chunks: list[Chunk] | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
-    collection_ids: list[str] = field(default_factory=list)
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "MemoryResponse":
-        """Create a Memory from a dictionary"""
-        created_at = None
-        if data.get("created_at"):
-            if isinstance(data["created_at"], str):
-                created_at = datetime.fromisoformat(
-                    data["created_at"].replace("Z", "+00:00")
-                )
-            elif isinstance(data["created_at"], datetime):
-                created_at = data["created_at"]
-
-        updated_at = None
-        if data.get("updated_at"):
-            if isinstance(data["updated_at"], str):
-                updated_at = datetime.fromisoformat(
-                    data["updated_at"].replace("Z", "+00:00")
-                )
-            elif isinstance(data["updated_at"], datetime):
-                updated_at = data["updated_at"]
-
-        # Handle chunk response format (API returns chunks, not memories)
-        memory_id = str(data.get("id", ""))
-
-        # Prefer explicit chunks if present; otherwise map 'text'/'content' → content
-        content: str | None = data.get("content") or data.get("text")
-        chunks: list[Chunk] | None = None
-        if "chunks" in data and isinstance(data["chunks"], list):
-            chunk_list: list[Chunk] = []
-            for item in data["chunks"]:
-                if isinstance(item, dict):
-                    # Parse chunk object with id, content/text, metadata, role
-                    chunk_id = str(item.get("id", ""))
-                    chunk_content = item.get("content") or item.get("text", "")
-                    chunk_metadata = item.get("metadata", {})
-                    chunk_role = item.get("role")
-                    chunk_list.append(
-                        Chunk(
-                            id=chunk_id,
-                            content=chunk_content,
-                            metadata=chunk_metadata,
-                            role=chunk_role,
-                        )
-                    )
-                elif isinstance(item, str):
-                    # Legacy: plain string chunks without IDs
-                    chunk_list.append(Chunk(id="", content=item))
-            chunks = chunk_list if chunk_list else None
-
-        # API returns 'collection_ids'
-        metadata = data.get("metadata", {})
-        collection_ids = data.get("collection_ids", [])
-        if data.get("engram_id"):
-            metadata["engram_id"] = data["engram_id"]
-
-        # Handle engram-based approach - if this is a engram response
-        if data.get("engram_id") and not memory_id:
-            memory_id = data["engram_id"]
-
-        # If we have engram metadata, merge it
-        if data.get("engram_metadata"):
-            metadata.update(data["engram_metadata"])
-
-        return cls(
-            id=memory_id,
-            content=content,
-            chunks=chunks,
-            metadata=metadata,
-            collection_ids=collection_ids,
-            created_at=created_at,
-            updated_at=updated_at,
-        )
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert Memory to dictionary"""
-        result = {
-            "id": self.id,
-            "content": self.content,
-            "chunks": self.chunks,
-            "metadata": self.metadata,
-            "collection_ids": self.collection_ids,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
-        return result
 
 
 @dataclass
@@ -222,33 +116,63 @@ class TextContent:
 ContentPart = FileContent | S3FileRef | TextContent | dict[str, Any]
 
 
-@dataclass
+@dataclass(init=False)
 class Memory:
-    """Unified input model for creating memories.
+    """Unified model for Nebula memories (documents or conversations).
 
-    Usage:
-        # 1. Text memory
-        Memory(collection_id="...", content="Hello world")
-
-        # 2. File memory
-        Memory.from_file("doc.pdf", collection_id="...")
-
-        # 3. Mixed multimodal memory
-        Memory(
-            collection_id="...",
-            content=["Look at this:", Memory.File("image.png")]
-        )
+    Can be used both as an input for creating/appending memories and as
+     a return type for get/list operations.
     """
 
-    collection_id: str
-    content: str | list[ContentPart]
+    collection_id: str | None = None  # Primary collection for creation
+    content: str | list[ContentPart] | None = None
     role: str | None = None  # user, assistant, or custom
-    memory_id: str | None = None  # ID of existing memory to append to
+    id: str | None = None  # Memory/Engram UUID
     metadata: dict[str, Any] = field(default_factory=dict)
     authority: float | None = None  # Optional authority score (0.0 - 1.0)
 
+    # Read-only fields (populated from server response)
+    chunks: list[Chunk] | None = None
+    collection_ids: list[str] = field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    def __init__(
+        self,
+        collection_id: str | None = None,
+        content: str | list[ContentPart] | None = None,
+        role: str | None = None,
+        id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        authority: float | None = None,
+        memory_id: str | None = None,
+        chunks: list[Chunk] | None = None,
+        collection_ids: list[str] | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+    ):
+        self.collection_id = collection_id
+        self.content = content
+        self.role = role
+        self.id = id or memory_id
+        self.metadata = metadata if metadata is not None else {}
+        self.authority = authority
+        self.chunks = chunks
+        self.collection_ids = collection_ids if collection_ids is not None else []
+        self.created_at = created_at
+        self.updated_at = updated_at
+
     # Alias for cleaner access to file content helper
     File = FileContent.from_path
+
+    @property
+    def memory_id(self) -> str | None:
+        """Alias for id, for backward compatibility."""
+        return self.id
+
+    @memory_id.setter
+    def memory_id(self, value: str | None):
+        self.id = value
 
     @classmethod
     def from_file(
@@ -265,6 +189,96 @@ class Memory:
             metadata=metadata or {},
             role=role,
         )
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Memory":
+        """Create a Memory from a dictionary (API response)."""
+        created_at = None
+        if data.get("created_at"):
+            if isinstance(data["created_at"], str):
+                try:
+                    created_at = datetime.fromisoformat(
+                        data["created_at"].replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    pass
+            elif isinstance(data["created_at"], datetime):
+                created_at = data["created_at"]
+
+        updated_at = None
+        if data.get("updated_at"):
+            if isinstance(data["updated_at"], str):
+                try:
+                    updated_at = datetime.fromisoformat(
+                        data["updated_at"].replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    pass
+            elif isinstance(data["updated_at"], datetime):
+                updated_at = data["updated_at"]
+
+        # Handle various ID fields from API (id, engram_id)
+        memory_id = str(data.get("id") or data.get("engram_id") or data.get("memory_id") or "")
+
+        # Map 'text' to 'content' for documents
+        content = data.get("content") or data.get("text")
+
+        # Parse chunks if present
+        chunks: list[Chunk] | None = None
+        if "chunks" in data and isinstance(data["chunks"], list):
+            chunk_list: list[Chunk] = []
+            for item in data["chunks"]:
+                if isinstance(item, dict):
+                    chunk_list.append(
+                        Chunk(
+                            id=str(item.get("id", "")),
+                            content=item.get("content") or item.get("text", ""),
+                            metadata=item.get("metadata", {}),
+                            role=item.get("role"),
+                        )
+                    )
+                elif isinstance(item, str):
+                    chunk_list.append(Chunk(id="", content=item))
+            chunks = chunk_list if chunk_list else None
+
+        collection_ids = data.get("collection_ids", [])
+        # If input was a single collection_id, put it in the list if not there
+        if data.get("collection_id") and data["collection_id"] not in collection_ids:
+            collection_ids.append(data["collection_id"])
+
+        metadata = data.get("metadata", {})
+        if data.get("engram_metadata"):
+            metadata.update(data["engram_metadata"])
+
+        return cls(
+            memory_id=memory_id,
+            collection_id=data.get("collection_id"),
+            content=content,
+            role=data.get("role"),
+            metadata=metadata,
+            chunks=chunks,
+            collection_ids=collection_ids,
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert Memory to dictionary."""
+        return {
+            "id": self.memory_id,
+            "memory_id": self.memory_id,
+            "collection_id": self.collection_id,
+            "content": self.content,
+            "role": self.role,
+            "metadata": self.metadata,
+            "collection_ids": self.collection_ids,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+
+
 
 
 @dataclass
@@ -530,20 +544,11 @@ class SearchOptions:
 
 
 @dataclass
-class MemoryRecall:
-    """Hierarchical memory recall result containing entities, facts, and utterances.
+class MemoryResponse:
+    """The result of a memory retrieval operation (search or recall).
 
-    Nested data (entities, facts, utterances, focus) are stored as raw dicts
-    for performance - no parsing overhead.
-
-    Entity dict keys: entity_id, entity_name, entity_category, activation_score,
-                      activation_reason, traversal_depth, profile
-    Fact dict keys: fact_id, entity_id, entity_name, facet_name, subject, predicate,
-                    object_value, activation_score, extraction_confidence,
-                    corroboration_count, source_chunk_ids
-    Utterance dict keys: chunk_id, text, activation_score, speaker_name, source_role,
-                         timestamp, display_name, supporting_fact_ids, metadata
-    Focus dict keys: schema_weight, fact_weight, episodic_weight
+    Contains hierarchical memory structures: entities, facts, and utterances.
+    Nested data are stored as raw dicts for performance.
     """
 
     query: str
@@ -558,8 +563,8 @@ class MemoryRecall:
     query_intent: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], query: str) -> "MemoryRecall":
-        """Create a MemoryRecall from a dictionary response."""
+    def from_dict(cls, data: dict[str, Any], query: str) -> "MemoryResponse":
+        """Create a MemoryResponse from a dictionary response."""
         return cls(
             query=data.get("query", query),
             entities=data.get("entities", []),

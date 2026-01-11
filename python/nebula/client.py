@@ -20,7 +20,6 @@ from .models import (
     Collection,
     ContentPart,
     Memory,
-    MemoryRecall,
     MemoryResponse,
     TextContent,
 )
@@ -1124,7 +1123,7 @@ class Nebula:
         limit: int = 100,
         offset: int = 0,
         metadata_filters: dict | None = None,
-    ) -> list[MemoryResponse]:
+    ) -> list[Memory]:
         """
         Get all memories from a specific collection with optional metadata filtering.
 
@@ -1143,7 +1142,7 @@ class Nebula:
                       ]}
 
         Returns:
-            List of MemoryResponse objects matching the filters
+            List of Memory objects matching the filters
 
         Example:
             # Get all playground memories excluding conversations
@@ -1181,7 +1180,7 @@ class Nebula:
             engrams = [response]
 
         # Convert all engrams to memories (handle text or chunks)
-        memories: list[MemoryResponse] = []
+        memories: list[Memory] = []
         for doc in engrams:
             content = doc.get("text") or doc.get("content")
             chunks = doc.get("chunks") if isinstance(doc.get("chunks"), list) else None
@@ -1193,11 +1192,11 @@ class Nebula:
                 # Prefer backend-provided collection_ids; fallback to the requested identifiers
                 "collection_ids": doc.get("collection_ids", collection_ids),
             }
-            memories.append(MemoryResponse.from_dict(memory_data))
+            memories.append(Memory.from_dict(memory_data))
 
         return memories
 
-    def get_memory(self, memory_id: str) -> MemoryResponse:
+    def get_memory(self, memory_id: str) -> Memory:
         """
         Get a specific memory by memory ID
 
@@ -1205,7 +1204,7 @@ class Nebula:
             memory_id: ID of the memory to retrieve
 
         Returns:
-            MemoryResponse object
+            Memory object
         """
         response = self._make_request("GET", f"/v1/memories/{memory_id}")
 
@@ -1221,7 +1220,7 @@ class Nebula:
             "metadata": response.get("metadata", {}),
             "collection_ids": response.get("collection_ids", []),
         }
-        return MemoryResponse.from_dict(memory_data)
+        return Memory.from_dict(memory_data)
 
     def search(
         self,
@@ -1231,7 +1230,7 @@ class Nebula:
         effort: str | None = None,
         filters: dict[str, Any] | None = None,
         search_settings: dict[str, Any] | None = None,
-    ) -> MemoryRecall:
+    ) -> MemoryResponse:
         """
         Search your memory collections with optional metadata filtering.
 
@@ -1240,7 +1239,7 @@ class Nebula:
             collection_ids: Optional list of collection IDs or names to search within.
                         Can be UUIDs or collection names.
                         If not provided, searches across all your accessible collections.
-            effort: Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryRecall size.
+            effort: Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryResponse size.
             filters: Optional filters to apply to the search. Supports comprehensive metadata filtering
                     with MongoDB-like operators for both vector/chunk search and graph search.
             search_settings: Optional advanced search settings including:
@@ -1282,7 +1281,7 @@ class Nebula:
             Logical: $and, $or
 
         Returns:
-            MemoryRecall object containing hierarchical memory structure with entities, facts,
+            MemoryResponse object containing hierarchical memory structure with entities, facts,
             and utterances
         """
         # Build request data - pass params directly to API (no wrapping needed)
@@ -1312,7 +1311,7 @@ class Nebula:
 
         # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
         # The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
-        return MemoryRecall.from_dict(response["results"], query)
+        return MemoryResponse.from_dict(response["results"], query)
 
     def health_check(self) -> dict[str, Any]:
         """

@@ -10,7 +10,7 @@ import pytest
 from nebula import (
     Collection,
     FileContent,
-    MemoryRecall,
+    MemoryResponse,
     Nebula,
     NebulaAuthenticationException,
     NebulaClientException,
@@ -309,7 +309,7 @@ class TestNebula:
             filters={"test": "filter"},
         )
 
-        assert isinstance(results, MemoryRecall)
+        assert isinstance(results, MemoryResponse)
         assert results.query == "test query"
         assert len(results.entities) == 1
         assert results.entities[0]["entity_name"] == "Entity 1"

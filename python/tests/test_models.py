@@ -77,11 +77,9 @@ class TestMemory:
         assert Memory.File == FileContent.from_path
 
 
-class TestMemoryResponse:
-    """Test cases for MemoryResponse model (read-only model)"""
 
-    def test_memory_response_from_dict(self):
-        """Test creating MemoryResponse from dictionary"""
+    def test_memory_from_dict(self):
+        """Test creating Memory from dictionary (legacy Memory behavior)"""
         data = {
             "id": "memory-123",
             "content": "Test memory content",
@@ -91,7 +89,7 @@ class TestMemoryResponse:
             "collection_ids": ["collection-1", "collection-2"],
         }
 
-        memory = MemoryResponse.from_dict(data)
+        memory = Memory.from_dict(data)
 
         assert memory.id == "memory-123"
         assert memory.content == "Test memory content"
@@ -100,8 +98,8 @@ class TestMemoryResponse:
         assert isinstance(memory.updated_at, datetime)
         assert memory.collection_ids == ["collection-1", "collection-2"]
 
-    def test_memory_response_from_dict_with_datetime_objects(self):
-        """Test creating MemoryResponse from dictionary with datetime objects"""
+    def test_memory_from_dict_with_datetime_objects(self):
+        """Test creating Memory from dictionary with datetime objects"""
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         updated_at = datetime(2024, 1, 2, 12, 0, 0)
 
@@ -113,19 +111,19 @@ class TestMemoryResponse:
             "updated_at": updated_at,
         }
 
-        memory = MemoryResponse.from_dict(data)
+        memory = Memory.from_dict(data)
 
         assert memory.created_at == created_at
         assert memory.updated_at == updated_at
 
-    def test_memory_response_from_dict_without_optional_fields(self):
-        """Test creating MemoryResponse from dictionary without optional fields"""
+    def test_memory_from_dict_without_optional_fields(self):
+        """Test creating Memory from dictionary without optional fields"""
         data = {
             "id": "memory-123",
             "content": "Test memory content",
         }
 
-        memory = MemoryResponse.from_dict(data)
+        memory = Memory.from_dict(data)
 
         assert memory.id == "memory-123"
         assert memory.content == "Test memory content"
@@ -133,13 +131,13 @@ class TestMemoryResponse:
         assert memory.created_at is None
         assert memory.updated_at is None
 
-    def test_memory_response_to_dict(self):
-        """Test converting MemoryResponse to dictionary"""
+    def test_memory_to_dict(self):
+        """Test converting Memory to dictionary"""
         created_at = datetime(2024, 1, 1, 12, 0, 0)
         updated_at = datetime(2024, 1, 2, 12, 0, 0)
 
-        memory = MemoryResponse(
-            id="memory-123",
+        memory = Memory(
+            memory_id="memory-123",
             content="Test memory content",
             metadata={"test": "value"},
             created_at=created_at,
@@ -156,10 +154,10 @@ class TestMemoryResponse:
         assert data["updated_at"] == "2024-01-02T12:00:00"
         assert data["collection_ids"] == ["collection-1"]
 
-    def test_memory_response_to_dict_with_none_dates(self):
-        """Test converting MemoryResponse to dictionary with None dates"""
-        memory = MemoryResponse(
-            id="memory-123",
+    def test_memory_to_dict_with_none_dates(self):
+        """Test converting Memory to dictionary with None dates"""
+        memory = Memory(
+            memory_id="memory-123",
             content="Test memory content",
         )
 
@@ -310,3 +308,22 @@ class TestSearchResult:
         assert result.score == 0.0
         assert result.metadata == {}
         assert result.memory_id is None
+
+
+class TestMemoryResponse:
+    """Test cases for MemoryResponse (retrieval result)"""
+
+    def test_memory_response_from_dict(self):
+        data = {
+            "query": "test query",
+            "entities": [{"entity_id": "e1", "entity_name": "E1", "activation_score": 1.0, "traversal_depth": 0}],
+            "facts": [],
+            "utterances": [],
+            "fact_to_chunks": {},
+            "entity_to_facts": {},
+            "retrieved_at": "2024-01-01T12:00:00Z",
+        }
+        res = MemoryResponse.from_dict(data, query="override")
+        assert res.query == "test query"  # prioritized from data
+        assert len(res.entities) == 1
+        assert res.entities[0]["entity_name"] == "E1"

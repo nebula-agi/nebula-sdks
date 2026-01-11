@@ -20,7 +20,6 @@ from .models import (
     Collection,
     ContentPart,
     Memory,
-    MemoryRecall,
     MemoryResponse,
     TextContent,
 )
@@ -783,7 +782,7 @@ class AsyncNebula:
         collection_ids: list[str],
         limit: int = 100,
         offset: int = 0,
-    ) -> list[MemoryResponse]:
+    ) -> list[Memory]:
         if not collection_ids:
             raise NebulaClientException(
                 "collection_ids must be provided to list_memories()."
@@ -796,13 +795,13 @@ class AsyncNebula:
             documents = response
         else:
             documents = [response]
-        memories: list[MemoryResponse] = []
+        memories: list[Memory] = []
         for doc in documents:
             # Let the model map fields appropriately
-            memories.append(MemoryResponse.from_dict(doc))
+            memories.append(Memory.from_dict(doc))
         return memories
 
-    async def get_memory(self, memory_id: str) -> MemoryResponse:
+    async def get_memory(self, memory_id: str) -> Memory:
         """
         Get a specific memory by memory ID
 
@@ -810,10 +809,10 @@ class AsyncNebula:
             memory_id: ID of the memory to retrieve
 
         Returns:
-            MemoryResponse object
+            Memory object
         """
         response = await self._make_request_async("GET", f"/v1/memories/{memory_id}")
-        return MemoryResponse.from_dict(response)
+        return Memory.from_dict(response)
 
     async def search(
         self,
@@ -823,7 +822,7 @@ class AsyncNebula:
         effort: str | None = None,
         filters: dict[str, Any] | None = None,
         search_settings: dict[str, Any] | None = None,
-    ) -> MemoryRecall:
+    ) -> MemoryResponse:
         """
         Search your memory collections with optional metadata filtering (async version).
 
@@ -832,7 +831,7 @@ class AsyncNebula:
             collection_ids: Optional list of collection IDs or names to search within.
                         Can be UUIDs or collection names.
                         If not provided, searches across all your accessible collections.
-            effort: Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryRecall size.
+            effort: Compute effort budget (auto/low/medium/high). Controls traversal compute, not MemoryResponse size.
             filters: Optional filters to apply to the search. Supports comprehensive metadata filtering
                     with MongoDB-like operators for both vector/chunk search and graph search.
             search_settings: Optional advanced search settings including:
@@ -901,7 +900,7 @@ class AsyncNebula:
             Logical: $and, $or
 
         Returns:
-            MemoryRecall object containing hierarchical memory structure with entities, facts,
+            MemoryResponse object containing hierarchical memory structure with entities, facts,
             and utterances
         """
         # Build request data - pass params directly to API (no wrapping needed)
@@ -933,7 +932,7 @@ class AsyncNebula:
 
         # Backend returns MemoryRecall wrapped in { results: MemoryRecall }
         # The @base_endpoint decorator always wraps successful responses as {"results": MemoryRecall}
-        return MemoryRecall.from_dict(response["results"], query)
+        return MemoryResponse.from_dict(response["results"], query)
 
     async def health_check(self) -> dict[str, Any]:
         return await self._make_request_async("GET", "/v1/health")
