@@ -812,10 +812,11 @@ class Nebula:
         else:
             if isinstance(memory.content, (list, dict)):
                 import json
+
                 content_text = json.dumps(memory.content)
             else:
                 content_text = str(memory.content or "")
-            
+
             if not content_text:
                 raise NebulaClientException("Content is required for document memories")
             doc_payload["raw_text"] = content_text

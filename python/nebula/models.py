@@ -218,7 +218,9 @@ class Memory:
                 updated_at = data["updated_at"]
 
         # Handle various ID fields from API (id, engram_id)
-        memory_id = str(data.get("id") or data.get("engram_id") or data.get("memory_id") or "")
+        memory_id = str(
+            data.get("id") or data.get("engram_id") or data.get("memory_id") or ""
+        )
 
         # Map 'text' to 'content' for documents
         content = data.get("content") or data.get("text")
@@ -275,10 +277,6 @@ class Memory:
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
-
-
-
-
 
 
 @dataclass

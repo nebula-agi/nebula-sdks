@@ -76,8 +76,6 @@ class TestMemory:
         # but we can verify it's the right alias.
         assert Memory.File == FileContent.from_path
 
-
-
     def test_memory_from_dict(self):
         """Test creating Memory from dictionary (legacy Memory behavior)"""
         data = {
@@ -316,7 +314,14 @@ class TestMemoryResponse:
     def test_memory_response_from_dict(self):
         data = {
             "query": "test query",
-            "entities": [{"entity_id": "e1", "entity_name": "E1", "activation_score": 1.0, "traversal_depth": 0}],
+            "entities": [
+                {
+                    "entity_id": "e1",
+                    "entity_name": "E1",
+                    "activation_score": 1.0,
+                    "traversal_depth": 0,
+                }
+            ],
             "facts": [],
             "utterances": [],
             "fact_to_chunks": {},
