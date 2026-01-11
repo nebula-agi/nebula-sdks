@@ -6,6 +6,7 @@ from datetime import datetime
 
 from nebula import (
     Collection,
+    FileContent,
     Memory,
     MemoryResponse,
     SearchResult,
@@ -55,6 +56,25 @@ class TestMemory:
         assert memory.collection_id == "collection-123"
         assert memory.content == "Additional content"
         assert memory.memory_id == "existing-memory-123"
+
+    def test_memory_from_file_helper(self, tmp_path):
+        """Test Memory.from_file helper"""
+        p = tmp_path / "test.txt"
+        p.write_text("file content")
+
+        memory = Memory.from_file(p, collection_id="c1", metadata={"m": 1})
+
+        assert memory.collection_id == "c1"
+        assert len(memory.content) == 1
+        assert isinstance(memory.content[0], FileContent)
+        assert memory.content[0].data is not None
+        assert memory.metadata == {"m": 1}
+
+    def test_memory_file_static_helper(self):
+        """Test Memory.File static helper"""
+        # We can't easily test file reading without a real file,
+        # but we can verify it's the right alias.
+        assert Memory.File == FileContent.from_path
 
 
 class TestMemoryResponse:

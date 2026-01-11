@@ -9,7 +9,7 @@ import pytest
 
 from nebula import (
     Collection,
-    ImageContent,
+    FileContent,
     MemoryRecall,
     Nebula,
     NebulaAuthenticationException,
@@ -91,7 +91,7 @@ class TestNebula:
             is True
         )
         assert (
-            client._is_multimodal_content(["hello", ImageContent(data="Zg==")]) is True
+            client._is_multimodal_content(["hello", FileContent(data="Zg==")]) is True
         )
 
     def test_normalize_content_parts_wraps_scalar_as_text(self):
@@ -251,7 +251,7 @@ class TestNebula:
             collection_id="cluster_docs",
             content=[
                 "A caption",
-                ImageContent(data="Zg==", media_type="image/jpeg", filename="x.jpg"),
+                FileContent(data="Zg==", media_type="image/jpeg", filename="x.jpg"),
             ],
             metadata={"k": "v"},
         )
@@ -264,7 +264,7 @@ class TestNebula:
         assert isinstance(payload.get("raw_text"), str)
         decoded = json.loads(payload["raw_text"])
         assert isinstance(decoded, list)
-        assert any(isinstance(p, dict) and p.get("type") == "image" for p in decoded)
+        assert any(isinstance(p, dict) and p.get("type") == "file" for p in decoded)
 
     @patch("httpx.Client.request")
     def test_search_memories(self, mock_request):

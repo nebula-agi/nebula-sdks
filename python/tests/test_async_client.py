@@ -11,7 +11,7 @@ if _PKG_ROOT not in sys.path:
     sys.path.insert(0, _PKG_ROOT)
 
 from nebula.async_client import AsyncNebula  # noqa: E402
-from nebula.models import ImageContent, Memory  # noqa: E402
+from nebula.models import FileContent, Memory  # noqa: E402
 
 
 class _DummyResponse:
@@ -96,7 +96,7 @@ def test_is_multimodal_content_detects_mixed_list():
         client._is_multimodal_content(["hello", {"type": "image", "data": "Zg=="}])
         is True
     )
-    assert client._is_multimodal_content(["hello", ImageContent(data="Zg==")]) is True
+    assert client._is_multimodal_content(["hello", FileContent(data="Zg==")]) is True
 
 
 def test_normalize_content_parts_wraps_scalar_as_text():
@@ -313,7 +313,7 @@ def test_store_memory_multimodal_document_serializes_raw_text(monkeypatch):
         collection_id="cluster_docs",
         content=[
             "A caption",
-            ImageContent(data="Zg==", media_type="image/jpeg", filename="x.jpg"),
+            FileContent(data="Zg==", media_type="image/jpeg", filename="x.jpg"),
         ],
         metadata={"k": "v"},
     )
@@ -327,4 +327,4 @@ def test_store_memory_multimodal_document_serializes_raw_text(monkeypatch):
     assert isinstance(payload.get("raw_text"), str)
     decoded = json.loads(payload["raw_text"])
     assert isinstance(decoded, list)
-    assert any(isinstance(p, dict) and p.get("type") == "image" for p in decoded)
+    assert any(isinstance(p, dict) and p.get("type") == "file" for p in decoded)

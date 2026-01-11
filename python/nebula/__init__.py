@@ -16,11 +16,9 @@ from .exceptions import (
     NebulaValidationException,
 )
 from .models import (
-    AudioContent,
     Chunk,
     Collection,
-    DocumentContent,
-    ImageContent,
+    FileContent,
     Memory,
     MemoryRecall,
     MemoryResponse,
@@ -46,9 +44,7 @@ __all__ = [
     "SearchResult",
     "Chunk",
     # Multimodal content types
-    "AudioContent",
-    "DocumentContent",
-    "ImageContent",
+    "FileContent",
     "S3FileRef",
     "TextContent",
 ]

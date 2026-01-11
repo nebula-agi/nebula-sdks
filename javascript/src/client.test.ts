@@ -1,5 +1,5 @@
-import { Nebula } from './client';
-import { NebulaException } from './types';
+import { Nebula, Memory } from './index';
+import { NebulaException, Memory as MemoryType } from './types';
 
 // Mock fetch for testing
 global.fetch = jest.fn();
@@ -36,7 +36,7 @@ describe('Nebula', () => {
   describe('API Key Management', () => {
     it('should set and check API key', () => {
       expect(client.isApiKeySet()).toBe(true);
-      
+
       client.setApiKey('new-key');
       expect(client.isApiKeySet()).toBe(true);
     });
@@ -106,7 +106,7 @@ describe('Nebula', () => {
             description: 'Test Description',
             metadata: {},
             user_count: 0,
-            document_count: 0,
+            memory_count: 0,
             created_at: '2024-01-01T00:00:00Z',
             updated_at: '2024-01-01T00:00:00Z'
           }
@@ -381,6 +381,29 @@ describe('Nebula', () => {
       );
     });
   });
+});
+
+describe('Memory Helper', () => {
+  it('should work as a factory function (identity)', () => {
+    const input: MemoryType = {
+      collection_id: 'test',
+      content: 'hello',
+      metadata: {}
+    };
+    const output = Memory(input);
+    expect(output).toBe(input); // Identity check
+  });
+
+  it('should have File helper attached', () => {
+    expect(typeof Memory.File).toBe('function');
+  });
+
+  it('should have fromFile helper attached', () => {
+    expect(typeof Memory.fromFile).toBe('function');
+  });
+
+  // Note: Detailed testing of fromFile requires filesystem mocking which matches
+  // the integration test scope more than unit test scope here.
 });
 
 

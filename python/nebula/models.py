@@ -2,10 +2,46 @@
 Data models for the Nebula Client SDK
 """
 
+import base64
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any
+
+# Common MIME types for auto-detection
+# We define these explicitly to avoid system dependencies and ensure consistency
+MIME_TYPES = {
+    # Images
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".heic": "image/heic",
+    ".bmp": "image/bmp",
+    ".tiff": "image/tiff",
+    # Audio
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".m4a": "audio/m4a",
+    ".ogg": "audio/ogg",
+    ".flac": "audio/flac",
+    ".aac": "audio/aac",
+    ".webm": "audio/webm",
+    # Documents
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".txt": "text/plain",
+    ".csv": "text/csv",
+    ".rtf": "application/rtf",
+    ".epub": "application/epub+zip",
+}
 
 
 @dataclass
@@ -125,76 +161,41 @@ class MemoryResponse:
 
 
 @dataclass
-class ImageContent:
-    """Image content for multimodal messages.
+class FileContent:
+    """Unified container for all multimodal file content (images, audio, documents).
 
-    Args:
-        data: Base64-encoded image data
-        media_type: MIME type (e.g., 'image/jpeg', 'image/png')
-        filename: Optional filename
-
-    Example:
-        import base64
-        with open("photo.jpg", "rb") as f:
-            data = base64.b64encode(f.read()).decode()
-        ImageContent(data=data, media_type="image/jpeg", filename="photo.jpg")
+    Internal use. Access via Memory.File or Memory.from_file.
     """
 
-    data: str  # Base64 encoded image data
-    media_type: str = "image/jpeg"
+    data: str  # Base64 encoded data
+    type: str = "file"
+    media_type: str = "application/octet-stream"
     filename: str | None = None
-    type: str = "image"
+    duration_seconds: float | None = None  # Specific to audio
 
+    @classmethod
+    def from_path(
+        cls,
+        path: str | Path,
+        media_type: str | None = None,
+        duration_seconds: float | None = None,
+    ) -> "FileContent":
+        """Create content from a file path."""
+        file_path = Path(path)
+        if not media_type:
+            suffix = file_path.suffix.lower()
+            media_type = MIME_TYPES.get(suffix, "application/octet-stream")
 
-@dataclass
-class AudioContent:
-    """Audio content for transcription.
+        with open(file_path, "rb") as f:
+            file_data = f.read()
+            encoded_data = base64.b64encode(file_data).decode("utf-8")
 
-    Supported formats: MP3, WAV, M4A, OGG, FLAC, AAC, WebM
-    Transcribed using Whisper.
-
-    Args:
-        data: Base64-encoded audio data
-        media_type: MIME type (e.g., 'audio/mpeg', 'audio/wav')
-        filename: Optional filename
-
-    Example:
-        import base64
-        with open("recording.mp3", "rb") as f:
-            data = base64.b64encode(f.read()).decode()
-        AudioContent(data=data, media_type="audio/mpeg", filename="recording.mp3")
-    """
-
-    data: str  # Base64 encoded audio data
-    media_type: str = "audio/mpeg"
-    filename: str | None = None
-    duration_seconds: float | None = None
-    type: str = "audio"
-
-
-@dataclass
-class DocumentContent:
-    """Document content for text extraction.
-
-    Supported formats: PDF, DOC, DOCX, TXT, CSV, RTF
-    PDFs are processed with VLM OCR.
-
-    Args:
-        data: Base64-encoded document data
-        media_type: MIME type (e.g., 'application/pdf')
-        filename: Optional filename
-
-    Example:
-        import base64
-        with open("report.pdf", "rb") as f:
-            data = base64.b64encode(f.read()).decode()
-        DocumentContent(data=data, media_type="application/pdf", filename="report.pdf")
-    """
-
-    data: str  # Base64 encoded document data
-    media_type: str = "application/pdf"
-    filename: str | None = None
-    type: str = "document"
+        return cls(
+            data=encoded_data,
+            media_type=media_type,
+            filename=file_path.name,
+            duration_seconds=duration_seconds,
+        )
 
 
 @dataclass
@@ -218,52 +219,24 @@ class TextContent:
 
 
 # Union type for content parts
-ContentPart = (
-    ImageContent
-    | AudioContent
-    | DocumentContent
-    | S3FileRef
-    | TextContent
-    | dict[str, Any]
-)
+ContentPart = FileContent | S3FileRef | TextContent | dict[str, Any]
 
 
 @dataclass
 class Memory:
-    """Unified input model for writing memories via store_memory/store_memories.
+    """Unified input model for creating memories.
 
-    Behavior:
-    - memory_id absent → creates new memory
-      - role present → conversation message (returns conversation_id)
-      - role absent → text/json memory (returns memory_id)
-    - memory_id present → appends to existing memory
-      - For conversations: appends to conversation
-      - For documents: appends content to document
-      - Returns the same memory_id
-
-    Multimodal Support:
-    - content can be a string (text-only) or list of ContentPart objects
-    - For images, use ImageContent or S3FileRef
-    - Images are processed with a vision model (Qwen3-VL by default)
-    - For files >5MB, upload to S3 first using client.get_upload_url()
-
-    Examples:
-        # Text-only memory
+    Usage:
+        # 1. Text memory
         Memory(collection_id="...", content="Hello world")
 
-        # Multimodal with image (base64)
-        Memory(
-            collection_id="...",
-            content=[
-                TextContent(text="What's in this image?"),
-                ImageContent(data="base64...", media_type="image/jpeg")
-            ]
-        )
+        # 2. File memory
+        Memory.from_file("doc.pdf", collection_id="...")
 
-        # Large file via S3
+        # 3. Mixed multimodal memory
         Memory(
             collection_id="...",
-            content=[S3FileRef(s3_key="multimodal/abc/image.jpg")]
+            content=["Look at this:", Memory.File("image.png")]
         )
     """
 
@@ -273,6 +246,25 @@ class Memory:
     memory_id: str | None = None  # ID of existing memory to append to
     metadata: dict[str, Any] = field(default_factory=dict)
     authority: float | None = None  # Optional authority score (0.0 - 1.0)
+
+    # Alias for cleaner access to file content helper
+    File = FileContent.from_path
+
+    @classmethod
+    def from_file(
+        cls,
+        path: str | Path,
+        collection_id: str,
+        metadata: dict[str, Any] | None = None,
+        role: str | None = None,
+    ) -> "Memory":
+        """Create a memory from a single file."""
+        return cls(
+            collection_id=collection_id,
+            content=[FileContent.from_path(path)],
+            metadata=metadata or {},
+            role=role,
+        )
 
 
 @dataclass

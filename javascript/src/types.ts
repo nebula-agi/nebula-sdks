@@ -41,26 +41,12 @@ export interface TextContentPart {
   text: string;
 }
 
-export interface ImageContentPart {
-  type: 'image';
-  data: string;  // Base64 encoded image data
-  media_type: string;  // MIME type (e.g., 'image/jpeg', 'image/png')
+export interface FileContentPart {
+  type?: 'image' | 'audio' | 'document' | 'file';
+  data: string; // Base64 encoded data
+  media_type: string; // MIME type
   filename?: string;
-}
-
-export interface AudioContentPart {
-  type: 'audio';
-  data: string;  // Base64 encoded audio data
-  media_type: string;  // MIME type (e.g., 'audio/mp3', 'audio/wav', 'audio/m4a')
-  filename?: string;
-  duration_seconds?: number;
-}
-
-export interface DocumentContentPart {
-  type: 'document';
-  data: string;  // Base64 encoded document data
-  media_type: string;  // MIME type (e.g., 'application/pdf', 'application/msword')
-  filename?: string;
+  duration_seconds?: number; // Specific to audio
 }
 
 export interface S3FileReferencePart {
@@ -72,16 +58,14 @@ export interface S3FileReferencePart {
   size_bytes?: number;
 }
 
-export type MultimodalContentPart = 
-  | TextContentPart 
-  | ImageContentPart 
-  | AudioContentPart 
-  | DocumentContentPart 
+export type MultimodalContentPart =
+  | TextContentPart
+  | FileContentPart
   | S3FileReferencePart;
 
 export interface Memory {
   collection_id: string;
-  content: string | string[] | MultimodalContentPart[] | Array<{content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, unknown>; authority?: number}>;
+  content: string | string[] | MultimodalContentPart[] | Array<{ content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, unknown>; authority?: number }>;
   role?: string; // user, assistant, or custom
   memory_id?: string; // ID of existing memory to append to
   metadata: Record<string, unknown>;

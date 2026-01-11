@@ -221,7 +221,7 @@ class TestSyncMultimodal:
 
     def test_store_image_memory(self, client, test_collection):
         """Test storing an image as memory."""
-        from nebula import ImageContent, Memory
+        from nebula import FileContent, Memory
 
         # Download and encode image
         image_data = download_and_encode(SAMPLE_IMAGES["cat"])
@@ -230,7 +230,7 @@ class TestSyncMultimodal:
             collection_id=test_collection.id,
             content=[
                 "A cute cat picture from the internet",
-                ImageContent(
+                FileContent(
                     data=image_data, media_type="image/jpeg", filename="cat.jpg"
                 ),
             ],
@@ -248,7 +248,7 @@ class TestSyncMultimodal:
 
     def test_store_document_memory(self, client, test_collection):
         """Test storing a PDF document as memory."""
-        from nebula import DocumentContent, Memory
+        from nebula import FileContent, Memory
 
         # Create a simple test PDF
         pdf_data = base64.b64encode(create_simple_test_pdf()).decode()
@@ -256,7 +256,7 @@ class TestSyncMultimodal:
         memory = Memory(
             collection_id=test_collection.id,
             content=[
-                DocumentContent(
+                FileContent(
                     data=pdf_data, media_type="application/pdf", filename="test.pdf"
                 )
             ],
@@ -269,7 +269,7 @@ class TestSyncMultimodal:
 
     def test_store_multiple_images(self, client, test_collection):
         """Test storing multiple images in a single memory."""
-        from nebula import ImageContent, Memory
+        from nebula import FileContent, Memory
 
         # Download and encode images
         cat_data = download_and_encode(SAMPLE_IMAGES["cat"])
@@ -279,12 +279,8 @@ class TestSyncMultimodal:
             collection_id=test_collection.id,
             content=[
                 "Comparison of cat and dog photos",
-                ImageContent(
-                    data=cat_data, media_type="image/jpeg", filename="cat.jpg"
-                ),
-                ImageContent(
-                    data=dog_data, media_type="image/jpeg", filename="dog.jpg"
-                ),
+                FileContent(data=cat_data, media_type="image/jpeg", filename="cat.jpg"),
+                FileContent(data=dog_data, media_type="image/jpeg", filename="dog.jpg"),
             ],
             metadata={"test": "multi_image", "count": 2},
         )
@@ -295,7 +291,7 @@ class TestSyncMultimodal:
 
     def test_multimodal_conversation(self, client, test_collection):
         """Test storing a conversation with multimodal content."""
-        from nebula import ImageContent, Memory
+        from nebula import FileContent, Memory
 
         # Download and encode image
         image_data = download_and_encode(SAMPLE_IMAGES["landscape"])
@@ -306,7 +302,7 @@ class TestSyncMultimodal:
                 collection_id=test_collection.id,
                 content=[
                     "What do you see in this image?",
-                    ImageContent(
+                    FileContent(
                         data=image_data,
                         media_type="image/jpeg",
                         filename="landscape.jpg",
@@ -347,7 +343,7 @@ class TestSyncMultimodal:
 
     def test_search_multimodal_memories(self, client, test_collection):
         """Test searching memories that contain multimodal content."""
-        from nebula import ImageContent, Memory
+        from nebula import FileContent, Memory
 
         # Download and encode image
         image_data = download_and_encode(SAMPLE_IMAGES["landscape"])
@@ -358,7 +354,7 @@ class TestSyncMultimodal:
                 collection_id=test_collection.id,
                 content=[
                     "A stunning view of the Swiss Alps with fresh snow on the peaks",
-                    ImageContent(
+                    FileContent(
                         data=image_data, media_type="image/jpeg", filename="alps.jpg"
                     ),
                 ],
@@ -417,7 +413,7 @@ class TestAsyncMultimodal:
     @pytest.mark.asyncio
     async def test_async_store_image_memory(self, client, test_collection):
         """Test storing an image as memory asynchronously."""
-        from nebula import ImageContent, Memory
+        from nebula import FileContent, Memory
 
         # Download and encode
         image_data = await async_download_and_encode(SAMPLE_IMAGES["dog"])
@@ -426,7 +422,7 @@ class TestAsyncMultimodal:
             collection_id=test_collection.id,
             content=[
                 "A happy golden retriever playing",
-                ImageContent(
+                FileContent(
                     data=image_data, media_type="image/jpeg", filename="dog.jpg"
                 ),
             ],
@@ -440,14 +436,14 @@ class TestAsyncMultimodal:
     @pytest.mark.asyncio
     async def test_async_store_document(self, client, test_collection):
         """Test storing a PDF document asynchronously."""
-        from nebula import DocumentContent, Memory
+        from nebula import FileContent, Memory
 
         pdf_data = base64.b64encode(create_simple_test_pdf()).decode()
 
         memory = Memory(
             collection_id=test_collection.id,
             content=[
-                DocumentContent(
+                FileContent(
                     data=pdf_data, media_type="application/pdf", filename="test.pdf"
                 )
             ],
@@ -461,7 +457,7 @@ class TestAsyncMultimodal:
     @pytest.mark.asyncio
     async def test_async_multimodal_conversation(self, client, test_collection):
         """Test async conversation with multimodal content."""
-        from nebula import ImageContent, Memory
+        from nebula import FileContent, Memory
 
         # Download and encode images concurrently
         cat_data, dog_data = await asyncio.gather(
@@ -474,10 +470,10 @@ class TestAsyncMultimodal:
                 collection_id=test_collection.id,
                 content=[
                     "Can you compare these two pets?",
-                    ImageContent(
+                    FileContent(
                         data=cat_data, media_type="image/jpeg", filename="cat.jpg"
                     ),
-                    ImageContent(
+                    FileContent(
                         data=dog_data, media_type="image/jpeg", filename="dog.jpg"
                     ),
                 ],
@@ -506,7 +502,7 @@ class TestAsyncMultimodal:
     @pytest.mark.asyncio
     async def test_async_batch_multimodal_storage(self, client, test_collection):
         """Test storing multiple multimodal memories in batch."""
-        from nebula import ImageContent, Memory
+        from nebula import FileContent, Memory
 
         # Download and encode all images concurrently
         image_data_list = await asyncio.gather(
@@ -523,7 +519,7 @@ class TestAsyncMultimodal:
                     collection_id=test_collection.id,
                     content=[
                         f"Image: {name}",
-                        ImageContent(
+                        FileContent(
                             data=data, media_type="image/jpeg", filename=f"{name}.jpg"
                         ),
                     ],
@@ -569,7 +565,7 @@ class TestMultimodalIntegration:
 
     def test_mixed_content_workflow(self, client, test_collection):
         """Test a workflow with mixed text and multimodal content."""
-        from nebula import DocumentContent, ImageContent, Memory
+        from nebula import FileContent, Memory
 
         # 1. Store a text memory
         text_memory_id = client.store_memory(
@@ -588,7 +584,7 @@ class TestMultimodalIntegration:
                 collection_id=test_collection.id,
                 content=[
                     "A beautiful cityscape at sunset",
-                    ImageContent(
+                    FileContent(
                         data=image_data, media_type="image/jpeg", filename="city.jpg"
                     ),
                 ],
@@ -603,7 +599,7 @@ class TestMultimodalIntegration:
             Memory(
                 collection_id=test_collection.id,
                 content=[
-                    DocumentContent(
+                    FileContent(
                         data=pdf_data, media_type="application/pdf", filename="test.pdf"
                     )
                 ],
@@ -663,7 +659,7 @@ def run_quick_test():
 
     Pass base64-encoded content with explicit type and media_type.
     """
-    from nebula import DocumentContent, ImageContent, Memory, Nebula
+    from nebula import FileContent, Memory, Nebula
 
     print("=" * 60)
     print("Nebula Multimodal Quick Test")
@@ -704,7 +700,7 @@ def run_quick_test():
                 collection_id=collection.id,
                 content=[
                     "A cute orange cat sitting on a couch",
-                    ImageContent(
+                    FileContent(
                         data=image_data, media_type="image/jpeg", filename="cat.jpg"
                     ),
                 ],
@@ -720,7 +716,7 @@ def run_quick_test():
             Memory(
                 collection_id=collection.id,
                 content=[
-                    DocumentContent(
+                    FileContent(
                         data=pdf_data, media_type="application/pdf", filename="test.pdf"
                     )
                 ],
@@ -736,7 +732,7 @@ def run_quick_test():
                 collection_id=collection.id,
                 content=[
                     "What do you see in this image?",
-                    ImageContent(
+                    FileContent(
                         data=cat_image, media_type="image/jpeg", filename="cat.jpg"
                     ),
                 ],
@@ -784,7 +780,7 @@ async def run_async_quick_test():
 
     Pass base64-encoded content with explicit type and media_type.
     """
-    from nebula import AsyncNebula, ImageContent, Memory
+    from nebula import AsyncNebula, FileContent, Memory
 
     print("=" * 60)
     print("Nebula Async Multimodal Quick Test")
@@ -821,7 +817,7 @@ async def run_async_quick_test():
                     collection_id=collection.id,
                     content=[
                         "A happy dog",
-                        ImageContent(
+                        FileContent(
                             data=image_data, media_type="image/jpeg", filename="dog.jpg"
                         ),
                     ],

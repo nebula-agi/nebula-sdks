@@ -17,6 +17,7 @@ import {
   NebulaNotFoundException,
   Chunk,
   MultimodalContentPart,
+  FileContentPart,
 } from './types';
 
 type ApiEnvelope<T> = { results: T };
@@ -31,9 +32,10 @@ export class Nebula {
   private timeout: number;
 
   // Files larger than 5MB are automatically uploaded to S3
+  // Files larger than 5MB are automatically uploaded to S3
   private static readonly MAX_INLINE_SIZE = 5 * 1024 * 1024; // 5MB
 
-  constructor(config: NebulaClientConfig) {
+  constructor(config: NebulaClientConfig = {} as NebulaClientConfig) {
     this.apiKey = config.apiKey;
     if (!this.apiKey) {
       throw new NebulaClientException(
@@ -377,7 +379,7 @@ export class Nebula {
       // If content and role provided, include as initial message
       if (mem.content && mem.role) {
         const msgContent = await this._serializeContentAsText(mem.content);
-        
+
         const memRecord = mem as Memory & { authority?: number };
         messages.push({
           content: msgContent,
@@ -414,7 +416,7 @@ export class Nebula {
     // Handle document/text memory
     const docMetadata = { ...mem.metadata } as Record<string, unknown>;
     docMetadata.memory_type = 'memory';
-    
+
     // If authority provided for document, persist in metadata for ranking
     const memRecord = mem as Memory & { authority?: number };
     if (typeof memRecord.authority === 'number') {
@@ -1025,13 +1027,12 @@ export class Nebula {
     const collectionName = String(data.name || '');
     const collectionDescription = typeof data.description === 'string' ? data.description : undefined;
     const collectionOwnerId = data.owner_id ? String(data.owner_id) : undefined;
-    const memoryCount = typeof data.document_count === 'number' ? data.document_count : 0;
+    const memoryCount = typeof data.memory_count === 'number' ? data.memory_count : 0;
 
     const metadata: Record<string, unknown> = {
       graph_collection_status: String(data.graph_collection_status || ''),
       graph_sync_status: String(data.graph_sync_status || ''),
       user_count: typeof data.user_count === 'number' ? data.user_count : 0,
-      document_count: typeof data.document_count === 'number' ? data.document_count : 0,
     };
 
     return {
@@ -1239,14 +1240,24 @@ export class Nebula {
     const processed: MultimodalContentPart[] = [];
 
     for (const part of contentParts) {
-      // Check if this is a binary content part with base64 data
-      if ((part.type === 'image' || part.type === 'audio' || part.type === 'document') && part.data) {
+      // Safe check for binary file content parts
+      // We check if it is NOT a known non-binary type (text, s3_ref, url, image_url)
+      // And explicitly check for 'data' property presence to satisfy TS
+      if (
+        part.type !== 'text' &&
+        part.type !== 's3_ref' &&
+        'data' in part &&
+        part.data
+      ) {
+        // Now TS knows 'part' has 'data'
+        const filePart = part as FileContentPart;
+
         // Calculate decoded size (base64 is ~4/3 of original)
-        const dataSize = Math.floor(String(part.data).length * 3 / 4);
+        const dataSize = Math.floor(String(filePart.data).length * 3 / 4);
 
         if (dataSize > Nebula.MAX_INLINE_SIZE) {
-          const filename = part.filename || `file.${part.type}`;
-          const mediaType = part.media_type || 'application/octet-stream';
+          const filename = filePart.filename || `file.bin`;
+          const mediaType = filePart.media_type || 'application/octet-stream';
 
           const uploadInfo = await this.getUploadUrl({
             filename,
@@ -1258,7 +1269,7 @@ export class Nebula {
           let bytes: Uint8Array;
           const atobFn = (globalThis as unknown as { atob?: (data: string) => string }).atob;
           if (typeof atobFn === 'function') {
-            const binaryString = atobFn(String(part.data));
+            const binaryString = atobFn(String(filePart.data));
             bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
               bytes[i] = binaryString.charCodeAt(i);
@@ -1266,7 +1277,7 @@ export class Nebula {
           } else {
             // Node.js fallback
             const { Buffer } = await import('buffer');
-            bytes = Uint8Array.from(Buffer.from(String(part.data), 'base64'));
+            bytes = Uint8Array.from(Buffer.from(String(filePart.data), 'base64'));
           }
 
           await fetch(uploadInfo.upload_url, {
