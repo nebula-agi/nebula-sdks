@@ -3,7 +3,7 @@ Data models for the Nebula Client SDK
 """
 
 import base64
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
