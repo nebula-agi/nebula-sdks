@@ -233,6 +233,41 @@ describe('Nebula', () => {
       expect(body.metadata).toEqual(expect.objectContaining({ tag: 'x', memory_type: 'memory' }));
     });
 
+    it('should store multimodal document memory using content_parts', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          results: {
+            id: 'doc-456'
+          }
+        })
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const docId = await client.storeMemory({
+        collection_id: 'collection-123',
+        content: [
+          { type: 'text', text: 'Caption' },
+          { type: 'image', data: 'Zg==', media_type: 'image/png', filename: 'x.png' }
+        ],
+        metadata: { tag: 'photo' }
+      });
+
+      expect(docId).toBe('doc-456');
+
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      expect(String(url)).toContain('/v1/memories');
+      expect(requestInit).toEqual(expect.objectContaining({ method: 'POST' }));
+      expect(typeof (requestInit as { body?: unknown }).body).toBe('string');
+
+      const body = JSON.parse(String((requestInit as { body?: unknown }).body));
+      expect(body.collection_id).toBe('collection-123');
+      expect(body).not.toHaveProperty('raw_text');
+      expect(body.content_parts).toEqual(expect.any(Array));
+      expect(body.content_parts[1]).toEqual(expect.objectContaining({ type: 'image', media_type: 'image/png' }));
+    });
+
     it('should search memories with correct parameters', async () => {
       const mockResponse = {
         ok: true,
@@ -405,7 +440,6 @@ describe('Memory Helper', () => {
   // Note: Detailed testing of fromFile requires filesystem mocking which matches
   // the integration test scope more than unit test scope here.
 });
-
 
 
 

@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 import sys
 from typing import Any
@@ -285,7 +284,7 @@ def test_store_memory_document_metadata_includes_authority(monkeypatch):
     assert md.get("authority") == 0.8
 
 
-def test_store_memory_multimodal_document_serializes_raw_text(monkeypatch):
+def test_store_memory_multimodal_document_uses_content_parts(monkeypatch):
     client = AsyncNebula(api_key="key_public.raw", base_url="https://example.com")
     calls: list[dict[str, Any]] = []
 
@@ -323,8 +322,9 @@ def test_store_memory_multimodal_document_serializes_raw_text(monkeypatch):
     create_calls = [c for c in calls if c["endpoint"] == "/v1/memories"]
     assert create_calls
     payload = create_calls[0]["json"] or {}
-    assert "content_parts" not in payload
-    assert isinstance(payload.get("raw_text"), str)
-    decoded = json.loads(payload["raw_text"])
-    assert isinstance(decoded, list)
-    assert any(isinstance(p, dict) and p.get("type") == "file" for p in decoded)
+    assert "raw_text" not in payload
+    assert isinstance(payload.get("content_parts"), list)
+    assert any(
+        isinstance(p, dict) and p.get("type") == "file"
+        for p in payload["content_parts"]
+    )

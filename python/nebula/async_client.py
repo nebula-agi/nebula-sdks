@@ -443,12 +443,8 @@ class AsyncNebula:
             messages = []
             if memory.content and memory.role:
                 if is_multimodal:
-                    import json
-
-                    msg_content = json.dumps(
-                        self._convert_content_parts(
-                            self._normalize_content_parts(memory.content)
-                        )
+                    msg_content = self._convert_content_parts(
+                        self._normalize_content_parts(memory.content)
                     )
                 else:
                     msg_content = str(memory.content)
@@ -511,15 +507,9 @@ class AsyncNebula:
         }
 
         # Handle multimodal vs plain text content.
-        # The JSON create_memory endpoint requires a string `raw_text` (or `chunks`), so
-        # we serialize multimodal parts as JSON text.
         if self._is_multimodal_content(memory.content):
-            import json
-
-            doc_payload["raw_text"] = json.dumps(
-                self._convert_content_parts(
-                    self._normalize_content_parts(memory.content)
-                )
+            doc_payload["content_parts"] = self._convert_content_parts(
+                self._normalize_content_parts(memory.content)
             )
         else:
             content_text = str(memory.content or "")
@@ -619,18 +609,17 @@ class AsyncNebula:
             messages: list[dict[str, Any]] = []
             for m in group:
                 if self._is_multimodal_content(m.content):
-                    import json
-
-                    text = json.dumps(
-                        self._convert_content_parts(
-                            self._normalize_content_parts(m.content)
-                        )
+                    text = self._convert_content_parts(
+                        self._normalize_content_parts(m.content)
                     )
                 else:
                     text = str(m.content or "")
                 msg_meta = dict(m.metadata or {})
                 # Skip empty messages
-                if not text.strip():
+                if isinstance(text, str):
+                    if not text.strip():
+                        continue
+                elif not text:
                     continue
                 msg: dict[str, Any] = {
                     "content": text,

@@ -2,7 +2,6 @@
 Tests for the Nebula class
 """
 
-import json
 from unittest.mock import Mock, patch
 
 import pytest
@@ -237,8 +236,8 @@ class TestNebula:
         assert memory_id == "memory-123"
 
     @patch("httpx.Client.request")
-    def test_store_memory_multimodal_document_serializes_raw_text(self, mock_request):
-        """Multimodal document payload should be sent via raw_text as JSON string (no content_parts field)."""
+    def test_store_memory_multimodal_document_uses_content_parts(self, mock_request):
+        """Multimodal document payload should be sent via content_parts (no raw_text field)."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -260,11 +259,12 @@ class TestNebula:
         call_args = mock_request.call_args
         assert call_args is not None
         payload = call_args.kwargs.get("json") or {}
-        assert "content_parts" not in payload
-        assert isinstance(payload.get("raw_text"), str)
-        decoded = json.loads(payload["raw_text"])
-        assert isinstance(decoded, list)
-        assert any(isinstance(p, dict) and p.get("type") == "file" for p in decoded)
+        assert "raw_text" not in payload
+        assert isinstance(payload.get("content_parts"), list)
+        assert any(
+            isinstance(p, dict) and p.get("type") == "file"
+            for p in payload["content_parts"]
+        )
 
     @patch("httpx.Client.request")
     def test_search_memories(self, mock_request):

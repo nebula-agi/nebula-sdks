@@ -732,12 +732,8 @@ class Nebula:
             messages = []
             if memory.content and memory.role:
                 if is_multimodal:
-                    import json
-
-                    msg_content = json.dumps(
-                        self._convert_content_parts(
-                            self._normalize_content_parts(memory.content)
-                        )
+                    msg_content = self._convert_content_parts(
+                        self._normalize_content_parts(memory.content)
                     )
                 else:
                     msg_content = str(memory.content)
@@ -802,12 +798,8 @@ class Nebula:
 
         # Handle multimodal vs plain text content
         if self._is_multimodal_content(memory.content):
-            import json
-
-            doc_payload["raw_text"] = json.dumps(
-                self._convert_content_parts(
-                    self._normalize_content_parts(memory.content)
-                )
+            doc_payload["content_parts"] = self._convert_content_parts(
+                self._normalize_content_parts(memory.content)
             )
         else:
             if isinstance(memory.content, (list, dict)):
@@ -917,17 +909,16 @@ class Nebula:
             messages: list[dict[str, Any]] = []
             for m in group:
                 if self._is_multimodal_content(m.content):
-                    import json
-
-                    msg_content = json.dumps(
-                        self._convert_content_parts(
-                            self._normalize_content_parts(m.content)
-                        )
+                    msg_content = self._convert_content_parts(
+                        self._normalize_content_parts(m.content)
                     )
                 else:
                     msg_content = str(m.content or "")
                 # Skip empty messages
-                if not msg_content.strip():
+                if isinstance(msg_content, str):
+                    if not msg_content.strip():
+                        continue
+                elif not msg_content:
                     continue
                 msg_meta = dict(m.metadata or {})
                 msg: dict[str, Any] = {

@@ -113,15 +113,50 @@ export class Nebula {
 
   private _looksLikeMultimodalContent(content: unknown): content is unknown[] {
     if (!Array.isArray(content)) return false;
-    return content.some((part) => this._isRecord(part) && typeof part.type === 'string');
+    return content.some((part) => {
+      if (!this._isRecord(part)) return false;
+      if (typeof part.type === 'string') return true;
+      if ('data' in part || 's3_key' in part || 'url' in part) return true;
+      return false;
+    });
   }
 
   private _normalizeContentParts(contentParts: unknown[]): MultimodalContentPart[] {
     return contentParts.map((part) => {
-      if (!this._isRecord(part) || typeof part.type !== 'string') {
+      if (typeof part === 'string') {
+        return { type: 'text', text: part } satisfies MultimodalContentPart;
+      }
+
+      if (!this._isRecord(part)) {
         return { type: 'text', text: String(part) } satisfies MultimodalContentPart;
       }
-      return part as unknown as MultimodalContentPart;
+
+      if (typeof part.type === 'string') {
+        return part as unknown as MultimodalContentPart;
+      }
+
+      if ('s3_key' in part && typeof part.s3_key === 'string') {
+        return {
+          type: 's3_ref',
+          s3_key: part.s3_key,
+          bucket: typeof part.bucket === 'string' ? part.bucket : undefined,
+          media_type: typeof part.media_type === 'string' ? part.media_type : 'application/octet-stream',
+          filename: typeof part.filename === 'string' ? part.filename : undefined,
+          size_bytes: typeof part.size_bytes === 'number' ? part.size_bytes : undefined,
+        } satisfies MultimodalContentPart;
+      }
+
+      if ('data' in part && typeof part.data === 'string') {
+        return {
+          type: 'file',
+          data: part.data,
+          media_type: typeof part.media_type === 'string' ? part.media_type : 'application/octet-stream',
+          filename: typeof part.filename === 'string' ? part.filename : undefined,
+          duration_seconds: typeof part.duration_seconds === 'number' ? part.duration_seconds : undefined,
+        } satisfies MultimodalContentPart;
+      }
+
+      return { type: 'text', text: String(part) } satisfies MultimodalContentPart;
     });
   }
 
@@ -135,6 +170,12 @@ export class Nebula {
       return JSON.stringify(content);
     }
     return String(content ?? '');
+  }
+
+  private async _serializeContentAsParts(content: unknown): Promise<MultimodalContentPart[] | null> {
+    if (!this._looksLikeMultimodalContent(content)) return null;
+    const normalized = this._normalizeContentParts(content as unknown[]);
+    return await this._processContentParts(normalized);
   }
 
   /** Make an HTTP request to the Nebula API */
@@ -377,7 +418,8 @@ export class Nebula {
 
       // If content and role provided, include as initial message
       if (mem.content && mem.role) {
-        const msgContent = await this._serializeContentAsText(mem.content);
+        const multimodalParts = await this._serializeContentAsParts(mem.content);
+        const msgContent = multimodalParts ?? await this._serializeContentAsText(mem.content);
 
         const memRecord = mem as Memory & { authority?: number };
         messages.push({
@@ -425,13 +467,14 @@ export class Nebula {
       }
     }
 
-    // If content is multimodal, serialize multimodal parts as JSON string (raw_text).
+    // If content is multimodal, send content_parts so the backend can run OCR/transcription.
     // If content is an array of strings, send `chunks` (backend supports both raw_text and chunks).
     let payload: Record<string, unknown>;
-    if (this._looksLikeMultimodalContent(mem.content)) {
+    const multimodalParts = await this._serializeContentAsParts(mem.content);
+    if (multimodalParts) {
       payload = {
         collection_id: mem.collection_id,
-        raw_text: await this._serializeContentAsText(mem.content),
+        content_parts: multimodalParts,
         metadata: docMetadata,
         ingestion_mode: 'fast',
       };
@@ -534,15 +577,19 @@ export class Nebula {
       let convId: string;
 
       // Prepare messages for the conversation
-      const messages: Array<{ content: string; role: string; metadata?: Record<string, unknown>; authority?: number }> = [];
+      const messages: Array<{ content: string | MultimodalContentPart[]; role: string; metadata?: Record<string, unknown>; authority?: number }> = [];
       for (const m of group) {
-        const text = await this._serializeContentAsText(m.content);
-
-        if (!text.trim()) continue;
+        const multimodalParts = await this._serializeContentAsParts(m.content);
+        const msgContent = multimodalParts ?? await this._serializeContentAsText(m.content);
+        if (typeof msgContent === 'string') {
+          if (!msgContent.trim()) continue;
+        } else if (msgContent.length === 0) {
+          continue;
+        }
 
         const mRecord = m as Memory & { authority?: number };
         messages.push({
-          content: text,
+          content: msgContent,
           role: m.role!,
           metadata: m.metadata || {},
           ...(typeof mRecord.authority === 'number' ? { authority: Number(mRecord.authority) } : {}),
