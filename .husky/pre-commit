@@ -34,6 +34,24 @@ if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^py
         echo "$STAGED_PYTHON_FILES" | xargs $RUFF_CMD format || exit 1
         echo "$STAGED_PYTHON_FILES" | xargs git add
       fi
+
+      echo "Running Mypy on staged Python files..."
+      if command -v mypy >/dev/null 2>&1; then
+        MYPY_CMD="mypy"
+      elif [ -f ".venv/bin/mypy" ]; then
+        MYPY_CMD=".venv/bin/mypy"
+      elif python3 -m mypy --version >/dev/null 2>&1; then
+        MYPY_CMD="python3 -m mypy"
+      else
+        echo "Warning: Mypy not found (checked PATH, .venv/bin/mypy, and python3 -m mypy). Skipping type checking."
+        MYPY_CMD=""
+      fi
+
+      if [ -n "$MYPY_CMD" ]; then
+        # Run mypy per file or in batch. Batch is faster.
+        # We use xargs to pass the files.
+        echo "$STAGED_PYTHON_FILES" | xargs $MYPY_CMD || exit 1
+      fi
     fi
 
   CURRENT_VERSION=$(python3 - << 'EOF'
