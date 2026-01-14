@@ -1,5 +1,3 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import {
     FileContentPart
 } from './types';
@@ -46,6 +44,16 @@ export class NebulaContent {
      * Automatically deduces media_type and the backend 'type' (image, audio, document).
      */
     static async fromFile(filePath: string, mediaType?: string): Promise<FileContentPart> {
+        let fs: typeof import('fs/promises');
+        let path: typeof import('path');
+
+        try {
+            fs = await import('fs/promises');
+            path = await import('path');
+        } catch (e) {
+            throw new Error('File system operations are only supported in Node.js environments.');
+        }
+
         const absolutePath = path.resolve(filePath);
         const fileName = path.basename(absolutePath);
         const ext = path.extname(absolutePath).toLowerCase();
