@@ -442,6 +442,7 @@ class AsyncNebula:
             # Build messages array if content and role are provided
             messages = []
             if memory.content and memory.role:
+                msg_content: Any
                 if is_multimodal:
                     msg_content = self._convert_content_parts(
                         self._normalize_content_parts(memory.content)
@@ -608,6 +609,7 @@ class AsyncNebula:
             # Prepare messages for the conversation
             messages: list[dict[str, Any]] = []
             for m in group:
+                text: Any
                 if self._is_multimodal_content(m.content):
                     text = self._convert_content_parts(
                         self._normalize_content_parts(m.content)
