@@ -52,6 +52,22 @@ if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^py
         # We use xargs to pass the files.
         echo "$STAGED_PYTHON_FILES" | xargs $MYPY_CMD || exit 1
       fi
+
+      echo "Running Pytest..."
+      if command -v pytest >/dev/null 2>&1; then
+        PYTEST_CMD="pytest"
+      elif [ -f ".venv/bin/pytest" ]; then
+        PYTEST_CMD=".venv/bin/pytest"
+      elif python3 -m pytest --version >/dev/null 2>&1; then
+        PYTEST_CMD="python3 -m pytest"
+      else
+        echo "Warning: Pytest not found. Skipping tests."
+        PYTEST_CMD=""
+      fi
+
+      if [ -n "$PYTEST_CMD" ]; then
+        $PYTEST_CMD || exit 1
+      fi
     fi
 
   CURRENT_VERSION=$(python3 - << 'EOF'
@@ -182,6 +198,14 @@ if git diff --cached --name-only | grep -q "^javascript/src/"; then
   if ! cd javascript; then
     echo "Could not enter javascript/ directory, skipping JavaScript version bump"
   else
+
+    echo "Running JavaScript tests..."
+    if ! npm test; then
+      echo "JavaScript tests failed. Aborting."
+      # Return to root just in case, though script exits
+      cd ..
+      exit 1
+    fi
 
   CURRENT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null)
   if [ -z "$CURRENT_VERSION" ]; then
