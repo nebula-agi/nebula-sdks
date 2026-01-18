@@ -189,11 +189,35 @@ export interface GroundedUtterance {
   metadata?: Record<string, unknown>;
 }
 
+export interface InferenceHint {
+  term: string;
+  predicate: string;
+  object: string;
+
+  inferred?: boolean;
+  confidence?: number;
+
+  ledger_p_use?: number;
+  ledger_p_true?: number;
+  ledger_p_stable?: number;
+
+  usable_for_rewrite?: boolean;
+  used_for_rewrite?: boolean;
+
+  relationship_id?: string;
+  subject_id?: string;
+  object_id?: string;
+
+  metadata?: Record<string, unknown>;
+  inference_metadata?: Record<string, unknown>;
+}
+
 export interface MemoryResponse {
   query: string;
   entities: ActivatedEntity[];
   facts: ActivatedFact[];
   utterances: GroundedUtterance[];
+  inference_hints?: InferenceHint[];
   focus?: RecallFocus;
   fact_to_chunks: Record<string, string[]>;
   entity_to_facts: Record<string, string[]>;
