@@ -85,25 +85,23 @@ def main():
         # Example 3: Search memories
         print("\n🔍 Searching memories...")
 
-        # Fast BFS search
+        # Search memories
         results = nebula.search(
             query="user-123 preferences and issues",
             collection_ids=[cluster.id],
             limit=5,
-            search_settings={"search_mode": "fast"},
         )
-        print(f"✅ Retrieved {len(results)} memories with fast search")
+        print(f"✅ Retrieved {len(results)} memories")
         for i, result in enumerate(results, 1):
             print(f"  {i}. Score: {result.score:.3f} - {result.content[:80]}...")
 
-        # SuperBFS search (default)
+        # Search with different query
         results = nebula.search(
             query="What are the key considerations for helping user-123?",
             collection_ids=[cluster.id],
             limit=3,
-            search_settings={"search_mode": "super"},
         )
-        print(f"\n✅ Retrieved {len(results)} memories with SuperBFS search")
+        print(f"\n✅ Retrieved {len(results)} memories")
         for i, result in enumerate(results, 1):
             print(f"  {i}. Score: {result.score:.3f} - {result.content[:80]}...")
 

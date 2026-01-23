@@ -535,7 +535,6 @@ class SearchOptions:
 
     limit: int = 10
     filters: dict[str, Any] | None = None
-    search_mode: str = "super"  # "fast" or "super"
 
 
 # Hierarchical Memory Response types (matches backend MemoryRecall structure)

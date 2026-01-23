@@ -132,7 +132,6 @@ export interface GraphCommunityResult {
 export interface SearchOptions {
   limit: number;
   filters?: Record<string, unknown>;
-  search_mode?: 'fast' | 'super';
 }
 
 // Hierarchical Memory Recall types (matches backend MemoryRecall structure)
