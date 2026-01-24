@@ -211,11 +211,33 @@ export interface InferenceHint {
   inference_metadata?: Record<string, unknown>;
 }
 
+/**
+ * Procedural memory task - what the system did.
+ * Naturally included in MemoryResponse to show related actions.
+ */
+export interface ProceduralTask {
+  id: string;
+  intent: string;
+  success: boolean;
+  created_at?: string;
+  duration_ms?: number;
+  input_summary?: string;
+  output_summary?: string;
+  error_message?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface MemoryResponse {
   query: string;
+  // Layer 1: Conceptual schemas (the gestalt)
   entities: ActivatedEntity[];
+  // Layer 2: Structured knowledge
   facts: ActivatedFact[];
+  // Layer 3: Episodic grounding
   utterances: GroundedUtterance[];
+  // Layer 4: Procedural memory (what the system did)
+  tasks?: ProceduralTask[];
+  
   inference_hints?: InferenceHint[];
   focus?: RecallFocus;
   fact_to_chunks: Record<string, string[]>;
@@ -223,6 +245,11 @@ export interface MemoryResponse {
   retrieved_at: string;
   total_traversal_time_ms?: number;
   query_intent?: string;
+  
+  // Current task metadata (the task recording this retrieval)
+  task_id?: string;
+  task_intent?: string;
+  task_duration_ms?: number;
 }
 
 // Configuration interface

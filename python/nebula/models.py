@@ -537,6 +537,76 @@ class SearchOptions:
     filters: dict[str, Any] | None = None
 
 
+# Procedural Memory types (tasks and provenance)
+# Defined before MemoryResponse since it references Task
+
+
+@dataclass
+class Task:
+    """A procedural memory task - represents an operation the system performed."""
+
+    id: str
+    intent: str
+    success: bool
+    created_at: datetime | None = None
+    duration_ms: int | None = None
+    input_summary: str | None = None
+    output_summary: str | None = None
+    error_message: str | None = None
+    user_id: str | None = None
+    collection_id: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Task":
+        """Create a Task from a dictionary."""
+        created_at = None
+        if data.get("created_at"):
+            if isinstance(data["created_at"], str):
+                try:
+                    created_at = datetime.fromisoformat(
+                        data["created_at"].replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    pass
+            elif isinstance(data["created_at"], datetime):
+                created_at = data["created_at"]
+
+        return cls(
+            id=str(data.get("id", "")),
+            intent=data.get("intent", ""),
+            success=bool(data.get("success", True)),
+            created_at=created_at,
+            duration_ms=data.get("duration_ms"),
+            input_summary=data.get("input_summary"),
+            output_summary=data.get("output_summary"),
+            error_message=data.get("error_message"),
+            user_id=str(data["user_id"]) if data.get("user_id") else None,
+            collection_id=str(data["collection_id"]) if data.get("collection_id") else None,
+        )
+
+
+@dataclass
+class ProvenanceChain:
+    """Provenance chain showing what task created a memory."""
+
+    memory_id: str
+    produced_by: Task | None = None
+    supersedes: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ProvenanceChain":
+        """Create a ProvenanceChain from a dictionary."""
+        produced_by = None
+        if data.get("produced_by"):
+            produced_by = Task.from_dict(data["produced_by"])
+
+        return cls(
+            memory_id=str(data.get("memory_id", "")),
+            produced_by=produced_by,
+            supersedes=str(data["supersedes"]) if data.get("supersedes") else None,
+        )
+
+
 # Hierarchical Memory Response types (matches backend MemoryRecall structure)
 
 
@@ -544,7 +614,12 @@ class SearchOptions:
 class MemoryResponse:
     """The result of a memory retrieval operation (search or recall).
 
-    Contains hierarchical memory structures: entities, facts, and utterances.
+    Contains hierarchical memory structures:
+    - entities: Conceptual schemas (the gestalt)
+    - facts: Structured knowledge
+    - utterances: Episodic grounding
+    - tasks: Procedural memory (what the system did)
+    
     Nested data are stored as raw dicts for performance.
     """
 
@@ -552,6 +627,7 @@ class MemoryResponse:
     entities: list[dict[str, Any]]
     facts: list[dict[str, Any]]
     utterances: list[dict[str, Any]]
+    tasks: list[Task] = field(default_factory=list)  # Procedural memory
     inference_hints: list[dict[str, Any]] = field(default_factory=list)
     fact_to_chunks: dict[str, list[str]] = field(default_factory=dict)
     entity_to_facts: dict[str, list[str]] = field(default_factory=dict)
@@ -559,15 +635,28 @@ class MemoryResponse:
     focus: dict[str, Any] | None = None
     total_traversal_time_ms: float | None = None
     query_intent: str | None = None
+    
+    # Current task metadata
+    task_id: str | None = None
+    task_intent: str | None = None
+    task_duration_ms: int | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], query: str) -> "MemoryResponse":
         """Create a MemoryResponse from a dictionary response."""
+        # Parse tasks if present
+        tasks = []
+        if data.get("tasks"):
+            for t in data["tasks"]:
+                if isinstance(t, dict):
+                    tasks.append(Task.from_dict(t))
+        
         return cls(
             query=data.get("query", query),
             entities=data.get("entities", []),
             facts=data.get("facts", []),
             utterances=data.get("utterances", []),
+            tasks=tasks,
             inference_hints=data.get("inference_hints", []) or [],
             focus=data.get("focus"),
             fact_to_chunks=data.get("fact_to_chunks", {}),
@@ -575,4 +664,7 @@ class MemoryResponse:
             retrieved_at=data.get("retrieved_at", ""),
             total_traversal_time_ms=data.get("total_traversal_time_ms"),
             query_intent=data.get("query_intent"),
+            task_id=str(data["task_id"]) if data.get("task_id") else None,
+            task_intent=data.get("task_intent"),
+            task_duration_ms=data.get("task_duration_ms"),
         )

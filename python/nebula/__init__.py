@@ -21,8 +21,10 @@ from .models import (
     FileContent,
     Memory,
     MemoryResponse,
+    ProvenanceChain,
     S3FileRef,
     SearchResult,
+    Task,
     TextContent,
 )
 
@@ -41,6 +43,9 @@ __all__ = [
     "Collection",
     "SearchResult",
     "Chunk",
+    # Procedural memory types
+    "Task",
+    "ProvenanceChain",
     # Multimodal content types
     "FileContent",
     "S3FileRef",
