@@ -1369,4 +1369,5 @@ export class Nebula {
     }
     return response as { upload_url: string; s3_key: string; bucket: string; expires_in: number };
   }
+
 }

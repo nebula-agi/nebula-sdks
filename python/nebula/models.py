@@ -544,7 +544,7 @@ class SearchOptions:
 class MemoryResponse:
     """The result of a memory retrieval operation (search or recall).
 
-    Contains hierarchical memory structures: entities, facts, and utterances.
+    Contains hierarchical memory structures: entities, facts, utterances, and patterns.
     Nested data are stored as raw dicts for performance.
     """
 
@@ -552,6 +552,7 @@ class MemoryResponse:
     entities: list[dict[str, Any]]
     facts: list[dict[str, Any]]
     utterances: list[dict[str, Any]]
+    patterns: list[dict[str, Any]] = field(default_factory=list)
     inference_hints: list[dict[str, Any]] = field(default_factory=list)
     fact_to_chunks: dict[str, list[str]] = field(default_factory=dict)
     entity_to_facts: dict[str, list[str]] = field(default_factory=dict)
@@ -568,6 +569,7 @@ class MemoryResponse:
             entities=data.get("entities", []),
             facts=data.get("facts", []),
             utterances=data.get("utterances", []),
+            patterns=data.get("patterns", []),
             inference_hints=data.get("inference_hints", []) or [],
             focus=data.get("focus"),
             fact_to_chunks=data.get("fact_to_chunks", {}),

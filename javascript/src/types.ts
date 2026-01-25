@@ -174,6 +174,26 @@ export interface ActivatedFact {
   source_chunk_ids: string[];
 }
 
+export interface StrategyStep {
+  action: string;
+  parameters: Record<string, any>;
+  expected_outcome?: string;
+}
+
+export interface ActivatedPattern {
+  pattern_id: string;
+  name: string;
+  description: string;
+  pattern_type: string; // strategy, behavior, constraint, heuristic
+  activation_score: number;
+  confidence: number;
+  strategy_steps: StrategyStep[];
+  trigger_context: Record<string, any>;
+  success_count: number;
+  total_applications: number;
+  learned_from_task_ids?: string[];
+}
+
 export interface GroundedUtterance {
   chunk_id: string;
   text: string;
@@ -216,6 +236,7 @@ export interface MemoryResponse {
   entities: ActivatedEntity[];
   facts: ActivatedFact[];
   utterances: GroundedUtterance[];
+  patterns: ActivatedPattern[];
   inference_hints?: InferenceHint[];
   focus?: RecallFocus;
   fact_to_chunks: Record<string, string[]>;
