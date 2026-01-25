@@ -96,7 +96,7 @@ results = nebula.search(
 
 ## Getting Started
 
-1. Sign up at [https://nebulacloud.app](https://nebulacloud.app)
+1. Sign up at [https://trynebula.ai](https://trynebula.ai)
 2. Get your API key from the dashboard
 3. Install your preferred SDK
 4. Start building with persistent memory
@@ -146,7 +146,7 @@ After cloning, you **must** run `npm install` in the root directory. This instal
 
 ## Community & Support
 
-- [Documentation](https://docs.nebulacloud.app)
+- [Documentation](https://docs.trynebula.ai)
 - [Discord Community](https://discord.gg/nebula)
 - [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
 - Email: support@trynebula.ai

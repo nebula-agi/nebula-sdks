@@ -31,7 +31,7 @@ class TestNebula:
         """Test client initialization with API key"""
         client = Nebula(api_key="test-key")
         assert client.api_key == "test-key"
-        assert client.base_url == "https://api.nebulacloud.app"
+        assert client.base_url == "https://api.trynebula.ai"
         assert client.timeout == 30.0
 
     def test_init_with_env_var(self, monkeypatch):

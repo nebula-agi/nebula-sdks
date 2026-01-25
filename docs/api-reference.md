@@ -23,7 +23,7 @@ import Nebula from '@nebula-ai/sdk';
 
 const client = new Nebula({
   apiKey: 'your-api-key',        // Required
-  baseUrl: 'https://api.nebulacloud.app',  // Optional
+  baseUrl: 'https://api.trynebula.ai',  // Optional
   timeout: 30000                  // Optional, in milliseconds
 });
 ```
@@ -35,7 +35,7 @@ from nebula import Nebula
 
 client = Nebula(
     api_key='your-api-key',        # Required
-    base_url='https://api.nebulacloud.app',  # Optional
+    base_url='https://api.trynebula.ai',  # Optional
     timeout=30.0                    # Optional, in seconds
 )
 ```
@@ -451,7 +451,7 @@ When rate limited, you'll receive a `NebulaRateLimitException` with a `retry-aft
 
 ## Support
 
-- [Full Documentation](https://docs.nebulacloud.app)
+- [Full Documentation](https://docs.trynebula.ai)
 - [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
 - [Discord Community](https://discord.gg/nebula)
 - Email: support@trynebula.ai

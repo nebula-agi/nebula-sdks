@@ -30,8 +30,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://nebulacloud.app"
-Documentation = "https://docs.nebulacloud.app"
+Homepage = "https://trynebula.ai"
+Documentation = "https://docs.trynebula.ai"
 Repository = "https://github.com/nebula-agi/nebula-sdks"
 Issues = "https://github.com/nebula-agi/nebula-sdks/issues"
 Changelog = "https://github.com/nebula-agi/nebula-sdks/blob/main/CHANGELOG.md"

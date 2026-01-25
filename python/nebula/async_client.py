@@ -35,7 +35,7 @@ class AsyncNebula:
     def __init__(
         self,
         api_key: str | None = None,
-        base_url: str = "https://api.nebulacloud.app",
+        base_url: str = "https://api.trynebula.ai",
         timeout: float = 120.0,  # Increased from 30s to handle bulk operations & network delays
     ):
         """

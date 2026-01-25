@@ -41,7 +41,7 @@ export class Nebula {
       );
     }
 
-    this.baseUrl = (config.baseUrl || 'https://api.nebulacloud.app').replace(/\/$/, '');
+    this.baseUrl = (config.baseUrl || 'https://api.trynebula.ai').replace(/\/$/, '');
     this.timeout = config.timeout || 30000;
   }
 
@@ -983,7 +983,7 @@ export class Nebula {
    * - Logical: $and, $or
    *
    * For comprehensive filtering documentation, see the Metadata Filtering Guide:
-   * https://docs.nebulacloud.app/guides/metadata-filtering
+   * https://docs.trynebula.ai/guides/metadata-filtering
    */
   async search(options: {
     query: string;

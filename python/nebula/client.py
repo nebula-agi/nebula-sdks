@@ -39,7 +39,7 @@ class Nebula:
     def __init__(
         self,
         api_key: str | None = None,
-        base_url: str = "https://api.nebulacloud.app",
+        base_url: str = "https://api.trynebula.ai",
         timeout: float = 30.0,
     ):
         """

@@ -47,7 +47,7 @@ def get_api_key() -> str:
 
 def get_base_url() -> str:
     """Get base URL from environment or use default."""
-    return os.getenv("NEBULA_BASE_URL", "https://api.nebulacloud.app")
+    return os.getenv("NEBULA_BASE_URL", "https://api.trynebula.ai")
 
 
 def download_to_temp_file(url: str, suffix: str = ".jpg") -> Path:

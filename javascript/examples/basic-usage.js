@@ -9,7 +9,7 @@ async function basicExample() {
     // Initialize the SDK
     const client = new index_1.NebulaClient({
         apiKey: process.env.NEBULA_API_KEY || 'your-api-key-here',
-        baseUrl: 'https://api.nebulacloud.app',
+        baseUrl: 'https://api.trynebula.ai',
         timeout: 30000
     });
     try {

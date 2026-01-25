@@ -4,7 +4,7 @@ This guide will help you get started with Nebula's official SDKs for JavaScript/
 
 ## Prerequisites
 
-- A Nebula account and API key (sign up at [nebulacloud.app](https://nebulacloud.app))
+- A Nebula account and API key (sign up at [trynebula.ai](https://trynebula.ai))
 - Node.js 18.0.0 or higher (for JavaScript SDK)
 - Python 3.10 or higher (for Python SDK)
 
@@ -252,7 +252,7 @@ except Exception as e:
 
 ## Getting Help
 
-- [Documentation](https://docs.nebulacloud.app)
+- [Documentation](https://docs.trynebula.ai)
 - [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
 - [Discord](https://discord.gg/nebula)
 - Email: support@trynebula.ai

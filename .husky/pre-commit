@@ -49,8 +49,11 @@ if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^py
 
       if [ -n "$MYPY_CMD" ]; then
         # Run mypy per file or in batch. Batch is faster.
-        # We use xargs to pass the files.
-        echo "$STAGED_PYTHON_FILES" | xargs $MYPY_CMD || exit 1
+        # Filter out non-Python files (like pyproject.toml) before passing to mypy
+        MYPY_FILES=$(echo "$STAGED_PYTHON_FILES" | grep -E '\.py$' || true)
+        if [ -n "$MYPY_FILES" ]; then
+          echo "$MYPY_FILES" | xargs $MYPY_CMD || exit 1
+        fi
       fi
     fi
 
