@@ -1382,4 +1382,3 @@ class Nebula:
         if isinstance(response, dict) and "results" in response:
             return dict(response["results"])
         return dict(response)
-
