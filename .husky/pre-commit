@@ -35,7 +35,7 @@ if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^py
         echo "$STAGED_PYTHON_FILES" | xargs git add
       fi
 
-      echo "Running Mypy on staged Python files..."
+      echo "Running Mypy on entire Python package (nebula/)..."
       if command -v mypy >/dev/null 2>&1; then
         MYPY_CMD="mypy"
       elif [ -f ".venv/bin/mypy" ]; then
@@ -48,12 +48,8 @@ if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^py
       fi
 
       if [ -n "$MYPY_CMD" ]; then
-        # Run mypy per file or in batch. Batch is faster.
-        # Filter out non-Python files (like pyproject.toml) before passing to mypy
-        MYPY_FILES=$(echo "$STAGED_PYTHON_FILES" | grep -E '\.py$' || true)
-        if [ -n "$MYPY_FILES" ]; then
-          echo "$MYPY_FILES" | xargs $MYPY_CMD || exit 1
-        fi
+        # Check entire package to catch errors in unchanged files
+        $MYPY_CMD nebula/ || exit 1
       fi
     fi
 
