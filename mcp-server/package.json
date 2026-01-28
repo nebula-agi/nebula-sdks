@@ -1,0 +1,31 @@
+{
+  "name": "@nebula-ai/mcp-server",
+  "version": "0.0.6",
+  "description": "Nebula MCP server (Node) exposing Nebula tools over the Model Context Protocol",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "nebula",
+    "ai",
+    "rag",
+    "claude",
+    "cursor"
+  ],
+  "type": "module",
+  "bin": {
+    "nebula-mcp": "bin/cli.js",
+    "nebula-mcp-install": "bin/install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node bin/cli.js",
+    "build": "echo 'Plain JS - no build step'",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "yargs": "^17.7.2"
+  }
+}
