@@ -26,7 +26,7 @@ from .models import (
     TextContent,
 )
 
-__version__ = "2.1.17"
+__version__ = "2.1.18"
 __all__ = [
     "Nebula",
     "AsyncNebula",

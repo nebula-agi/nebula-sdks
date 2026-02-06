@@ -828,7 +828,7 @@ class AsyncNebula:
             search_settings: Optional advanced search settings including:
                 - semantic_weight: Weight for semantic search (0-1, default: 0.8)
                 - fulltext_weight: Weight for fulltext search (0-1, default: 0.2)
-                - include_metadata: Whether to include metadata in results (default: False)
+                - verbose: Include full metadata, UUIDs, and confidence fields (default: False)
                 - include_scores: Whether to include scores in results (default: True)
 
         Filter Examples:
