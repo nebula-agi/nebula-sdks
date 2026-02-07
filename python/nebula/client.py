@@ -1207,17 +1207,22 @@ class Nebula:
         """
         response = self._make_request("GET", f"/v1/memories/{memory_id}")
 
-        # Handle either a single text or chunks array from the backend
-        content = response.get("text") or response.get("content")
-        chunks = (
-            response.get("chunks") if isinstance(response.get("chunks"), list) else None
+        # Unwrap {"results": {...}} envelope if present
+        data = (
+            response.get("results", response)
+            if isinstance(response, dict)
+            else response
         )
+
+        # Handle either a single text or chunks array from the backend
+        content = data.get("text") or data.get("content")
+        chunks = data.get("chunks") if isinstance(data.get("chunks"), list) else None
         memory_data = {
-            "id": response.get("id"),
+            "id": data.get("id"),
             "content": content,
             "chunks": chunks,
-            "metadata": response.get("metadata", {}),
-            "collection_ids": response.get("collection_ids", []),
+            "metadata": data.get("metadata", {}),
+            "collection_ids": data.get("collection_ids", []),
         }
         return Memory.from_dict(memory_data)
 

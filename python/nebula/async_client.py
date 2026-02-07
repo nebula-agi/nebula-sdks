@@ -803,7 +803,14 @@ class AsyncNebula:
             Memory object
         """
         response = await self._make_request_async("GET", f"/v1/memories/{memory_id}")
-        return Memory.from_dict(response)
+
+        # Unwrap {"results": {...}} envelope if present
+        data = (
+            response.get("results", response)
+            if isinstance(response, dict)
+            else response
+        )
+        return Memory.from_dict(data)
 
     async def search(
         self,
