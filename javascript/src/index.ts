@@ -41,10 +41,12 @@ export const Memory: MemoryFactory = Object.assign(MemoryBase, {
         metadata?: Record<string, unknown>,
         role?: string
     ): Promise<MemoryType> {
+        const path = await import('path');
+        const filename = path.basename(filePath);
         return {
             collection_id,
             content: [await NebulaContent.fromFile(filePath)],
-            metadata: metadata || {},
+            metadata: { filename, ...metadata },
             role
         };
     }
