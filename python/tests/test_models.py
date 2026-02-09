@@ -316,8 +316,8 @@ class TestMemoryResponse:
             "query": "test query",
             "entities": [
                 {
-                    "entity_id": "e1",
-                    "entity_name": "E1",
+                    "id": "e1",
+                    "name": "E1",
                     "activation_score": 1.0,
                     "traversal_depth": 0,
                 }
@@ -331,4 +331,4 @@ class TestMemoryResponse:
         res = MemoryResponse.from_dict(data, query="override")
         assert res.query == "test query"  # prioritized from data
         assert len(res.entities) == 1
-        assert res.entities[0]["entity_name"] == "E1"
+        assert res.entities[0]["name"] == "E1"

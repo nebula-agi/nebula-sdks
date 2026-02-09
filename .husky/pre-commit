@@ -15,7 +15,7 @@ if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^py
 
     # Run Ruff linter and formatter on staged files
     # Filter for Added, Copied, Modified files (exclude Deleted)
-    STAGED_PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep "^python/" | sed 's/^python\///')
+    STAGED_PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep "^python/.*\.py$" | sed 's/^python\///')
     if [ -n "$STAGED_PYTHON_FILES" ]; then
       echo "Running Ruff on staged Python files..."
       if command -v ruff >/dev/null 2>&1; then

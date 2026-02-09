@@ -276,9 +276,9 @@ class TestNebula:
                 "query": "test query",
                 "entities": [
                     {
-                        "entity_id": "entity-1",
-                        "entity_name": "Entity 1",
-                        "entity_category": "person",
+                        "id": "entity-1",
+                        "name": "Entity 1",
+                        "category": "person",
                         "activation_score": 0.95,
                         "activation_reason": "direct match",
                         "traversal_depth": 0,
@@ -288,10 +288,10 @@ class TestNebula:
                 "facts": [],
                 "utterances": [
                     {
-                        "chunk_id": "chunk-1",
+                        "id": "chunk-1",
                         "text": "First memory content",
                         "activation_score": 0.87,
-                        "speaker_name": "User",
+                        "speaker": "User",
                         "supporting_fact_ids": [],
                         "metadata": {},
                     },
@@ -312,7 +312,7 @@ class TestNebula:
         assert isinstance(results, MemoryResponse)
         assert results.query == "test query"
         assert len(results.entities) == 1
-        assert results.entities[0]["entity_name"] == "Entity 1"
+        assert results.entities[0]["name"] == "Entity 1"
         assert results.entities[0]["activation_score"] == 0.95
         assert len(results.utterances) == 1
         assert results.utterances[0]["text"] == "First memory content"

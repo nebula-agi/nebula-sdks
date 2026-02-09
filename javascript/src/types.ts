@@ -142,11 +142,12 @@ export interface RecallFocus {
 }
 
 export interface ActivatedEntity {
-  entity_id: string;
-  entity_name: string;
-  entity_category?: string;
+  id?: string;
+  name: string;
+  category?: string;
   activation_score: number;
   activation_reason?: string;
+  description?: string;
   profile?: any;
   facets?: ActivatedFacet[];
 }
@@ -161,30 +162,31 @@ export interface ActivatedFacet {
 }
 
 export interface ActivatedFact {
-  fact_id: string;
+  id?: string;
   entity_id?: string;
   entity_name?: string;
   facet_name?: string;
   subject: string;
   predicate: string;
-  object_value: string;
+  value: string;
   activation_score: number;
-  extraction_confidence: number;
-  corroboration_count: number;
-  source_chunk_ids: string[];
+  extraction_confidence?: number;
+  corroboration_count?: number;
+  confidence?: number;
+  source_chunk_ids?: string[];
 }
 
 export interface GroundedUtterance {
-  chunk_id: string;
+  id?: string;
   text: string;
   activation_score: number;
   timestamp?: string;
   source_role?: string;
-  speaker_name?: string;
+  speaker?: string;
   display_name?: string;
   engram_id?: string;
   owner_id?: string;
-  supporting_fact_ids: string[];
+  supporting_fact_ids?: string[];
   metadata?: Record<string, unknown>;
 }
 
@@ -218,9 +220,9 @@ export interface MemoryResponse {
   utterances: GroundedUtterance[];
   inference_hints?: InferenceHint[];
   focus?: RecallFocus;
-  fact_to_chunks: Record<string, string[]>;
-  entity_to_facts: Record<string, string[]>;
-  retrieved_at: string;
+  fact_to_chunks?: Record<string, string[]>;
+  entity_to_facts?: Record<string, string[]>;
+  retrieved_at?: string;
   total_traversal_time_ms?: number;
   query_intent?: string;
 }
