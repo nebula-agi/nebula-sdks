@@ -1039,6 +1039,7 @@ export class Nebula {
       focus: memoryResponseData.focus,
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
       query_intent: memoryResponseData.query_intent,
+      token_count: memoryResponseData.token_count,
     };
 
     return memoryResponse;

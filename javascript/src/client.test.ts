@@ -299,7 +299,8 @@ describe('Nebula', () => {
             ],
             fact_to_chunks: {},
             entity_to_facts: {},
-            retrieved_at: '2024-01-01T00:00:00Z'
+            retrieved_at: '2024-01-01T00:00:00Z',
+            token_count: 42
           }
         })
       };
@@ -315,6 +316,7 @@ describe('Nebula', () => {
       expect(results.entities[0].name).toBe('Entity 1');
       expect(results.utterances).toHaveLength(1);
       expect(results.utterances[0].text).toBe('Test content');
+      expect(results.token_count).toBe(42);
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/v1/memories/search'),
         expect.objectContaining({
@@ -440,6 +442,5 @@ describe('Memory Helper', () => {
   // Note: Detailed testing of fromFile requires filesystem mocking which matches
   // the integration test scope more than unit test scope here.
 });
-
 
 

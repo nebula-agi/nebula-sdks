@@ -225,6 +225,7 @@ export interface MemoryResponse {
   retrieved_at?: string;
   total_traversal_time_ms?: number;
   query_intent?: string;
+  token_count?: number;
 }
 
 // Configuration interface
