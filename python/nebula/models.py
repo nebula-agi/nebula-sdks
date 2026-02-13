@@ -553,12 +553,7 @@ class MemoryResponse:
     facts: list[dict[str, Any]]
     utterances: list[dict[str, Any]]
     inference_hints: list[dict[str, Any]] = field(default_factory=list)
-    fact_to_chunks: dict[str, list[str]] = field(default_factory=dict)
-    entity_to_facts: dict[str, list[str]] = field(default_factory=dict)
-    retrieved_at: str = ""
-    focus: dict[str, Any] | None = None
     total_traversal_time_ms: float | None = None
-    query_intent: str | None = None
     token_count: int | None = None
 
     @classmethod
@@ -570,11 +565,6 @@ class MemoryResponse:
             facts=data.get("facts", []),
             utterances=data.get("utterances", []),
             inference_hints=data.get("inference_hints", []) or [],
-            focus=data.get("focus"),
-            fact_to_chunks=data.get("fact_to_chunks", {}),
-            entity_to_facts=data.get("entity_to_facts", {}),
-            retrieved_at=data.get("retrieved_at", ""),
             total_traversal_time_ms=data.get("total_traversal_time_ms"),
-            query_intent=data.get("query_intent"),
             token_count=data.get("token_count"),
         )

@@ -1033,12 +1033,7 @@ export class Nebula {
       facts: memoryResponseData.facts || [],
       utterances: memoryResponseData.utterances || [],
       inference_hints: (memoryResponseData as any).inference_hints || [],
-      fact_to_chunks: memoryResponseData.fact_to_chunks || {},
-      entity_to_facts: memoryResponseData.entity_to_facts || {},
-      retrieved_at: memoryResponseData.retrieved_at || new Date().toISOString(),
-      focus: memoryResponseData.focus,
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
-      query_intent: memoryResponseData.query_intent,
       token_count: memoryResponseData.token_count,
     };
 

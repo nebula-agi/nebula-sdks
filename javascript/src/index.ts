@@ -72,7 +72,6 @@ export {
     GraphRelationshipResult,
     GraphCommunityResult,
     SearchOptions,
-    RecallFocus,
     ActivatedEntity,
     ActivatedFact,
     ActivatedFacet,

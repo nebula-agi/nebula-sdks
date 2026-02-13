@@ -135,12 +135,6 @@ export interface SearchOptions {
 }
 
 // Hierarchical Memory Recall types (matches backend MemoryRecall structure)
-export interface RecallFocus {
-  schema_weight: number;
-  fact_weight: number;
-  episodic_weight: number;
-}
-
 export interface ActivatedEntity {
   id?: string;
   name: string;
@@ -219,12 +213,7 @@ export interface MemoryResponse {
   facts: ActivatedFact[];
   utterances: GroundedUtterance[];
   inference_hints?: InferenceHint[];
-  focus?: RecallFocus;
-  fact_to_chunks?: Record<string, string[]>;
-  entity_to_facts?: Record<string, string[]>;
-  retrieved_at?: string;
   total_traversal_time_ms?: number;
-  query_intent?: string;
   token_count?: number;
 }
 

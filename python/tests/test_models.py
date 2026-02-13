@@ -324,9 +324,6 @@ class TestMemoryResponse:
             ],
             "facts": [],
             "utterances": [],
-            "fact_to_chunks": {},
-            "entity_to_facts": {},
-            "retrieved_at": "2024-01-01T12:00:00Z",
         }
         res = MemoryResponse.from_dict(data, query="override")
         assert res.query == "test query"  # prioritized from data

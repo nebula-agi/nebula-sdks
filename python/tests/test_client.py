@@ -296,9 +296,6 @@ class TestNebula:
                         "metadata": {},
                     },
                 ],
-                "fact_to_chunks": {},
-                "entity_to_facts": {},
-                "retrieved_at": "2024-01-01T00:00:00Z",
             }
         }
         mock_request.return_value = mock_response

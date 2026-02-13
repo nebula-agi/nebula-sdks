@@ -297,9 +297,6 @@ describe('Nebula', () => {
                 metadata: {}
               }
             ],
-            fact_to_chunks: {},
-            entity_to_facts: {},
-            retrieved_at: '2024-01-01T00:00:00Z',
             token_count: 42
           }
         })
