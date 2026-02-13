@@ -559,6 +559,7 @@ class MemoryResponse:
     focus: dict[str, Any] | None = None
     total_traversal_time_ms: float | None = None
     query_intent: str | None = None
+    token_count: int | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], query: str) -> "MemoryResponse":
@@ -575,4 +576,5 @@ class MemoryResponse:
             retrieved_at=data.get("retrieved_at", ""),
             total_traversal_time_ms=data.get("total_traversal_time_ms"),
             query_intent=data.get("query_intent"),
+            token_count=data.get("token_count"),
         )
