@@ -1339,26 +1339,34 @@ class Nebula:
         body: dict[str, Any] = {"collection_id": collection_id}
         if config is not None:
             body["config"] = config
-        response = self._make_request("POST", f"/v1/connectors/{provider}/connect", json_data=body)
+        response = self._make_request(
+            "POST", f"/v1/connectors/{provider}/connect", json_data=body
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
 
     def list_connections(self, collection_id: str) -> list[dict[str, Any]]:
         """List active connections for a collection."""
-        response = self._make_request("GET", "/v1/connectors", params={"collection_id": collection_id})
+        response = self._make_request(
+            "GET", "/v1/connectors", params={"collection_id": collection_id}
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
 
     def list_folders(
-        self, connection_id: str, parent_id: str | None = None,
+        self,
+        connection_id: str,
+        parent_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Browse Google Drive folders for a connection."""
         params: dict[str, Any] = {}
         if parent_id is not None:
             params["parent_id"] = parent_id
-        response = self._make_request("GET", f"/v1/connectors/{connection_id}/folders", params=params or None)
+        response = self._make_request(
+            "GET", f"/v1/connectors/{connection_id}/folders", params=params or None
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
@@ -1371,10 +1379,16 @@ class Nebula:
         return response
 
     def update_connection_config(
-        self, connection_id: str, config: dict[str, Any],
+        self,
+        connection_id: str,
+        config: dict[str, Any],
     ) -> dict[str, Any]:
         """Update connection config (e.g., folder/channel selection)."""
-        response = self._make_request("PATCH", f"/v1/connectors/{connection_id}/config", json_data={"config": config})
+        response = self._make_request(
+            "PATCH",
+            f"/v1/connectors/{connection_id}/config",
+            json_data={"config": config},
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response

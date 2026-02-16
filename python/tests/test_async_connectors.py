@@ -29,7 +29,12 @@ def _make_fake_request(calls: list[dict[str, Any]], default_result: Any = None):
         params: dict[str, Any] | None = None,
     ):
         calls.append(
-            {"method": method, "endpoint": endpoint, "json": json_data, "params": params}
+            {
+                "method": method,
+                "endpoint": endpoint,
+                "json": json_data,
+                "params": params,
+            }
         )
         if default_result is not None:
             return default_result
@@ -56,7 +61,8 @@ def test_connect_provider():
     client = AsyncNebula(api_key="key_pub.raw", base_url="https://example.com")
     calls: list[dict[str, Any]] = []
     client._make_request_async = _make_fake_request(  # type: ignore[assignment]
-        calls, {"results": {"auth_url": "https://accounts.google.com/...", "state": "abc"}}
+        calls,
+        {"results": {"auth_url": "https://accounts.google.com/...", "state": "abc"}},
     )
 
     result = run(client.connect_provider("google_drive", "col-1"))
@@ -75,7 +81,9 @@ def test_connect_provider_with_config():
         calls, {"results": {"auth_url": "https://example.com", "state": "xyz"}}
     )
 
-    result = run(client.connect_provider("google_drive", "col-1", config={"folder_ids": ["f1"]}))
+    result = run(
+        client.connect_provider("google_drive", "col-1", config={"folder_ids": ["f1"]})
+    )
 
     assert result["state"] == "xyz"
     assert calls[0]["json"]["config"] == {"folder_ids": ["f1"]}
@@ -145,7 +153,9 @@ def test_update_connection_config():
         calls, {"results": {"status": "active"}}
     )
 
-    result = run(client.update_connection_config("conn-1", {"folder_ids": ["f1", "f2"]}))
+    result = run(
+        client.update_connection_config("conn-1", {"folder_ids": ["f1", "f2"]})
+    )
 
     assert result["status"] == "active"
     assert calls[0]["method"] == "PATCH"

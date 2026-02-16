@@ -954,49 +954,67 @@ class AsyncNebula:
         body: dict[str, Any] = {"collection_id": collection_id}
         if config is not None:
             body["config"] = config
-        response = await self._make_request_async("POST", f"/v1/connectors/{provider}/connect", json_data=body)
+        response = await self._make_request_async(
+            "POST", f"/v1/connectors/{provider}/connect", json_data=body
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
 
     async def list_connections(self, collection_id: str) -> list[dict[str, Any]]:
         """List active connections for a collection."""
-        response = await self._make_request_async("GET", "/v1/connectors", params={"collection_id": collection_id})
+        response = await self._make_request_async(
+            "GET", "/v1/connectors", params={"collection_id": collection_id}
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
 
     async def list_folders(
-        self, connection_id: str, parent_id: str | None = None,
+        self,
+        connection_id: str,
+        parent_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Browse Google Drive folders for a connection."""
         params: dict[str, Any] = {}
         if parent_id is not None:
             params["parent_id"] = parent_id
-        response = await self._make_request_async("GET", f"/v1/connectors/{connection_id}/folders", params=params or None)
+        response = await self._make_request_async(
+            "GET", f"/v1/connectors/{connection_id}/folders", params=params or None
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
 
     async def list_channels(self, connection_id: str) -> list[dict[str, Any]]:
         """List Slack channels for a connection."""
-        response = await self._make_request_async("GET", f"/v1/connectors/{connection_id}/channels")
+        response = await self._make_request_async(
+            "GET", f"/v1/connectors/{connection_id}/channels"
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
 
     async def update_connection_config(
-        self, connection_id: str, config: dict[str, Any],
+        self,
+        connection_id: str,
+        config: dict[str, Any],
     ) -> dict[str, Any]:
         """Update connection config (e.g., folder/channel selection)."""
-        response = await self._make_request_async("PATCH", f"/v1/connectors/{connection_id}/config", json_data={"config": config})
+        response = await self._make_request_async(
+            "PATCH",
+            f"/v1/connectors/{connection_id}/config",
+            json_data={"config": config},
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
 
     async def disconnect(self, connection_id: str) -> dict[str, Any]:
         """Disconnect an external data source."""
-        response = await self._make_request_async("DELETE", f"/v1/connectors/{connection_id}")
+        response = await self._make_request_async(
+            "DELETE", f"/v1/connectors/{connection_id}"
+        )
         if isinstance(response, dict) and "results" in response:
             return response["results"]
         return response
