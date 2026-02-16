@@ -1040,6 +1040,58 @@ export class Nebula {
     return memoryResponse;
   }
 
+  // Connector Methods
+
+  /** List available connector providers */
+  async listProviders(): Promise<string[]> {
+    const response = await this._makeRequest('GET', '/v1/connectors/providers');
+    return this._unwrapResultsArray<string>(response);
+  }
+
+  /** Start an OAuth connection flow */
+  async connectProvider(
+    provider: string,
+    collectionId: string,
+    config?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = { collection_id: collectionId };
+    if (config !== undefined) body.config = config;
+    const response = await this._makeRequest('POST', `/v1/connectors/${provider}/connect`, body);
+    return this._unwrapResults<Record<string, unknown>>(response);
+  }
+
+  /** List active connections for a collection */
+  async listConnections(collectionId: string): Promise<Record<string, unknown>[]> {
+    const response = await this._makeRequest('GET', '/v1/connectors', undefined, { collection_id: collectionId });
+    return this._unwrapResultsArray<Record<string, unknown>>(response);
+  }
+
+  /** Browse Google Drive folders for a connection */
+  async listFolders(connectionId: string, parentId?: string): Promise<Record<string, unknown>[]> {
+    const params: Record<string, unknown> = {};
+    if (parentId !== undefined) params.parent_id = parentId;
+    const response = await this._makeRequest('GET', `/v1/connectors/${connectionId}/folders`, undefined, Object.keys(params).length ? params : undefined);
+    return this._unwrapResultsArray<Record<string, unknown>>(response);
+  }
+
+  /** List Slack channels for a connection */
+  async listChannels(connectionId: string): Promise<Record<string, unknown>[]> {
+    const response = await this._makeRequest('GET', `/v1/connectors/${connectionId}/channels`);
+    return this._unwrapResultsArray<Record<string, unknown>>(response);
+  }
+
+  /** Update connection config (e.g., folder/channel selection) */
+  async updateConnectionConfig(connectionId: string, config: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const response = await this._makeRequest('PATCH', `/v1/connectors/${connectionId}/config`, { config });
+    return this._unwrapResults<Record<string, unknown>>(response);
+  }
+
+  /** Disconnect an external data source */
+  async disconnect(connectionId: string): Promise<Record<string, unknown>> {
+    const response = await this._makeRequest('DELETE', `/v1/connectors/${connectionId}`);
+    return this._unwrapResults<Record<string, unknown>>(response);
+  }
+
   // Health Check
   async healthCheck(): Promise<Record<string, unknown>> {
     return this._makeRequest('GET', '/v1/health') as Promise<Record<string, unknown>>;

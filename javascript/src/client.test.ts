@@ -356,6 +356,158 @@ describe('Nebula', () => {
     });
   });
 
+  describe('Connectors', () => {
+    it('should list providers', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: ['gmail', 'google_drive'] }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.listProviders();
+
+      expect(result).toEqual(['gmail', 'google_drive']);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/v1/connectors/providers'),
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
+
+    it('should connect provider', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: { auth_url: 'https://accounts.google.com/...', state: 'abc' } }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.connectProvider('google_drive', 'col-1');
+
+      expect(result.auth_url).toBe('https://accounts.google.com/...');
+      expect(result.state).toBe('abc');
+      const [[, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      const body = JSON.parse(String((requestInit as { body?: unknown }).body));
+      expect(body.collection_id).toBe('col-1');
+      expect(body.config).toBeUndefined();
+    });
+
+    it('should connect provider with config', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: { auth_url: 'https://example.com', state: 'xyz' } }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.connectProvider('google_drive', 'col-1', { folder_ids: ['f1'] });
+
+      expect(result.state).toBe('xyz');
+      const [[, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      const body = JSON.parse(String((requestInit as { body?: unknown }).body));
+      expect(body.config).toEqual({ folder_ids: ['f1'] });
+    });
+
+    it('should list connections', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: [{ id: 'conn-1', provider: 'google_drive' }] }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.listConnections('col-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('conn-1');
+      const [[url]] = (global.fetch as jest.Mock).mock.calls;
+      const parsedUrl = new URL(url);
+      expect(parsedUrl.searchParams.get('collection_id')).toBe('col-1');
+    });
+
+    it('should list folders', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: [{ id: 'folder-1', name: 'Docs' }] }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.listFolders('conn-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Docs');
+      const [[url]] = (global.fetch as jest.Mock).mock.calls;
+      expect(url).toContain('/v1/connectors/conn-1/folders');
+    });
+
+    it('should list folders with parent', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: [{ id: 'sub-1', name: 'Subfolder' }] }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.listFolders('conn-1', 'folder-1');
+
+      expect(result).toHaveLength(1);
+      const [[url]] = (global.fetch as jest.Mock).mock.calls;
+      const parsedUrl = new URL(url);
+      expect(parsedUrl.searchParams.get('parent_id')).toBe('folder-1');
+    });
+
+    it('should list channels', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: [{ id: 'C01234ABC', name: 'general' }] }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.listChannels('conn-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('general');
+      const [[url]] = (global.fetch as jest.Mock).mock.calls;
+      expect(url).toContain('/v1/connectors/conn-1/channels');
+    });
+
+    it('should update connection config', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: { status: 'active' } }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.updateConnectionConfig('conn-1', { folder_ids: ['f1', 'f2'] });
+
+      expect(result.status).toBe('active');
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      expect(url).toContain('/v1/connectors/conn-1/config');
+      expect(requestInit.method).toBe('PATCH');
+      const body = JSON.parse(String((requestInit as { body?: unknown }).body));
+      expect(body).toEqual({ config: { folder_ids: ['f1', 'f2'] } });
+    });
+
+    it('should disconnect', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: { status: 'revoked' } }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.disconnect('conn-1');
+
+      expect(result.status).toBe('revoked');
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      expect(url).toContain('/v1/connectors/conn-1');
+      expect(requestInit.method).toBe('DELETE');
+    });
+  });
+
   describe('Conversation via memories', () => {
     it('should store conversation with correct format', async () => {
       const mockResponse = {

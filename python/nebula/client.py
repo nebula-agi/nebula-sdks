@@ -1317,6 +1317,75 @@ class Nebula:
         # The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}
         return MemoryResponse.from_dict(response["results"], query)
 
+    # Connector Methods
+
+    def list_providers(self) -> list[str]:
+        """List available connector providers."""
+        response = self._make_request("GET", "/v1/connectors/providers")
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
+
+    def connect_provider(
+        self,
+        provider: str,
+        collection_id: str,
+        config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Start an OAuth connection flow for a provider.
+
+        Returns dict with ``auth_url`` and ``state``.
+        """
+        body: dict[str, Any] = {"collection_id": collection_id}
+        if config is not None:
+            body["config"] = config
+        response = self._make_request("POST", f"/v1/connectors/{provider}/connect", json_data=body)
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
+
+    def list_connections(self, collection_id: str) -> list[dict[str, Any]]:
+        """List active connections for a collection."""
+        response = self._make_request("GET", "/v1/connectors", params={"collection_id": collection_id})
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
+
+    def list_folders(
+        self, connection_id: str, parent_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Browse Google Drive folders for a connection."""
+        params: dict[str, Any] = {}
+        if parent_id is not None:
+            params["parent_id"] = parent_id
+        response = self._make_request("GET", f"/v1/connectors/{connection_id}/folders", params=params or None)
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
+
+    def list_channels(self, connection_id: str) -> list[dict[str, Any]]:
+        """List Slack channels for a connection."""
+        response = self._make_request("GET", f"/v1/connectors/{connection_id}/channels")
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
+
+    def update_connection_config(
+        self, connection_id: str, config: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Update connection config (e.g., folder/channel selection)."""
+        response = self._make_request("PATCH", f"/v1/connectors/{connection_id}/config", json_data={"config": config})
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
+
+    def disconnect(self, connection_id: str) -> dict[str, Any]:
+        """Disconnect an external data source."""
+        response = self._make_request("DELETE", f"/v1/connectors/{connection_id}")
+        if isinstance(response, dict) and "results" in response:
+            return response["results"]
+        return response
+
     def health_check(self) -> dict[str, Any]:
         """
         Check the health of the Nebula API
