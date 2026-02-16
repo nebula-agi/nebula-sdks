@@ -3,7 +3,7 @@ Main client for the Nebula Client SDK
 """
 
 import os
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -126,8 +126,6 @@ class Nebula:
         - If content is a list, strings are wrapped as TextContent, other items are passed through.
         - If content is not a list, it is wrapped as a single TextContent block.
         """
-        from typing import cast
-
         if isinstance(content, list):
             normalized: list[ContentPart] = []
             for part in content:
@@ -1319,12 +1317,17 @@ class Nebula:
 
     # Connector Methods
 
+    @staticmethod
+    def _unwrap(response: dict[str, Any]) -> Any:
+        """Extract ``results`` from the API response envelope."""
+        return response.get("results", response)
+
     def list_providers(self) -> list[str]:
         """List available connector providers."""
-        response = self._make_request("GET", "/v1/connectors/providers")
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
+        return cast(
+            list[str],
+            self._unwrap(self._make_request("GET", "/v1/connectors/providers")),
+        )
 
     def connect_provider(
         self,
@@ -1339,21 +1342,25 @@ class Nebula:
         body: dict[str, Any] = {"collection_id": collection_id}
         if config is not None:
             body["config"] = config
-        response = self._make_request(
-            "POST", f"/v1/connectors/{provider}/connect", json_data=body
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                self._make_request(
+                    "POST", f"/v1/connectors/{provider}/connect", json_data=body
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     def list_connections(self, collection_id: str) -> list[dict[str, Any]]:
         """List active connections for a collection."""
-        response = self._make_request(
-            "GET", "/v1/connectors", params={"collection_id": collection_id}
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                self._make_request(
+                    "GET", "/v1/connectors", params={"collection_id": collection_id}
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     def list_folders(
         self,
@@ -1364,19 +1371,25 @@ class Nebula:
         params: dict[str, Any] = {}
         if parent_id is not None:
             params["parent_id"] = parent_id
-        response = self._make_request(
-            "GET", f"/v1/connectors/{connection_id}/folders", params=params or None
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                self._make_request(
+                    "GET",
+                    f"/v1/connectors/{connection_id}/folders",
+                    params=params or None,
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     def list_channels(self, connection_id: str) -> list[dict[str, Any]]:
         """List Slack channels for a connection."""
-        response = self._make_request("GET", f"/v1/connectors/{connection_id}/channels")
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                self._make_request("GET", f"/v1/connectors/{connection_id}/channels")
+            ),
+        )
 
     def update_connection_config(
         self,
@@ -1384,21 +1397,25 @@ class Nebula:
         config: dict[str, Any],
     ) -> dict[str, Any]:
         """Update connection config (e.g., folder/channel selection)."""
-        response = self._make_request(
-            "PATCH",
-            f"/v1/connectors/{connection_id}/config",
-            json_data={"config": config},
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                self._make_request(
+                    "PATCH",
+                    f"/v1/connectors/{connection_id}/config",
+                    json_data={"config": config},
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     def disconnect(self, connection_id: str) -> dict[str, Any]:
         """Disconnect an external data source."""
-        response = self._make_request("DELETE", f"/v1/connectors/{connection_id}")
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                self._make_request("DELETE", f"/v1/connectors/{connection_id}")
+            ),
+        )
 
     def health_check(self) -> dict[str, Any]:
         """

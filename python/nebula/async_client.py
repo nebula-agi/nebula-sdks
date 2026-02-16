@@ -3,7 +3,7 @@ Async client for the Nebula Client SDK
 """
 
 import os
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -121,8 +121,6 @@ class AsyncNebula:
         - If content is a list, strings are wrapped as TextContent, other items are passed through.
         - If content is not a list, it is wrapped as a single TextContent block.
         """
-        from typing import cast
-
         if isinstance(content, list):
             normalized: list[ContentPart] = []
             for part in content:
@@ -934,12 +932,19 @@ class AsyncNebula:
 
     # Connector Methods
 
+    @staticmethod
+    def _unwrap(response: dict[str, Any]) -> Any:
+        """Extract ``results`` from the API response envelope."""
+        return response.get("results", response)
+
     async def list_providers(self) -> list[str]:
         """List available connector providers."""
-        response = await self._make_request_async("GET", "/v1/connectors/providers")
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
+        return cast(
+            list[str],
+            self._unwrap(
+                await self._make_request_async("GET", "/v1/connectors/providers")
+            ),
+        )
 
     async def connect_provider(
         self,
@@ -954,21 +959,25 @@ class AsyncNebula:
         body: dict[str, Any] = {"collection_id": collection_id}
         if config is not None:
             body["config"] = config
-        response = await self._make_request_async(
-            "POST", f"/v1/connectors/{provider}/connect", json_data=body
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "POST", f"/v1/connectors/{provider}/connect", json_data=body
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     async def list_connections(self, collection_id: str) -> list[dict[str, Any]]:
         """List active connections for a collection."""
-        response = await self._make_request_async(
-            "GET", "/v1/connectors", params={"collection_id": collection_id}
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                await self._make_request_async(
+                    "GET", "/v1/connectors", params={"collection_id": collection_id}
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     async def list_folders(
         self,
@@ -979,21 +988,27 @@ class AsyncNebula:
         params: dict[str, Any] = {}
         if parent_id is not None:
             params["parent_id"] = parent_id
-        response = await self._make_request_async(
-            "GET", f"/v1/connectors/{connection_id}/folders", params=params or None
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                await self._make_request_async(
+                    "GET",
+                    f"/v1/connectors/{connection_id}/folders",
+                    params=params or None,
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     async def list_channels(self, connection_id: str) -> list[dict[str, Any]]:
         """List Slack channels for a connection."""
-        response = await self._make_request_async(
-            "GET", f"/v1/connectors/{connection_id}/channels"
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                await self._make_request_async(
+                    "GET", f"/v1/connectors/{connection_id}/channels"
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     async def update_connection_config(
         self,
@@ -1001,23 +1016,27 @@ class AsyncNebula:
         config: dict[str, Any],
     ) -> dict[str, Any]:
         """Update connection config (e.g., folder/channel selection)."""
-        response = await self._make_request_async(
-            "PATCH",
-            f"/v1/connectors/{connection_id}/config",
-            json_data={"config": config},
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "PATCH",
+                    f"/v1/connectors/{connection_id}/config",
+                    json_data={"config": config},
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     async def disconnect(self, connection_id: str) -> dict[str, Any]:
         """Disconnect an external data source."""
-        response = await self._make_request_async(
-            "DELETE", f"/v1/connectors/{connection_id}"
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "DELETE", f"/v1/connectors/{connection_id}"
+                )
+            ),
         )
-        if isinstance(response, dict) and "results" in response:
-            return response["results"]
-        return response
 
     async def health_check(self) -> dict[str, Any]:
         return await self._make_request_async("GET", "/v1/health")
