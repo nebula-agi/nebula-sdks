@@ -488,7 +488,7 @@ describe('Nebula', () => {
       expect(url).toContain('/v1/connectors/conn-1/config');
       expect(requestInit.method).toBe('PATCH');
       const body = JSON.parse(String((requestInit as { body?: unknown }).body));
-      expect(body).toEqual({ config: { folder_ids: ['f1', 'f2'] } });
+      expect(body).toEqual({ config: { folder_ids: ['f1', 'f2'] }, apply: 'full_resync' });
     });
 
     it('should disconnect', async () => {
@@ -505,6 +505,102 @@ describe('Nebula', () => {
       const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
       expect(url).toContain('/v1/connectors/conn-1');
       expect(requestInit.method).toBe('DELETE');
+    });
+
+    it('should get connection', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: { id: 'conn-1', health: 'ok' } }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.getConnection('conn-1');
+
+      expect(result.id).toBe('conn-1');
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      expect(url).toContain('/v1/connectors/conn-1');
+      expect(requestInit.method).toBe('GET');
+    });
+
+    it('should trigger sync', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: { message: 'Sync triggered' } }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.triggerSync('conn-1');
+
+      expect(result.message).toBe('Sync triggered');
+      const [[url, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      expect(url).toContain('/v1/connectors/conn-1/sync');
+      expect(requestInit.method).toBe('POST');
+    });
+
+    it('should trigger sync and handle 409', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 409,
+        json: () => Promise.resolve({ message: 'Sync already in progress' }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      await expect(client.triggerSync('conn-1')).rejects.toThrow(NebulaException);
+    });
+
+    it('should disconnect with delete memories', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: { message: 'disconnected', warnings: [] } }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.disconnect('conn-1', true);
+
+      expect(result.warnings).toEqual([]);
+      const [[url]] = (global.fetch as jest.Mock).mock.calls;
+      const parsedUrl = new URL(url);
+      expect(parsedUrl.searchParams.get('delete_memories')).toBe('true');
+    });
+
+    it('should update config with apply', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ results: { status: 'active' } }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.updateConnectionConfig('conn-1', { folder_ids: ['f1'] }, 'full_resync');
+
+      expect(result.status).toBe('active');
+      const [[, requestInit]] = (global.fetch as jest.Mock).mock.calls;
+      const body = JSON.parse(String((requestInit as { body?: unknown }).body));
+      expect(body.apply).toBe('full_resync');
+    });
+
+    it('should parse non-empty disconnect warnings', async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          results: {
+            message: 'disconnected',
+            warnings: [{ code: 'cleanup_partial', message: 'Some memories could not be deleted.' }],
+          },
+        }),
+      };
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await client.disconnect('conn-1', true);
+      const warnings = result.warnings as Array<{ code: string; message: string }>;
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].code).toBe('cleanup_partial');
+      expect(typeof warnings[0].message).toBe('string');
     });
   });
 

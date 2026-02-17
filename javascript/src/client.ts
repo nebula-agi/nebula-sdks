@@ -1080,15 +1080,29 @@ export class Nebula {
     return this._unwrapResultsArray<Record<string, unknown>>(response);
   }
 
+  /** Get a single connection by ID */
+  async getConnection(connectionId: string): Promise<Record<string, unknown>> {
+    const response = await this._makeRequest('GET', `/v1/connectors/${connectionId}`);
+    return this._unwrapResults<Record<string, unknown>>(response);
+  }
+
+  /** Manually trigger a sync for a connection */
+  async triggerSync(connectionId: string): Promise<Record<string, unknown>> {
+    const response = await this._makeRequest('POST', `/v1/connectors/${connectionId}/sync`);
+    return this._unwrapResults<Record<string, unknown>>(response);
+  }
+
   /** Update connection config (e.g., folder/channel selection) */
-  async updateConnectionConfig(connectionId: string, config: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const response = await this._makeRequest('PATCH', `/v1/connectors/${connectionId}/config`, { config });
+  async updateConnectionConfig(connectionId: string, config: Record<string, unknown>, apply: string = 'full_resync'): Promise<Record<string, unknown>> {
+    const response = await this._makeRequest('PATCH', `/v1/connectors/${connectionId}/config`, { config, apply });
     return this._unwrapResults<Record<string, unknown>>(response);
   }
 
   /** Disconnect an external data source */
-  async disconnect(connectionId: string): Promise<Record<string, unknown>> {
-    const response = await this._makeRequest('DELETE', `/v1/connectors/${connectionId}`);
+  async disconnect(connectionId: string, deleteMemories: boolean = false): Promise<Record<string, unknown>> {
+    const params: Record<string, unknown> = {};
+    if (deleteMemories) params.delete_memories = 'true';
+    const response = await this._makeRequest('DELETE', `/v1/connectors/${connectionId}`, undefined, Object.keys(params).length ? params : undefined);
     return this._unwrapResults<Record<string, unknown>>(response);
   }
 

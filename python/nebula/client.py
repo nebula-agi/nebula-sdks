@@ -1391,10 +1391,29 @@ class Nebula:
             ),
         )
 
+    def get_connection(self, connection_id: str) -> dict[str, Any]:
+        """Get a single connection by ID."""
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                self._make_request("GET", f"/v1/connectors/{connection_id}")
+            ),
+        )
+
+    def trigger_sync(self, connection_id: str) -> dict[str, Any]:
+        """Manually trigger a sync for a connection."""
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                self._make_request("POST", f"/v1/connectors/{connection_id}/sync")
+            ),
+        )
+
     def update_connection_config(
         self,
         connection_id: str,
         config: dict[str, Any],
+        apply: str = "full_resync",
     ) -> dict[str, Any]:
         """Update connection config (e.g., folder/channel selection)."""
         return cast(
@@ -1403,17 +1422,26 @@ class Nebula:
                 self._make_request(
                     "PATCH",
                     f"/v1/connectors/{connection_id}/config",
-                    json_data={"config": config},
+                    json_data={"config": config, "apply": apply},
                 )
             ),
         )
 
-    def disconnect(self, connection_id: str) -> dict[str, Any]:
+    def disconnect(
+        self, connection_id: str, delete_memories: bool = False,
+    ) -> dict[str, Any]:
         """Disconnect an external data source."""
+        params: dict[str, Any] = {}
+        if delete_memories:
+            params["delete_memories"] = "true"
         return cast(
             dict[str, Any],
             self._unwrap(
-                self._make_request("DELETE", f"/v1/connectors/{connection_id}")
+                self._make_request(
+                    "DELETE",
+                    f"/v1/connectors/{connection_id}",
+                    params=params or None,
+                )
             ),
         )
 

@@ -7,6 +7,8 @@ import os
 import sys
 from typing import Any
 
+import pytest
+
 _THIS_DIR = os.path.dirname(__file__)
 _PKG_ROOT = os.path.abspath(os.path.join(_THIS_DIR, ".."))
 if _PKG_ROOT not in sys.path:
@@ -160,7 +162,7 @@ def test_update_connection_config():
     assert result["status"] == "active"
     assert calls[0]["method"] == "PATCH"
     assert calls[0]["endpoint"] == "/v1/connectors/conn-1/config"
-    assert calls[0]["json"] == {"config": {"folder_ids": ["f1", "f2"]}}
+    assert calls[0]["json"] == {"config": {"folder_ids": ["f1", "f2"]}, "apply": "full_resync"}
 
 
 def test_disconnect():
@@ -175,3 +177,96 @@ def test_disconnect():
     assert result["status"] == "revoked"
     assert calls[0]["method"] == "DELETE"
     assert calls[0]["endpoint"] == "/v1/connectors/conn-1"
+
+
+def test_get_connection():
+    client = AsyncNebula(api_key="key_pub.raw", base_url="https://example.com")
+    calls: list[dict[str, Any]] = []
+    client._make_request_async = _make_fake_request(  # type: ignore[assignment]
+        calls, {"results": {"id": "conn-1"}}
+    )
+
+    result = run(client.get_connection("conn-1"))
+
+    assert result["id"] == "conn-1"
+    assert calls[0]["endpoint"] == "/v1/connectors/conn-1"
+    assert calls[0]["method"] == "GET"
+
+
+def test_trigger_sync():
+    client = AsyncNebula(api_key="key_pub.raw", base_url="https://example.com")
+    calls: list[dict[str, Any]] = []
+    client._make_request_async = _make_fake_request(  # type: ignore[assignment]
+        calls, {"results": {"message": "Sync triggered"}}
+    )
+
+    result = run(client.trigger_sync("conn-1"))
+
+    assert result["message"] == "Sync triggered"
+    assert calls[0]["endpoint"] == "/v1/connectors/conn-1/sync"
+    assert calls[0]["method"] == "POST"
+
+
+def test_trigger_sync_409():
+    from nebula.exceptions import NebulaException
+
+    client = AsyncNebula(api_key="key_pub.raw", base_url="https://example.com")
+
+    async def _fake_409(method, endpoint, json_data=None, params=None):
+        raise NebulaException("Sync already in progress", 409, {})
+
+    client._make_request_async = _fake_409  # type: ignore[assignment]
+    with pytest.raises(NebulaException):
+        run(client.trigger_sync("conn-1"))
+
+
+def test_disconnect_with_delete_memories():
+    client = AsyncNebula(api_key="key_pub.raw", base_url="https://example.com")
+    calls: list[dict[str, Any]] = []
+    client._make_request_async = _make_fake_request(  # type: ignore[assignment]
+        calls, {"results": {"message": "disconnected", "warnings": []}}
+    )
+
+    result = run(client.disconnect("conn-1", delete_memories=True))
+
+    assert calls[0]["params"]["delete_memories"] == "true"
+    assert "warnings" in result
+
+
+def test_update_connection_config_with_apply():
+    client = AsyncNebula(api_key="key_pub.raw", base_url="https://example.com")
+    calls: list[dict[str, Any]] = []
+    client._make_request_async = _make_fake_request(  # type: ignore[assignment]
+        calls, {"results": {"status": "active"}}
+    )
+
+    result = run(
+        client.update_connection_config("conn-1", {"folder_ids": ["f1"]}, apply="full_resync")
+    )
+
+    assert result["status"] == "active"
+    assert calls[0]["json"]["apply"] == "full_resync"
+
+
+def test_disconnect_warnings_shape():
+    client = AsyncNebula(api_key="key_pub.raw", base_url="https://example.com")
+    calls: list[dict[str, Any]] = []
+    client._make_request_async = _make_fake_request(  # type: ignore[assignment]
+        calls,
+        {
+            "results": {
+                "message": "disconnected",
+                "warnings": [
+                    {"code": "cleanup_partial", "message": "Some memories could not be deleted."}
+                ],
+            }
+        },
+    )
+
+    result = run(client.disconnect("conn-1", delete_memories=True))
+
+    assert len(result["warnings"]) == 1
+    w = result["warnings"][0]
+    assert isinstance(w["code"], str)
+    assert isinstance(w["message"], str)
+    assert w["code"] == "cleanup_partial"

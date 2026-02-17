@@ -1010,10 +1010,33 @@ class AsyncNebula:
             ),
         )
 
+    async def get_connection(self, connection_id: str) -> dict[str, Any]:
+        """Get a single connection by ID."""
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "GET", f"/v1/connectors/{connection_id}"
+                )
+            ),
+        )
+
+    async def trigger_sync(self, connection_id: str) -> dict[str, Any]:
+        """Manually trigger a sync for a connection."""
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "POST", f"/v1/connectors/{connection_id}/sync"
+                )
+            ),
+        )
+
     async def update_connection_config(
         self,
         connection_id: str,
         config: dict[str, Any],
+        apply: str = "full_resync",
     ) -> dict[str, Any]:
         """Update connection config (e.g., folder/channel selection)."""
         return cast(
@@ -1022,18 +1045,25 @@ class AsyncNebula:
                 await self._make_request_async(
                     "PATCH",
                     f"/v1/connectors/{connection_id}/config",
-                    json_data={"config": config},
+                    json_data={"config": config, "apply": apply},
                 )
             ),
         )
 
-    async def disconnect(self, connection_id: str) -> dict[str, Any]:
+    async def disconnect(
+        self, connection_id: str, delete_memories: bool = False,
+    ) -> dict[str, Any]:
         """Disconnect an external data source."""
+        params: dict[str, Any] = {}
+        if delete_memories:
+            params["delete_memories"] = "true"
         return cast(
             dict[str, Any],
             self._unwrap(
                 await self._make_request_async(
-                    "DELETE", f"/v1/connectors/{connection_id}"
+                    "DELETE",
+                    f"/v1/connectors/{connection_id}",
+                    params=params or None,
                 )
             ),
         )
