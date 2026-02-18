@@ -1395,9 +1395,7 @@ class Nebula:
         """Get a single connection by ID."""
         return cast(
             dict[str, Any],
-            self._unwrap(
-                self._make_request("GET", f"/v1/connectors/{connection_id}")
-            ),
+            self._unwrap(self._make_request("GET", f"/v1/connectors/{connection_id}")),
         )
 
     def trigger_sync(self, connection_id: str) -> dict[str, Any]:
@@ -1428,7 +1426,9 @@ class Nebula:
         )
 
     def disconnect(
-        self, connection_id: str, delete_memories: bool = False,
+        self,
+        connection_id: str,
+        delete_memories: bool = False,
     ) -> dict[str, Any]:
         """Disconnect an external data source."""
         params: dict[str, Any] = {}

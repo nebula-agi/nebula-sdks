@@ -1015,9 +1015,7 @@ class AsyncNebula:
         return cast(
             dict[str, Any],
             self._unwrap(
-                await self._make_request_async(
-                    "GET", f"/v1/connectors/{connection_id}"
-                )
+                await self._make_request_async("GET", f"/v1/connectors/{connection_id}")
             ),
         )
 
@@ -1051,7 +1049,9 @@ class AsyncNebula:
         )
 
     async def disconnect(
-        self, connection_id: str, delete_memories: bool = False,
+        self,
+        connection_id: str,
+        delete_memories: bool = False,
     ) -> dict[str, Any]:
         """Disconnect an external data source."""
         params: dict[str, Any] = {}

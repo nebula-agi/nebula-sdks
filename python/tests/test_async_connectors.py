@@ -162,7 +162,10 @@ def test_update_connection_config():
     assert result["status"] == "active"
     assert calls[0]["method"] == "PATCH"
     assert calls[0]["endpoint"] == "/v1/connectors/conn-1/config"
-    assert calls[0]["json"] == {"config": {"folder_ids": ["f1", "f2"]}, "apply": "full_resync"}
+    assert calls[0]["json"] == {
+        "config": {"folder_ids": ["f1", "f2"]},
+        "apply": "full_resync",
+    }
 
 
 def test_disconnect():
@@ -241,7 +244,9 @@ def test_update_connection_config_with_apply():
     )
 
     result = run(
-        client.update_connection_config("conn-1", {"folder_ids": ["f1"]}, apply="full_resync")
+        client.update_connection_config(
+            "conn-1", {"folder_ids": ["f1"]}, apply="full_resync"
+        )
     )
 
     assert result["status"] == "active"
@@ -257,7 +262,10 @@ def test_disconnect_warnings_shape():
             "results": {
                 "message": "disconnected",
                 "warnings": [
-                    {"code": "cleanup_partial", "message": "Some memories could not be deleted."}
+                    {
+                        "code": "cleanup_partial",
+                        "message": "Some memories could not be deleted.",
+                    }
                 ],
             }
         },

@@ -262,7 +262,10 @@ class TestConnectors:
             "results": {
                 "message": "disconnected",
                 "warnings": [
-                    {"code": "cleanup_partial", "message": "Some memories could not be deleted."}
+                    {
+                        "code": "cleanup_partial",
+                        "message": "Some memories could not be deleted.",
+                    }
                 ],
             },
         }
