@@ -205,14 +205,6 @@ if git diff --cached --name-only | grep -q "^javascript/src/"; then
     # Update version
     npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
 
-    # Rebuild dist files so they include the latest source changes
-    echo "Rebuilding JavaScript dist files..."
-    if npm run clean && npm run build; then
-      git add dist/
-    else
-      echo "Warning: JavaScript build failed, dist files may be stale"
-    fi
-
     git add package.json
     git add package-lock.json
     cd ..
