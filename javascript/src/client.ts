@@ -555,8 +555,12 @@ export class Nebula {
     }
   }
 
-  /** Store multiple memories using the unified engrams API */
-  async storeMemories(memories: Memory[]): Promise<string[]> {
+  /** Store multiple memories using the unified engrams API.
+   *  @param memories - List of Memory objects to store.
+   *  @param metadata - Optional memory-level metadata for conversation groups.
+   *    Each Memory's own metadata is used as per-message metadata.
+   */
+  async storeMemories(memories: Memory[], metadata?: Record<string, unknown>): Promise<string[]> {
     const results: string[] = [];
     const convGroups: Record<string, Memory[]> = {};
     const others: Memory[] = [];
@@ -609,7 +613,7 @@ export class Nebula {
           collection_id: collectionId,
           name: 'Conversation',
           messages: messages,
-          metadata: {},
+          metadata: metadata ?? {},
         };
 
         const response = await this._makeRequest('POST', '/v1/memories', data) as { results?: { memory_id?: string; id?: string } };
@@ -630,7 +634,7 @@ export class Nebula {
           collection_id: collectionId,
           content: messages as Memory['content'],
           memory_id: convId,
-          metadata: {},
+          metadata: metadata ?? {},
         };
         await this._appendToMemory(convId, appendMem);
       }

@@ -1,6 +1,6 @@
 {
   "name": "@nebula-ai/sdk",
-  "version": "1.1.27",
+  "version": "1.1.28",
   "description": "Official JavaScript/TypeScript SDK for Nebula AI Memory",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -21,7 +21,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build",
+    "prepare": "tsup",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts --config .eslintrc.js",

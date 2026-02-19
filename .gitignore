@@ -17,6 +17,7 @@ Thumbs.db
 # JavaScript/Node
 javascript/node_modules/
 javascript/build/
+javascript/dist/
 javascript/coverage/
 javascript/.npm
 javascript/*.log
