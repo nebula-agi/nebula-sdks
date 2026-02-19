@@ -108,19 +108,14 @@ interface GraphCommunityResult {
 interface SearchOptions {
     limit: number;
     filters?: Record<string, unknown>;
-    search_mode?: 'fast' | 'super';
-}
-interface RecallFocus {
-    schema_weight: number;
-    fact_weight: number;
-    episodic_weight: number;
 }
 interface ActivatedEntity {
-    entity_id: string;
-    entity_name: string;
-    entity_category?: string;
+    id?: string;
+    name: string;
+    category?: string;
     activation_score: number;
     activation_reason?: string;
+    description?: string;
     profile?: any;
     facets?: ActivatedFacet[];
 }
@@ -133,29 +128,30 @@ interface ActivatedFacet {
     is_noise: boolean;
 }
 interface ActivatedFact {
-    fact_id: string;
+    id?: string;
     entity_id?: string;
     entity_name?: string;
     facet_name?: string;
     subject: string;
     predicate: string;
-    object_value: string;
+    value: string;
     activation_score: number;
-    extraction_confidence: number;
-    corroboration_count: number;
-    source_chunk_ids: string[];
+    extraction_confidence?: number;
+    corroboration_count?: number;
+    confidence?: number;
+    source_chunk_ids?: string[];
 }
 interface GroundedUtterance {
-    chunk_id: string;
+    id?: string;
     text: string;
     activation_score: number;
     timestamp?: string;
     source_role?: string;
-    speaker_name?: string;
+    speaker?: string;
     display_name?: string;
     engram_id?: string;
     owner_id?: string;
-    supporting_fact_ids: string[];
+    supporting_fact_ids?: string[];
     metadata?: Record<string, unknown>;
 }
 interface InferenceHint {
@@ -181,12 +177,8 @@ interface MemoryResponse {
     facts: ActivatedFact[];
     utterances: GroundedUtterance[];
     inference_hints?: InferenceHint[];
-    focus?: RecallFocus;
-    fact_to_chunks: Record<string, string[]>;
-    entity_to_facts: Record<string, string[]>;
-    retrieved_at: string;
     total_traversal_time_ms?: number;
-    query_intent?: string;
+    token_count?: number;
 }
 interface NebulaClientConfig {
     apiKey: string;
@@ -290,8 +282,12 @@ declare class Nebula {
      * @throws NebulaNotFoundException if memory_id doesn't exist
      */
     private _appendToMemory;
-    /** Store multiple memories using the unified engrams API */
-    storeMemories(memories: Memory$1[]): Promise<string[]>;
+    /** Store multiple memories using the unified engrams API.
+     *  @param memories - List of Memory objects to store.
+     *  @param metadata - Optional memory-level metadata for conversation groups.
+     *    Each Memory's own metadata is used as per-message metadata.
+     */
+    storeMemories(memories: Memory$1[], metadata?: Record<string, unknown>): Promise<string[]>;
     /** Delete one or more memories */
     delete(memoryIds: string | string[]): Promise<boolean | {
         message: string;
@@ -475,7 +471,7 @@ declare class Nebula {
      * - Logical: $and, $or
      *
      * For comprehensive filtering documentation, see the Metadata Filtering Guide:
-     * https://docs.nebulacloud.app/guides/metadata-filtering
+     * https://docs.trynebula.ai/guides/metadata-filtering
      */
     search(options: {
         query: string;
@@ -532,4 +528,4 @@ type MemoryFactory = {
 declare const Memory: MemoryFactory;
 type Memory = Memory$1;
 
-export { type ActivatedEntity, type ActivatedFacet, type ActivatedFact, type Chunk, type Collection, type FileContentPart, type GraphCommunityResult, type GraphEntityResult, type GraphRelationshipResult, GraphSearchResultType, type GroundedUtterance, Memory, type MemoryResponse, type MultimodalContentPart, Nebula, NebulaAuthenticationException, type NebulaClientConfig, NebulaClientException, NebulaCollectionNotFoundException, NebulaContent, NebulaException, NebulaNotFoundException, NebulaRateLimitException, NebulaValidationException, type RecallFocus, type S3FileReferencePart, type SearchOptions, type SearchResult, type StructuredChunk, type TextContentPart, Nebula as default };
+export { type ActivatedEntity, type ActivatedFacet, type ActivatedFact, type Chunk, type Collection, type FileContentPart, type GraphCommunityResult, type GraphEntityResult, type GraphRelationshipResult, GraphSearchResultType, type GroundedUtterance, Memory, type MemoryResponse, type MultimodalContentPart, Nebula, NebulaAuthenticationException, type NebulaClientConfig, NebulaClientException, NebulaCollectionNotFoundException, NebulaContent, NebulaException, NebulaNotFoundException, NebulaRateLimitException, NebulaValidationException, type S3FileReferencePart, type SearchOptions, type SearchResult, type StructuredChunk, type TextContentPart, Nebula as default };

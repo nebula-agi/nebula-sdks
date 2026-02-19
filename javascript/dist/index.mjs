@@ -62,7 +62,7 @@ var _Nebula = class _Nebula {
         "API key is required. Pass it to the constructor or set NEBULA_API_KEY environment variable."
       );
     }
-    this.baseUrl = (config.baseUrl || "https://api.nebulacloud.app").replace(/\/$/, "");
+    this.baseUrl = (config.baseUrl || "https://api.trynebula.ai").replace(/\/$/, "");
     this.timeout = config.timeout || 3e4;
   }
   // Public mutators used by tests
@@ -469,8 +469,12 @@ var _Nebula = class _Nebula {
       throw error;
     }
   }
-  /** Store multiple memories using the unified engrams API */
-  async storeMemories(memories) {
+  /** Store multiple memories using the unified engrams API.
+   *  @param memories - List of Memory objects to store.
+   *  @param metadata - Optional memory-level metadata for conversation groups.
+   *    Each Memory's own metadata is used as per-message metadata.
+   */
+  async storeMemories(memories, metadata) {
     const results = [];
     const convGroups = {};
     const others = [];
@@ -513,7 +517,7 @@ var _Nebula = class _Nebula {
           collection_id: collectionId,
           name: "Conversation",
           messages,
-          metadata: {}
+          metadata: metadata ?? {}
         };
         const response = await this._makeRequest("POST", "/v1/memories", data);
         if (response.results) {
@@ -530,7 +534,7 @@ var _Nebula = class _Nebula {
           collection_id: collectionId,
           content: messages,
           memory_id: convId,
-          metadata: {}
+          metadata: metadata ?? {}
         };
         await this._appendToMemory(convId, appendMem);
       }
@@ -812,7 +816,7 @@ var _Nebula = class _Nebula {
    * - Logical: $and, $or
    *
    * For comprehensive filtering documentation, see the Metadata Filtering Guide:
-   * https://docs.nebulacloud.app/guides/metadata-filtering
+   * https://docs.trynebula.ai/guides/metadata-filtering
    */
   async search(options) {
     const data = {
@@ -842,12 +846,8 @@ var _Nebula = class _Nebula {
       facts: memoryResponseData.facts || [],
       utterances: memoryResponseData.utterances || [],
       inference_hints: memoryResponseData.inference_hints || [],
-      fact_to_chunks: memoryResponseData.fact_to_chunks || {},
-      entity_to_facts: memoryResponseData.entity_to_facts || {},
-      retrieved_at: memoryResponseData.retrieved_at || (/* @__PURE__ */ new Date()).toISOString(),
-      focus: memoryResponseData.focus,
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
-      query_intent: memoryResponseData.query_intent
+      token_count: memoryResponseData.token_count
     };
     return memoryResponse;
   }
@@ -1196,10 +1196,12 @@ var Memory2 = Object.assign(MemoryBase, {
    * Helper to create a complete Memory object from a single file.
    */
   async fromFile(filePath, collection_id, metadata, role) {
+    const path = await import('path');
+    const filename = path.basename(filePath);
     return {
       collection_id,
       content: [await NebulaContent.fromFile(filePath)],
-      metadata: metadata || {},
+      metadata: { filename, ...metadata },
       role
     };
   }
