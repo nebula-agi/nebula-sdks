@@ -880,22 +880,13 @@ class Nebula:
                 raise NebulaNotFoundException(memory_id, "Memory") from e
             raise
 
-    def store_memories(
-        self,
-        memories: list[Memory],
-        metadata: dict[str, Any] | None = None,
-    ) -> list[str]:
+    def store_memories(self, memories: list[Memory]) -> list[str]:
         """Store multiple memories using the unified memory API.
 
         All items are processed identically to `store_memory`:
         - Conversations are grouped by conversation memory_id and sent in batches
         - Text/JSON/multimodal memories are stored individually
         - Multimodal content (images, audio, documents) is automatically processed
-
-        Args:
-            memories: List of Memory objects to store.
-            metadata: Optional memory-level metadata for conversation groups.
-                Each Memory's own metadata is used as per-message metadata.
 
         Returns: list of memory_ids in the same order as input memories
         """
@@ -952,7 +943,7 @@ class Nebula:
                     "collection_id": collection_id,
                     "name": "Conversation",
                     "messages": messages,
-                    "metadata": dict(metadata or {}),
+                    "metadata": {},
                 }
                 resp = self._make_request("POST", "/v1/memories", json_data=payload)
                 if not (isinstance(resp, dict) and "results" in resp):
@@ -972,7 +963,7 @@ class Nebula:
                     collection_id=collection_id,
                     content=messages,  # type: ignore[arg-type]
                     memory_id=conv_id,
-                    metadata=dict(metadata or {}),
+                    metadata={},
                 )
                 self._append_to_memory(conv_id, append_mem)
                 results.extend([str(conv_id)] * len(group))
