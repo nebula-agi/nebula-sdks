@@ -325,6 +325,6 @@ def test_store_memory_multimodal_document_uses_content_parts(monkeypatch):
     assert "raw_text" not in payload
     assert isinstance(payload.get("content_parts"), list)
     assert any(
-        isinstance(p, dict) and p.get("type") == "file"
+        isinstance(p, dict) and p.get("type") == "image"
         for p in payload["content_parts"]
     )

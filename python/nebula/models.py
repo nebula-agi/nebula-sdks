@@ -67,6 +67,16 @@ class FileContent:
     filename: str | None = None
     duration_seconds: float | None = None  # Specific to audio
 
+    def __post_init__(self):
+        """Auto-derive content type from media_type when using the default."""
+        if self.type == "file":
+            if self.media_type.startswith("image/"):
+                self.type = "image"
+            elif self.media_type.startswith("audio/"):
+                self.type = "audio"
+            else:
+                self.type = "document"
+
     @classmethod
     def from_path(
         cls,

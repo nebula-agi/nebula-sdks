@@ -262,7 +262,7 @@ class TestNebula:
         assert "raw_text" not in payload
         assert isinstance(payload.get("content_parts"), list)
         assert any(
-            isinstance(p, dict) and p.get("type") == "file"
+            isinstance(p, dict) and p.get("type") == "image"
             for p in payload["content_parts"]
         )
 

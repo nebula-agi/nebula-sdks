@@ -797,6 +797,19 @@ class Nebula:
             "ingestion_mode": "fast",
         }
 
+        # Use the caller-supplied name, or infer from file content if available.
+        doc_name = name
+        if not doc_name and isinstance(memory.content, list):
+            for part in memory.content:
+                fn = getattr(part, "filename", None) or (
+                    part.get("filename") if isinstance(part, dict) else None
+                )
+                if fn:
+                    doc_name = fn
+                    break
+        if doc_name:
+            doc_payload["name"] = doc_name
+
         # Handle multimodal vs plain text content
         if self._is_multimodal_content(memory.content):
             doc_payload["content_parts"] = self._convert_content_parts(
