@@ -3,7 +3,7 @@ Async client for the Nebula Client SDK
 """
 
 import os
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -121,8 +121,6 @@ class AsyncNebula:
         - If content is a list, strings are wrapped as TextContent, other items are passed through.
         - If content is not a list, it is wrapped as a single TextContent block.
         """
-        from typing import cast
-
         if isinstance(content, list):
             normalized: list[ContentPart] = []
             for part in content:
@@ -931,6 +929,144 @@ class AsyncNebula:
         # Backend returns MemoryResponse wrapped in { results: MemoryResponse }
         # The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}
         return MemoryResponse.from_dict(response["results"], query)
+
+    # Connector Methods
+
+    @staticmethod
+    def _unwrap(response: dict[str, Any]) -> Any:
+        """Extract ``results`` from the API response envelope."""
+        return response.get("results", response)
+
+    async def list_providers(self) -> list[str]:
+        """List available connector providers."""
+        return cast(
+            list[str],
+            self._unwrap(
+                await self._make_request_async("GET", "/v1/connectors/providers")
+            ),
+        )
+
+    async def connect_provider(
+        self,
+        provider: str,
+        collection_id: str,
+        config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Start an OAuth connection flow for a provider.
+
+        Returns dict with ``auth_url`` and ``state``.
+        """
+        body: dict[str, Any] = {"collection_id": collection_id}
+        if config is not None:
+            body["config"] = config
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "POST", f"/v1/connectors/{provider}/connect", json_data=body
+                )
+            ),
+        )
+
+    async def list_connections(self, collection_id: str) -> list[dict[str, Any]]:
+        """List active connections for a collection."""
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                await self._make_request_async(
+                    "GET", "/v1/connectors", params={"collection_id": collection_id}
+                )
+            ),
+        )
+
+    async def list_folders(
+        self,
+        connection_id: str,
+        parent_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Browse Google Drive folders for a connection."""
+        params: dict[str, Any] = {}
+        if parent_id is not None:
+            params["parent_id"] = parent_id
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                await self._make_request_async(
+                    "GET",
+                    f"/v1/connectors/{connection_id}/folders",
+                    params=params or None,
+                )
+            ),
+        )
+
+    async def list_channels(self, connection_id: str) -> list[dict[str, Any]]:
+        """List Slack channels for a connection."""
+        return cast(
+            list[dict[str, Any]],
+            self._unwrap(
+                await self._make_request_async(
+                    "GET", f"/v1/connectors/{connection_id}/channels"
+                )
+            ),
+        )
+
+    async def get_connection(self, connection_id: str) -> dict[str, Any]:
+        """Get a single connection by ID."""
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async("GET", f"/v1/connectors/{connection_id}")
+            ),
+        )
+
+    async def trigger_sync(self, connection_id: str) -> dict[str, Any]:
+        """Manually trigger a sync for a connection."""
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "POST", f"/v1/connectors/{connection_id}/sync"
+                )
+            ),
+        )
+
+    async def update_connection_config(
+        self,
+        connection_id: str,
+        config: dict[str, Any],
+        apply: str = "full_resync",
+    ) -> dict[str, Any]:
+        """Update connection config (e.g., folder/channel selection)."""
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "PATCH",
+                    f"/v1/connectors/{connection_id}/config",
+                    json_data={"config": config, "apply": apply},
+                )
+            ),
+        )
+
+    async def disconnect(
+        self,
+        connection_id: str,
+        delete_memories: bool = False,
+    ) -> dict[str, Any]:
+        """Disconnect an external data source."""
+        params: dict[str, Any] = {}
+        if delete_memories:
+            params["delete_memories"] = "true"
+        return cast(
+            dict[str, Any],
+            self._unwrap(
+                await self._make_request_async(
+                    "DELETE",
+                    f"/v1/connectors/{connection_id}",
+                    params=params or None,
+                )
+            ),
+        )
 
     async def health_check(self) -> dict[str, Any]:
         return await self._make_request_async("GET", "/v1/health")
