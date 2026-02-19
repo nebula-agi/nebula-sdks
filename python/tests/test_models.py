@@ -68,7 +68,52 @@ class TestMemory:
         assert len(memory.content) == 1
         assert isinstance(memory.content[0], FileContent)
         assert memory.content[0].data is not None
+        assert memory.content[0].type == "document"
         assert memory.metadata == {"m": 1}
+
+    def test_file_content_type_detection(self, tmp_path):
+        """Test that FileContent.from_path derives type from media_type."""
+        pdf = tmp_path / "report.pdf"
+        pdf.write_bytes(b"%PDF-1.4 fake")
+        fc_pdf = FileContent.from_path(pdf)
+        assert fc_pdf.type == "document"
+        assert fc_pdf.media_type == "application/pdf"
+
+        img = tmp_path / "photo.png"
+        img.write_bytes(b"\x89PNG fake")
+        fc_img = FileContent.from_path(img)
+        assert fc_img.type == "image"
+        assert fc_img.media_type == "image/png"
+
+        audio = tmp_path / "clip.mp3"
+        audio.write_bytes(b"ID3 fake")
+        fc_audio = FileContent.from_path(audio)
+        assert fc_audio.type == "audio"
+        assert fc_audio.media_type == "audio/mpeg"
+
+        unknown = tmp_path / "data.bin"
+        unknown.write_bytes(b"\x00\x01\x02")
+        fc_unknown = FileContent.from_path(unknown)
+        assert fc_unknown.type == "document"
+
+    def test_file_content_type_detection_direct_construction(self):
+        """Test that directly constructed FileContent also derives type."""
+        fc_img = FileContent(data="abc", media_type="image/jpeg", filename="cat.jpg")
+        assert fc_img.type == "image"
+
+        fc_pdf = FileContent(
+            data="abc", media_type="application/pdf", filename="doc.pdf"
+        )
+        assert fc_pdf.type == "document"
+
+        fc_audio = FileContent(data="abc", media_type="audio/mpeg", filename="clip.mp3")
+        assert fc_audio.type == "audio"
+
+        # Explicit type should be preserved
+        fc_explicit = FileContent(
+            data="abc", type="image", media_type="application/pdf"
+        )
+        assert fc_explicit.type == "image"
 
     def test_memory_file_static_helper(self):
         """Test Memory.File static helper"""
