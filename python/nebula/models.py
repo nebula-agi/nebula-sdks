@@ -573,11 +573,11 @@ class MemoryResponse:
         """Create a MemoryResponse from a dictionary response."""
         return cls(
             query=data.get("query", query),
-            entities=data.get("entities", []),
-            knowledge=data.get("knowledge", data.get("facts", [])),
-            episodes=data.get("episodes", []) or [],
-            utterances=data.get("utterances", []),
-            retrieval_hints=data.get("retrieval_hints", data.get("inference_hints", [])) or [],
+            entities=data.get("entities") or [],
+            knowledge=data.get("knowledge") or data.get("facts") or [],
+            episodes=data.get("episodes") or [],
+            utterances=data.get("utterances") or [],
+            retrieval_hints=data.get("retrieval_hints") or data.get("inference_hints") or [],
             total_traversal_time_ms=data.get("total_traversal_time_ms"),
             token_count=data.get("token_count"),
         )
