@@ -155,8 +155,9 @@ export interface ActivatedFacet {
   is_noise: boolean;
 }
 
-export interface ActivatedFact {
+export interface ActivatedKnowledge {
   id?: string;
+  category?: string; // "fact" | "inference" | "task"
   entity_id?: string;
   entity_name?: string;
   facet_name?: string;
@@ -168,7 +169,13 @@ export interface ActivatedFact {
   corroboration_count?: number;
   confidence?: number;
   source_chunk_ids?: string[];
+  reasoning?: string; // inference-specific
+  resolved_at?: string; // task-specific
+  source_nodegroup_ids?: string[]; // inference-specific
 }
+
+// Backward compatibility alias
+export type ActivatedFact = ActivatedKnowledge;
 
 export interface GroundedUtterance {
   id?: string;
@@ -184,7 +191,20 @@ export interface GroundedUtterance {
   metadata?: Record<string, unknown>;
 }
 
-export interface InferenceHint {
+export interface ActivatedEpisode {
+  id?: string;
+  name: string;
+  activation_score: number;
+  status?: string;
+  t_start?: number; // unix epoch float
+  t_last?: number;  // unix epoch float
+  n_facts: number;
+  member_knowledge_ids?: string[];
+  source_chunk_ids?: string[];
+  entity_names?: string[];
+}
+
+export interface RetrievalHint {
   term: string;
   predicate: string;
   object: string;
@@ -207,12 +227,16 @@ export interface InferenceHint {
   inference_metadata?: Record<string, unknown>;
 }
 
+// Backward compatibility alias
+export type InferenceHint = RetrievalHint;
+
 export interface MemoryResponse {
   query: string;
   entities: ActivatedEntity[];
-  facts: ActivatedFact[];
+  knowledge: ActivatedKnowledge[];
+  episodes?: ActivatedEpisode[];
   utterances: GroundedUtterance[];
-  inference_hints?: InferenceHint[];
+  retrieval_hints?: RetrievalHint[];
   total_traversal_time_ms?: number;
   token_count?: number;
 }
