@@ -74,3 +74,8 @@ filterwarnings = [
 [tool.setuptools]
 packages = ["nebula"]
 include-package-data = true 
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+]

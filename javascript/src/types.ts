@@ -150,13 +150,14 @@ export interface ActivatedFacet {
   facet_id: string;
   facet_name: string;
   relevance_score: number;
-  facts: ActivatedFact[];
+  facts: ActivatedKnowledge[];
   coherence_score?: number;
   is_noise: boolean;
 }
 
-export interface ActivatedFact {
+export interface ActivatedKnowledge {
   id?: string;
+  category?: string; // "fact" | "inference" | "task"
   entity_id?: string;
   entity_name?: string;
   facet_name?: string;
@@ -168,6 +169,9 @@ export interface ActivatedFact {
   corroboration_count?: number;
   confidence?: number;
   source_chunk_ids?: string[];
+  reasoning?: string; // inference-specific
+  resolved_at?: string; // task-specific
+  source_nodegroup_ids?: string[]; // inference-specific
 }
 
 export interface GroundedUtterance {
@@ -184,35 +188,25 @@ export interface GroundedUtterance {
   metadata?: Record<string, unknown>;
 }
 
-export interface InferenceHint {
-  term: string;
-  predicate: string;
-  object: string;
-
-  inferred?: boolean;
-  confidence?: number;
-
-  ledger_p_use?: number;
-  ledger_p_true?: number;
-  ledger_p_stable?: number;
-
-  usable_for_rewrite?: boolean;
-  used_for_rewrite?: boolean;
-
-  relationship_id?: string;
-  subject_id?: string;
-  object_id?: string;
-
-  metadata?: Record<string, unknown>;
-  inference_metadata?: Record<string, unknown>;
+export interface ActivatedEpisode {
+  id?: string;
+  name: string;
+  activation_score: number;
+  status?: string;
+  t_start?: number; // unix epoch float
+  t_last?: number;  // unix epoch float
+  n_facts: number;
+  member_knowledge_ids?: string[];
+  source_chunk_ids?: string[];
+  entity_names?: string[];
 }
 
 export interface MemoryResponse {
   query: string;
   entities: ActivatedEntity[];
-  facts: ActivatedFact[];
+  knowledge: ActivatedKnowledge[];
+  episodes?: ActivatedEpisode[];
   utterances: GroundedUtterance[];
-  inference_hints?: InferenceHint[];
   total_traversal_time_ms?: number;
   token_count?: number;
 }

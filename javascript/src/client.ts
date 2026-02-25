@@ -1031,12 +1031,13 @@ export class Nebula {
     const memoryResponseData = response.results as MemoryResponse;
 
     // Ensure we have a proper MemoryResponse structure with all fields
+    // Dual-key fallback for staggered deploys
     const memoryResponse: MemoryResponse = {
       query: memoryResponseData.query || options.query,
       entities: memoryResponseData.entities || [],
-      facts: memoryResponseData.facts || [],
+      knowledge: (memoryResponseData as any).knowledge ?? (memoryResponseData as any).facts ?? [],
+      episodes: (memoryResponseData as any).episodes || [],
       utterances: memoryResponseData.utterances || [],
-      inference_hints: (memoryResponseData as any).inference_hints || [],
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
       token_count: memoryResponseData.token_count,
     };
