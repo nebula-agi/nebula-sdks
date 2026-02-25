@@ -73,7 +73,6 @@ export {
     GraphCommunityResult,
     SearchOptions,
     ActivatedEntity,
-    ActivatedFact,
     ActivatedFacet,
     GroundedUtterance,
     NebulaClientConfig,

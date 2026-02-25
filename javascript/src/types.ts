@@ -150,7 +150,7 @@ export interface ActivatedFacet {
   facet_id: string;
   facet_name: string;
   relevance_score: number;
-  facts: ActivatedFact[];
+  facts: ActivatedKnowledge[];
   coherence_score?: number;
   is_noise: boolean;
 }
@@ -173,9 +173,6 @@ export interface ActivatedKnowledge {
   resolved_at?: string; // task-specific
   source_nodegroup_ids?: string[]; // inference-specific
 }
-
-// Backward compatibility alias
-export type ActivatedFact = ActivatedKnowledge;
 
 export interface GroundedUtterance {
   id?: string;
