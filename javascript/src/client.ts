@@ -1038,7 +1038,6 @@ export class Nebula {
       knowledge: (memoryResponseData as any).knowledge || (memoryResponseData as any).facts || [],
       episodes: (memoryResponseData as any).episodes || [],
       utterances: memoryResponseData.utterances || [],
-      retrieval_hints: (memoryResponseData as any).retrieval_hints || (memoryResponseData as any).inference_hints || [],
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
       token_count: memoryResponseData.token_count,
     };

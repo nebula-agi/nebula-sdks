@@ -286,7 +286,7 @@ describe('Nebula', () => {
                 profile: {}
               }
             ],
-            facts: [],
+            knowledge: [],
             utterances: [
               {
                 id: 'chunk-1',
