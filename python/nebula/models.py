@@ -570,10 +570,13 @@ class MemoryResponse:
     @classmethod
     def from_dict(cls, data: dict[str, Any], query: str) -> "MemoryResponse":
         """Create a MemoryResponse from a dictionary response."""
+        knowledge = data.get("knowledge")
+        if knowledge is None:
+            knowledge = data.get("facts") or []
         return cls(
             query=data.get("query", query),
             entities=data.get("entities") or [],
-            knowledge=data.get("knowledge") or data.get("facts") or [],
+            knowledge=knowledge,
             episodes=data.get("episodes") or [],
             utterances=data.get("utterances") or [],
             total_traversal_time_ms=data.get("total_traversal_time_ms"),

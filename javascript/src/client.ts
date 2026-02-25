@@ -1035,7 +1035,7 @@ export class Nebula {
     const memoryResponse: MemoryResponse = {
       query: memoryResponseData.query || options.query,
       entities: memoryResponseData.entities || [],
-      knowledge: (memoryResponseData as any).knowledge || (memoryResponseData as any).facts || [],
+      knowledge: (memoryResponseData as any).knowledge ?? (memoryResponseData as any).facts ?? [],
       episodes: (memoryResponseData as any).episodes || [],
       utterances: memoryResponseData.utterances || [],
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
