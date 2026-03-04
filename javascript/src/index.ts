@@ -76,7 +76,7 @@ export {
     ActivatedKnowledge,
     ActivatedEpisode,
     ActivatedFacet,
-    GroundedUtterance,
+    GroundedSource,
     NebulaClientConfig,
     NebulaException,
     NebulaClientException,

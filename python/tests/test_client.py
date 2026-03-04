@@ -286,7 +286,7 @@ class TestNebula:
                     },
                 ],
                 "facts": [],
-                "utterances": [
+                "sources": [
                     {
                         "id": "chunk-1",
                         "text": "First memory content",
@@ -311,8 +311,8 @@ class TestNebula:
         assert len(results.entities) == 1
         assert results.entities[0]["name"] == "Entity 1"
         assert results.entities[0]["activation_score"] == 0.95
-        assert len(results.utterances) == 1
-        assert results.utterances[0]["text"] == "First memory content"
+        assert len(results.sources) == 1
+        assert results.sources[0]["text"] == "First memory content"
 
     @patch("httpx.Client.request")
     def test_health_check(self, mock_request):

@@ -1029,54 +1029,54 @@ class Nebula:
             batch_result: bool | dict[str, Any] = response
             return batch_result
 
-    def delete_chunk(self, chunk_id: str) -> bool:
+    def delete_source(self, source_id: str) -> bool:
         """
-        Delete a specific chunk or message within a memory.
+        Delete a specific source within a memory.
 
         Args:
-            chunk_id: The ID of the chunk to delete
+            source_id: The ID of the source to delete
 
         Returns:
             True if successful
 
         Raises:
-            NebulaNotFoundException: If chunk_id doesn't exist
+            NebulaNotFoundException: If source_id doesn't exist
         """
         try:
-            self._make_request("DELETE", f"/v1/chunks/{chunk_id}")
+            self._make_request("DELETE", f"/v1/sources/{source_id}")
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(chunk_id, "Chunk") from e
+                raise NebulaNotFoundException(source_id, "Source") from e
             raise
 
-    def update_chunk(
-        self, chunk_id: str, content: str, metadata: dict[str, Any] | None = None
+    def update_source(
+        self, source_id: str, content: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """
-        Update a specific chunk or message within a memory.
+        Update a specific source within a memory.
 
         Args:
-            chunk_id: The ID of the chunk to update
-            content: New content for the chunk
+            source_id: The ID of the source to update
+            content: New content for the source
             metadata: Optional metadata to update
 
         Returns:
             True if successful
 
         Raises:
-            NebulaNotFoundException: If chunk_id doesn't exist
+            NebulaNotFoundException: If source_id doesn't exist
         """
         payload: dict[str, Any] = {"content": content}
         if metadata is not None:
             payload["metadata"] = metadata
 
         try:
-            self._make_request("PATCH", f"/v1/chunks/{chunk_id}", json_data=payload)
+            self._make_request("PATCH", f"/v1/sources/{source_id}", json_data=payload)
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(chunk_id, "Chunk") from e
+                raise NebulaNotFoundException(source_id, "Source") from e
             raise
 
     def update_memory(
@@ -1092,8 +1092,8 @@ class Nebula:
         Update memory-level properties including name, metadata, and collection associations.
 
         This method allows you to update properties of an entire memory (document or conversation)
-        without modifying its content. For updating individual chunks or messages within a memory,
-        use update_chunk(). For updating content, use store_memory() to append.
+        without modifying its content. For updating individual sources within a memory,
+        use update_source(). For updating content, use store_memory() to append.
 
         Args:
             memory_id: The ID of the memory to update
@@ -1306,7 +1306,7 @@ class Nebula:
 
         Returns:
             MemoryResponse object containing hierarchical memory structure with entities, facts,
-            and utterances
+            and sources
         """
         # Build request data - pass params directly to API (no wrapping needed)
         data: dict[str, Any] = {

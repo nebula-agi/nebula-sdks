@@ -373,7 +373,7 @@ class TestSyncMultimodal:
         )
 
         print(
-            f"✅ Search returned {len(results.utterances)} utterances, {len(results.entities)} entities"
+            f"✅ Search returned {len(results.sources)} sources, {len(results.entities)} entities"
         )
         assert memory_id or results  # Either storage succeeded or we got results
 
@@ -615,7 +615,7 @@ class TestMultimodalIntegration:
         results = client.search(
             query="cities and landmarks", collection_ids=[test_collection.id], limit=10
         )
-        print(f"✅ Search returned {len(results.utterances)} results")
+        print(f"✅ Search returned {len(results.sources)} results")
 
         # 6. List all memories
         memories = client.list_memories(collection_ids=[test_collection.id])
@@ -756,7 +756,7 @@ def run_quick_test():
             query="cat picture", collection_ids=[collection.id], limit=5
         )
         print(
-            f"✅ Search results: {len(results.utterances)} utterances, {len(results.entities)} entities"
+            f"✅ Search results: {len(results.sources)} sources, {len(results.entities)} entities"
         )
 
         # 7. Cleanup

@@ -711,22 +711,22 @@ export class Nebula {
     }
   }
 
-  /** Delete a specific chunk or message within a memory */
-  async deleteChunk(chunkId: string): Promise<boolean> {
+  /** Delete a specific source within a memory */
+  async deleteSource(sourceId: string): Promise<boolean> {
     try {
-      await this._makeRequest('DELETE', `/v1/chunks/${chunkId}`);
+      await this._makeRequest('DELETE', `/v1/sources/${sourceId}`);
       return true;
     } catch (error) {
       if (error instanceof NebulaException && error.statusCode === 404) {
-        throw new NebulaNotFoundException(chunkId, 'Chunk');
+        throw new NebulaNotFoundException(sourceId, 'Source');
       }
       throw error;
     }
   }
 
-  /** Update a specific chunk or message within a memory */
-  async updateChunk(
-    chunkId: string,
+  /** Update a specific source within a memory */
+  async updateSource(
+    sourceId: string,
     content: string,
     metadata?: Record<string, unknown>
   ): Promise<boolean> {
@@ -736,11 +736,11 @@ export class Nebula {
     }
 
     try {
-      await this._makeRequest('PATCH', `/v1/chunks/${chunkId}`, payload);
+      await this._makeRequest('PATCH', `/v1/sources/${sourceId}`, payload);
       return true;
     } catch (error) {
       if (error instanceof NebulaException && error.statusCode === 404) {
-        throw new NebulaNotFoundException(chunkId, 'Chunk');
+        throw new NebulaNotFoundException(sourceId, 'Source');
       }
       throw error;
     }
@@ -750,8 +750,8 @@ export class Nebula {
    * Update memory-level properties including name, metadata, and collection associations.
    *
    * This method allows updating properties of an entire memory (document or conversation)
-   * without modifying its content. For updating individual chunks or messages within a memory,
-   * use updateChunk(). For updating content, use storeMemory() to append.
+   * without modifying its content. For updating individual sources within a memory,
+   * use updateSource(). For updating content, use storeMemory() to append.
    *
    * @param options - Update configuration
    * @param options.memoryId - The ID of the memory to update
@@ -1035,9 +1035,9 @@ export class Nebula {
     const memoryResponse: MemoryResponse = {
       query: memoryResponseData.query || options.query,
       entities: memoryResponseData.entities || [],
-      knowledge: (memoryResponseData as any).knowledge ?? (memoryResponseData as any).facts ?? [],
+      knowledge: (memoryResponseData as any).knowledge ?? [],
       episodes: (memoryResponseData as any).episodes || [],
-      utterances: memoryResponseData.utterances || [],
+      sources: memoryResponseData.sources || (memoryResponseData as any).utterances || [],
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
       token_count: memoryResponseData.token_count,
     };

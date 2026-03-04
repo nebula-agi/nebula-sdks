@@ -174,7 +174,7 @@ export interface ActivatedKnowledge {
   source_nodegroup_ids?: string[]; // inference-specific
 }
 
-export interface GroundedUtterance {
+export interface GroundedSource {
   id?: string;
   text: string;
   activation_score: number;
@@ -206,7 +206,7 @@ export interface MemoryResponse {
   entities: ActivatedEntity[];
   knowledge: ActivatedKnowledge[];
   episodes?: ActivatedEpisode[];
-  utterances: GroundedUtterance[];
+  sources: GroundedSource[];
   total_traversal_time_ms?: number;
   token_count?: number;
 }
