@@ -735,43 +735,43 @@ class AsyncNebula:
             batch_result: bool | dict[str, Any] = response
             return batch_result
 
-    async def delete_chunk(self, chunk_id: str) -> bool:
+    async def delete_source(self, source_id: str) -> bool:
         """
-        Delete a specific chunk or message within a memory.
+        Delete a specific source within a memory.
 
         Args:
-            chunk_id: The ID of the chunk to delete
+            source_id: The ID of the source to delete
 
         Returns:
             True if successful
 
         Raises:
-            NebulaNotFoundException: If chunk_id doesn't exist
+            NebulaNotFoundException: If source_id doesn't exist
         """
         try:
-            await self._make_request_async("DELETE", f"/v1/chunks/{chunk_id}")
+            await self._make_request_async("DELETE", f"/v1/sources/{source_id}")
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(chunk_id, "Chunk") from e
+                raise NebulaNotFoundException(source_id, "Source") from e
             raise
 
-    async def update_chunk(
-        self, chunk_id: str, content: str, metadata: dict[str, Any] | None = None
+    async def update_source(
+        self, source_id: str, content: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """
-        Update a specific chunk or message within a memory.
+        Update a specific source within a memory.
 
         Args:
-            chunk_id: The ID of the chunk to update
-            content: New content for the chunk
+            source_id: The ID of the source to update
+            content: New content for the source
             metadata: Optional metadata to update
 
         Returns:
             True if successful
 
         Raises:
-            NebulaNotFoundException: If chunk_id doesn't exist
+            NebulaNotFoundException: If source_id doesn't exist
         """
         payload: dict[str, Any] = {"content": content}
         if metadata is not None:
@@ -779,12 +779,12 @@ class AsyncNebula:
 
         try:
             await self._make_request_async(
-                "PATCH", f"/v1/chunks/{chunk_id}", json_data=payload
+                "PATCH", f"/v1/sources/{source_id}", json_data=payload
             )
             return True
         except NebulaException as e:
             if e.status_code == 404:
-                raise NebulaNotFoundException(chunk_id, "Chunk") from e
+                raise NebulaNotFoundException(source_id, "Source") from e
             raise
 
     async def list_memories(
@@ -919,7 +919,7 @@ class AsyncNebula:
 
         Returns:
             MemoryResponse object containing hierarchical memory structure with entities, facts,
-            and utterances
+            and sources
         """
         # Build request data - pass params directly to API (no wrapping needed)
         data: dict[str, Any] = {

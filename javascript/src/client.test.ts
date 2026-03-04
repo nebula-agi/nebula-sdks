@@ -287,7 +287,7 @@ describe('Nebula', () => {
               }
             ],
             knowledge: [],
-            utterances: [
+            sources: [
               {
                 id: 'chunk-1',
                 text: 'Test content',
@@ -311,8 +311,8 @@ describe('Nebula', () => {
       expect(results.query).toBe('test query');
       expect(results.entities).toHaveLength(1);
       expect(results.entities[0].name).toBe('Entity 1');
-      expect(results.utterances).toHaveLength(1);
-      expect(results.utterances[0].text).toBe('Test content');
+      expect(results.sources).toHaveLength(1);
+      expect(results.sources[0].text).toBe('Test content');
       expect(results.token_count).toBe(42);
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/v1/memories/search'),

@@ -368,7 +368,7 @@ class TestMemoryResponse:
                 }
             ],
             "facts": [],
-            "utterances": [],
+            "sources": [],
         }
         res = MemoryResponse.from_dict(data, query="override")
         assert res.query == "test query"  # prioritized from data
