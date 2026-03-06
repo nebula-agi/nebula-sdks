@@ -575,7 +575,7 @@ class MemoryResponse:
             entities=data.get("entities") or [],
             knowledge=data.get("knowledge") or [],
             episodes=data.get("episodes") or [],
-            sources=data.get("sources") or data.get("utterances") or [],
+            sources=data.get("sources") or [],
             total_traversal_time_ms=data.get("total_traversal_time_ms"),
             token_count=data.get("token_count"),
         )
