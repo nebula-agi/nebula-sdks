@@ -1037,7 +1037,7 @@ export class Nebula {
       entities: memoryResponseData.entities || [],
       knowledge: (memoryResponseData as any).knowledge ?? [],
       episodes: (memoryResponseData as any).episodes || [],
-      sources: memoryResponseData.sources || (memoryResponseData as any).utterances || [],
+      sources: memoryResponseData.sources || [],
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
       token_count: memoryResponseData.token_count,
     };
