@@ -158,12 +158,13 @@ export interface ActivatedFacet {
 export interface ActivatedKnowledge {
   id?: string;
   category?: string; // "fact" | "inference" | "task"
+  description?: string;
   entity_id?: string;
   entity_name?: string;
   facet_name?: string;
-  subject: string;
-  predicate: string;
-  value: string;
+  subject?: string;
+  predicate?: string;
+  value?: string;
   activation_score: number;
   extraction_confidence?: number;
   corroboration_count?: number;
@@ -190,12 +191,13 @@ export interface GroundedSource {
 
 export interface ActivatedEpisode {
   id?: string;
-  name: string;
+  name?: string;
+  description?: string;
   activation_score: number;
   status?: string;
   t_start?: number; // unix epoch float
   t_last?: number;  // unix epoch float
-  n_facts: number;
+  n_facts?: number;
   member_knowledge_ids?: string[];
   source_chunk_ids?: string[];
   entity_names?: string[];
