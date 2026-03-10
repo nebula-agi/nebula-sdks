@@ -183,7 +183,8 @@ export class Nebula {
     method: string,
     endpoint: string,
     jsonData?: unknown,  // Can be object, array, or primitive for JSON body
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    extraHeaders?: Record<string, string>
   ): Promise<unknown> {
     const url = new URL(endpoint, this.baseUrl);
 
@@ -202,7 +203,7 @@ export class Nebula {
       });
     }
 
-    const headers = this._buildAuthHeaders(true);
+    const headers = { ...this._buildAuthHeaders(true), ...extraHeaders };
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -1024,7 +1025,14 @@ export class Nebula {
       data.search_settings = options.searchSettings;
     }
 
-    const response = await this._makeRequest('POST', '/v1/memories/search', data) as { results?: MemoryResponse };
+    // Single-collection affinity: send header for consistent-hash routing
+    const collectionIds = data.collection_ids as string[] | undefined;
+    const extraHeaders: Record<string, string> | undefined =
+      collectionIds && collectionIds.length === 1
+        ? { 'X-Nebula-Collection-Id': collectionIds[0] }
+        : undefined;
+
+    const response = await this._makeRequest('POST', '/v1/memories/search', data, undefined, extraHeaders) as { results?: MemoryResponse };
 
     // Backend returns MemoryRecall wrapped in { results: MemoryResponse }
     // The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}

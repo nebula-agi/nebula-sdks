@@ -155,6 +155,7 @@ class AsyncNebula:
         endpoint: str,
         json_data: dict[str, Any] | list[str] | str | None = None,
         params: dict[str, Any] | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """
         Make an async HTTP request to the Nebula API
@@ -163,6 +164,8 @@ class AsyncNebula:
         """
         url = urljoin(self.base_url, endpoint)
         headers = self._build_auth_headers(include_content_type=True)
+        if extra_headers:
+            headers.update(extra_headers)
 
         try:
             response = await self._client.request(
@@ -944,8 +947,14 @@ class AsyncNebula:
         if search_settings:
             data["search_settings"] = search_settings
 
+        # Single-collection affinity: send header for consistent-hash routing
+        extra_headers: dict[str, str] | None = None
+        cids = data.get("collection_ids")
+        if isinstance(cids, list) and len(cids) == 1:
+            extra_headers = {"X-Nebula-Collection-Id": str(cids[0])}
+
         response = await self._make_request_async(
-            "POST", "/v1/memories/search", json_data=data
+            "POST", "/v1/memories/search", json_data=data, extra_headers=extra_headers
         )
 
         # Backend returns MemoryResponse wrapped in { results: MemoryResponse }
