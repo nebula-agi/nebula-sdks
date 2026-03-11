@@ -554,16 +554,20 @@ class SearchOptions:
 class MemoryResponse:
     """The result of a memory retrieval operation (search or recall).
 
-    Contains hierarchical memory structures: entities, knowledge (facts,
-    inferences, tasks), episodes, and sources.
+    Contains hierarchical memory structures: knowledge (facts, inferences,
+    tasks), episodes, procedures, and sources.
     Nested data are stored as raw dicts for performance.
+
+    Entities are retrieval scaffolding and are omitted from compact responses.
+    They remain available in verbose mode.
     """
 
     query: str
-    entities: list[dict[str, Any]]
     knowledge: list[dict[str, Any]]
+    procedures: list[dict[str, Any]] = field(default_factory=list)
     episodes: list[dict[str, Any]] = field(default_factory=list)
     sources: list[dict[str, Any]] = field(default_factory=list)
+    entities: list[dict[str, Any]] = field(default_factory=list)
     total_traversal_time_ms: float | None = None
     token_count: int | None = None
 
@@ -572,10 +576,11 @@ class MemoryResponse:
         """Create a MemoryResponse from a dictionary response."""
         return cls(
             query=data.get("query", query),
-            entities=data.get("entities") or [],
             knowledge=data.get("knowledge") or [],
+            procedures=data.get("procedures") or [],
             episodes=data.get("episodes") or [],
             sources=data.get("sources") or [],
+            entities=data.get("entities") or [],
             total_traversal_time_ms=data.get("total_traversal_time_ms"),
             token_count=data.get("token_count"),
         )

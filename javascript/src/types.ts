@@ -201,12 +201,21 @@ export interface ActivatedEpisode {
   entity_names?: string[];
 }
 
+export interface ActivatedProcedure {
+  statement: string;
+  activation_score: number;
+  confidence: number;
+  is_negated?: boolean;
+}
+
 export interface MemoryResponse {
   query: string;
-  entities: ActivatedEntity[];
   knowledge: ActivatedKnowledge[];
+  procedures?: ActivatedProcedure[];
   episodes?: ActivatedEpisode[];
   sources: GroundedSource[];
+  /** Entities are omitted from compact responses; available in verbose mode. */
+  entities?: ActivatedEntity[];
   total_traversal_time_ms?: number;
   token_count?: number;
 }
