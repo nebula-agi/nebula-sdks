@@ -1048,8 +1048,7 @@ export class Nebula {
       sources: memoryResponseData.sources || [],
       total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
       token_count: memoryResponseData.token_count,
-      // Entities are omitted from compact responses; only present in verbose mode.
-      ...(memoryResponseData.entities ? { entities: memoryResponseData.entities } : {}),
+      entities: (memoryResponseData as any).entities || [],
     };
 
     return memoryResponse;

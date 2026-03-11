@@ -216,8 +216,7 @@ export interface MemoryResponse {
   procedures?: ActivatedProcedure[];
   episodes?: ActivatedEpisode[];
   sources: GroundedSource[];
-  /** Entities are omitted from compact responses; available in verbose mode. */
-  entities?: ActivatedEntity[];
+  entities: ActivatedEntity[];
   total_traversal_time_ms?: number;
   token_count?: number;
 }

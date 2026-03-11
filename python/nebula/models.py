@@ -563,7 +563,7 @@ class MemoryResponse:
     """
 
     query: str
-    semantics: list[dict[str, Any]]
+    semantics: list[dict[str, Any]] = field(default_factory=list)
     procedures: list[dict[str, Any]] = field(default_factory=list)
     episodes: list[dict[str, Any]] = field(default_factory=list)
     sources: list[dict[str, Any]] = field(default_factory=list)
