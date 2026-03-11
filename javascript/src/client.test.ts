@@ -275,18 +275,15 @@ describe('Nebula', () => {
         json: () => Promise.resolve({
           results: {
             query: 'test query',
-            entities: [
+            semantics: [
               {
-                id: 'entity-1',
-                name: 'Entity 1',
-                category: 'person',
-                activation_score: 0.95,
-                activation_reason: 'direct match',
-                traversal_depth: 0,
-                profile: {}
+                category: 'fact',
+                subject: 'Entity 1',
+                predicate: 'is_a',
+                value: 'person',
+                activation_score: 0.95
               }
             ],
-            knowledge: [],
             sources: [
               {
                 id: 'chunk-1',
@@ -309,8 +306,9 @@ describe('Nebula', () => {
       });
 
       expect(results.query).toBe('test query');
-      expect(results.entities).toHaveLength(1);
-      expect(results.entities[0].name).toBe('Entity 1');
+      expect(results.entities).toEqual([]);
+      expect(results.semantics).toHaveLength(1);
+      expect(results.semantics[0].subject).toBe('Entity 1');
       expect(results.sources).toHaveLength(1);
       expect(results.sources[0].text).toBe('Test content');
       expect(results.token_count).toBe(42);

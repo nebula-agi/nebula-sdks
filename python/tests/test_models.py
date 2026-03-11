@@ -356,21 +356,65 @@ class TestSearchResult:
 class TestMemoryResponse:
     """Test cases for MemoryResponse (retrieval result)"""
 
-    def test_memory_response_from_dict(self):
+    def test_memory_response_from_dict_semantics(self):
+        """Canonical response with `semantics` key."""
         data = {
             "query": "test query",
-            "entities": [
+            "semantics": [
                 {
-                    "id": "e1",
-                    "name": "E1",
-                    "activation_score": 1.0,
-                    "traversal_depth": 0,
+                    "id": "s1",
+                    "category": "fact",
+                    "description": "X is Y",
+                    "activation_score": 0.9,
                 }
             ],
-            "facts": [],
-            "sources": [],
+            "procedures": [
+                {
+                    "statement": "Prefers dark mode",
+                    "activation_score": 0.8,
+                    "confidence": 0.7,
+                }
+            ],
+            "episodes": [],
+            "sources": [{"id": "src1", "text": "raw text", "activation_score": 0.85}],
         }
         res = MemoryResponse.from_dict(data, query="override")
         assert res.query == "test query"  # prioritized from data
-        assert len(res.entities) == 1
-        assert res.entities[0]["name"] == "E1"
+        assert len(res.semantics) == 1
+        assert res.semantics[0]["category"] == "fact"
+        assert len(res.procedures) == 1
+        assert res.procedures[0]["statement"] == "Prefers dark mode"
+        assert res.entities == []  # omitted from compact response
+        assert len(res.sources) == 1
+
+    def test_memory_response_from_dict_knowledge_fallback(self):
+        """Backward-compat: `knowledge` key falls back to `semantics`."""
+        data = {
+            "query": "test query",
+            "knowledge": [
+                {
+                    "id": "k1",
+                    "category": "fact",
+                    "subject": "X",
+                    "predicate": "is",
+                    "value": "Y",
+                }
+            ],
+            "sources": [],
+        }
+        res = MemoryResponse.from_dict(data, query="fallback query")
+        assert res.query == "test query"
+        assert len(res.semantics) == 1
+        assert res.semantics[0]["id"] == "k1"
+        assert res.procedures == []
+        assert res.episodes == []
+
+    def test_memory_response_from_dict_empty(self):
+        """Empty/missing keys default to empty lists."""
+        data = {"query": "q"}
+        res = MemoryResponse.from_dict(data, query="q")
+        assert res.semantics == []
+        assert res.procedures == []
+        assert res.episodes == []
+        assert res.sources == []
+        assert res.entities == []

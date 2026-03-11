@@ -150,12 +150,12 @@ export interface ActivatedFacet {
   facet_id: string;
   facet_name: string;
   relevance_score: number;
-  facts: ActivatedKnowledge[];
+  facts: ActivatedSemantic[];
   coherence_score?: number;
   is_noise: boolean;
 }
 
-export interface ActivatedKnowledge {
+export interface ActivatedSemantic {
   id?: string;
   category?: string; // "fact" | "inference" | "task"
   description?: string;
@@ -198,17 +198,25 @@ export interface ActivatedEpisode {
   t_start?: number; // unix epoch float
   t_last?: number;  // unix epoch float
   n_facts?: number;
-  member_knowledge_ids?: string[];
+  member_semantic_ids?: string[];
   source_chunk_ids?: string[];
   entity_names?: string[];
 }
 
+export interface ActivatedProcedure {
+  statement: string;
+  activation_score: number;
+  confidence: number;
+  is_negated?: boolean;
+}
+
 export interface MemoryResponse {
   query: string;
-  entities: ActivatedEntity[];
-  knowledge: ActivatedKnowledge[];
+  semantics: ActivatedSemantic[];
+  procedures?: ActivatedProcedure[];
   episodes?: ActivatedEpisode[];
   sources: GroundedSource[];
+  entities: ActivatedEntity[];
   total_traversal_time_ms?: number;
   token_count?: number;
 }

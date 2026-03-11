@@ -274,18 +274,15 @@ class TestNebula:
         mock_response.json.return_value = {
             "results": {
                 "query": "test query",
-                "entities": [
+                "semantics": [
                     {
-                        "id": "entity-1",
-                        "name": "Entity 1",
-                        "category": "person",
+                        "category": "fact",
+                        "subject": "Entity 1",
+                        "predicate": "is_a",
+                        "value": "person",
                         "activation_score": 0.95,
-                        "activation_reason": "direct match",
-                        "traversal_depth": 0,
-                        "profile": {},
                     },
                 ],
-                "facts": [],
                 "sources": [
                     {
                         "id": "chunk-1",
@@ -308,9 +305,9 @@ class TestNebula:
 
         assert isinstance(results, MemoryResponse)
         assert results.query == "test query"
-        assert len(results.entities) == 1
-        assert results.entities[0]["name"] == "Entity 1"
-        assert results.entities[0]["activation_score"] == 0.95
+        assert len(results.entities) == 0
+        assert len(results.semantics) == 1
+        assert results.semantics[0]["subject"] == "Entity 1"
         assert len(results.sources) == 1
         assert results.sources[0]["text"] == "First memory content"
 
