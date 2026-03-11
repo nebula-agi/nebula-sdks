@@ -306,7 +306,7 @@ describe('Nebula', () => {
       });
 
       expect(results.query).toBe('test query');
-      expect(results.entities).toBeUndefined();
+      expect(results.entities).toEqual([]);
       expect(results.semantics).toHaveLength(1);
       expect(results.semantics[0].subject).toBe('Entity 1');
       expect(results.sources).toHaveLength(1);

@@ -361,10 +361,19 @@ class TestMemoryResponse:
         data = {
             "query": "test query",
             "semantics": [
-                {"id": "s1", "category": "fact", "description": "X is Y", "activation_score": 0.9}
+                {
+                    "id": "s1",
+                    "category": "fact",
+                    "description": "X is Y",
+                    "activation_score": 0.9,
+                }
             ],
             "procedures": [
-                {"statement": "Prefers dark mode", "activation_score": 0.8, "confidence": 0.7}
+                {
+                    "statement": "Prefers dark mode",
+                    "activation_score": 0.8,
+                    "confidence": 0.7,
+                }
             ],
             "episodes": [],
             "sources": [{"id": "src1", "text": "raw text", "activation_score": 0.85}],
@@ -383,7 +392,13 @@ class TestMemoryResponse:
         data = {
             "query": "test query",
             "knowledge": [
-                {"id": "k1", "category": "fact", "subject": "X", "predicate": "is", "value": "Y"}
+                {
+                    "id": "k1",
+                    "category": "fact",
+                    "subject": "X",
+                    "predicate": "is",
+                    "value": "Y",
+                }
             ],
             "sources": [],
         }
