@@ -1305,7 +1305,7 @@ class Nebula:
             Logical: $and, $or
 
         Returns:
-            MemoryResponse object containing hierarchical memory structure with entities, knowledge,
+            MemoryResponse object containing hierarchical memory structure with entities, semantics,
             and sources
         """
         # Build request data - pass params directly to API (no wrapping needed)

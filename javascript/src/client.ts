@@ -1034,7 +1034,7 @@ export class Nebula {
     // Dual-key fallback for staggered deploys
     const memoryResponse: MemoryResponse = {
       query: memoryResponseData.query || options.query,
-      knowledge: (memoryResponseData as any).knowledge ?? [],
+      semantics: (memoryResponseData as any).semantics ?? (memoryResponseData as any).knowledge ?? [],
       procedures: (memoryResponseData as any).procedures || [],
       episodes: (memoryResponseData as any).episodes || [],
       sources: memoryResponseData.sources || [],

@@ -554,7 +554,7 @@ class SearchOptions:
 class MemoryResponse:
     """The result of a memory retrieval operation (search or recall).
 
-    Contains hierarchical memory structures: knowledge (facts, inferences,
+    Contains hierarchical memory structures: semantics (facts, inferences,
     tasks), episodes, procedures, and sources.
     Nested data are stored as raw dicts for performance.
 
@@ -563,7 +563,7 @@ class MemoryResponse:
     """
 
     query: str
-    knowledge: list[dict[str, Any]]
+    semantics: list[dict[str, Any]]
     procedures: list[dict[str, Any]] = field(default_factory=list)
     episodes: list[dict[str, Any]] = field(default_factory=list)
     sources: list[dict[str, Any]] = field(default_factory=list)
@@ -576,7 +576,7 @@ class MemoryResponse:
         """Create a MemoryResponse from a dictionary response."""
         return cls(
             query=data.get("query", query),
-            knowledge=data.get("knowledge") or [],
+            semantics=data.get("semantics") or data.get("knowledge") or [],
             procedures=data.get("procedures") or [],
             episodes=data.get("episodes") or [],
             sources=data.get("sources") or [],

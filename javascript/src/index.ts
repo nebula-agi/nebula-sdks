@@ -73,7 +73,7 @@ export {
     GraphCommunityResult,
     SearchOptions,
     ActivatedEntity,
-    ActivatedKnowledge,
+    ActivatedSemantic,
     ActivatedProcedure,
     ActivatedEpisode,
     ActivatedFacet,
