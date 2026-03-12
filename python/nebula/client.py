@@ -199,6 +199,7 @@ class Nebula:
         endpoint: str,
         json_data: Any | None = None,
         params: dict[str, Any] | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """
         Make an HTTP request to the Nebula API
@@ -208,6 +209,7 @@ class Nebula:
             endpoint: API endpoint (e.g., "/v1/memories")
             json_data: JSON data to send in request body
             params: Query parameters
+            extra_headers: Additional headers to include in the request
 
         Returns:
             Response data as dictionary
@@ -218,6 +220,8 @@ class Nebula:
         """
         url = urljoin(self.base_url, endpoint)
         headers = self._build_auth_headers(include_content_type=True)
+        if extra_headers:
+            headers.update(extra_headers)
 
         try:
             response = self._client.request(
@@ -1307,6 +1311,18 @@ class Nebula:
         Returns:
             MemoryResponse object containing hierarchical memory structure with entities, semantics,
             and sources
+
+        Note - Routing:
+            When ``collection_ids`` is provided, the SDK automatically sends an
+            ``X-Nebula-Collection-Id`` header with the first collection ID.
+            This enables consistent-hash routing at the infrastructure layer so
+            that searches for the same collection are pinned to the same pod.
+            If you call the REST API directly (e.g. via curl), including this
+            header is recommended for optimal performance::
+
+                curl -X POST https://api.trynebula.ai/v1/memories/search \\
+                  -H "X-Nebula-Collection-Id: <collection-id>" \\
+                  ...
         """
         # Build request data - pass params directly to API (no wrapping needed)
         data: dict[str, Any] = {
@@ -1331,7 +1347,17 @@ class Nebula:
         if search_settings:
             data["search_settings"] = search_settings
 
-        response = self._make_request("POST", "/v1/memories/search", json_data=data)
+        # Send the primary collection ID as a routing header for consistent-hash
+        # load balancing at the ingress layer.
+        routing_headers: dict[str, str] = {}
+        if collection_ids:
+            valid = [cid for cid in collection_ids if cid and str(cid).strip()]
+            if valid:
+                routing_headers["X-Nebula-Collection-Id"] = str(valid[0])
+
+        response = self._make_request(
+            "POST", "/v1/memories/search", json_data=data, extra_headers=routing_headers or None
+        )
 
         # Backend returns MemoryResponse wrapped in { results: MemoryResponse }
         # The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}

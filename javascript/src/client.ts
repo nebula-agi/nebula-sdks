@@ -183,7 +183,8 @@ export class Nebula {
     method: string,
     endpoint: string,
     jsonData?: unknown,  // Can be object, array, or primitive for JSON body
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    extraHeaders?: Record<string, string>
   ): Promise<unknown> {
     const url = new URL(endpoint, this.baseUrl);
 
@@ -202,7 +203,7 @@ export class Nebula {
       });
     }
 
-    const headers = this._buildAuthHeaders(true);
+    const headers = { ...this._buildAuthHeaders(true), ...extraHeaders };
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -988,6 +989,20 @@ export class Nebula {
    *
    * For comprehensive filtering documentation, see the Metadata Filtering Guide:
    * https://docs.trynebula.ai/guides/metadata-filtering
+   *
+   * @remarks
+   * Routing: When `collection_ids` is provided, the SDK automatically sends
+   * an `X-Nebula-Collection-Id` header with the first collection ID. This
+   * enables consistent-hash routing at the infrastructure layer so that
+   * searches for the same collection are pinned to the same pod. If you call
+   * the REST API directly (e.g. via curl), including this header is
+   * recommended for optimal performance:
+   *
+   * ```
+   * curl -X POST https://api.trynebula.ai/v1/memories/search \
+   *   -H "X-Nebula-Collection-Id: <collection-id>" \
+   *   ...
+   * ```
    */
   async search(options: {
     query: string;
@@ -1024,7 +1039,17 @@ export class Nebula {
       data.search_settings = options.searchSettings;
     }
 
-    const response = await this._makeRequest('POST', '/v1/memories/search', data) as { results?: MemoryResponse };
+    // Send the primary collection ID as a routing header for consistent-hash
+    // load balancing at the ingress layer.
+    const routingHeaders: Record<string, string> = {};
+    if (options.collection_ids) {
+      const ids = Array.isArray(options.collection_ids) ? options.collection_ids : [options.collection_ids];
+      if (ids.length > 0 && ids[0]) {
+        routingHeaders['X-Nebula-Collection-Id'] = ids[0];
+      }
+    }
+
+    const response = await this._makeRequest('POST', '/v1/memories/search', data, undefined, routingHeaders) as { results?: MemoryResponse };
 
     // Backend returns MemoryRecall wrapped in { results: MemoryResponse }
     // The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}
