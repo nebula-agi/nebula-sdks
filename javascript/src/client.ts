@@ -1025,12 +1025,17 @@ export class Nebula {
       data.search_settings = options.searchSettings;
     }
 
-    // Single-collection affinity: send header for consistent-hash routing
+    // Collection affinity: send header for consistent-hash routing.
+    // Single-collection: send the ID directly. Multi-collection: send a stable
+    // synthetic key (sorted + joined) so requests for the same set of collections
+    // land on the same pod instead of all hashing on the empty string.
     const collectionIds = data.collection_ids as string[] | undefined;
-    const extraHeaders: Record<string, string> | undefined =
-      collectionIds && collectionIds.length === 1
-        ? { 'X-Nebula-Collection-Id': collectionIds[0] }
-        : undefined;
+    let extraHeaders: Record<string, string> | undefined;
+    if (collectionIds && collectionIds.length === 1) {
+      extraHeaders = { 'X-Nebula-Collection-Id': collectionIds[0] };
+    } else if (collectionIds && collectionIds.length > 1) {
+      extraHeaders = { 'X-Nebula-Collection-Id': [...collectionIds].sort().join(',') };
+    }
 
     const response = await this._makeRequest('POST', '/v1/memories/search', data, undefined, extraHeaders) as { results?: MemoryResponse };
 

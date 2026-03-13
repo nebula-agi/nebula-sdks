@@ -947,11 +947,17 @@ class AsyncNebula:
         if search_settings:
             data["search_settings"] = search_settings
 
-        # Single-collection affinity: send header for consistent-hash routing
+        # Collection affinity: send header for consistent-hash routing.
+        # Single-collection: send the ID directly. Multi-collection: send a stable
+        # synthetic key so requests for the same set land on the same pod.
         extra_headers: dict[str, str] | None = None
         cids = data.get("collection_ids")
         if isinstance(cids, list) and len(cids) == 1:
             extra_headers = {"X-Nebula-Collection-Id": str(cids[0])}
+        elif isinstance(cids, list) and len(cids) > 1:
+            extra_headers = {
+                "X-Nebula-Collection-Id": ",".join(sorted(str(c) for c in cids))
+            }
 
         response = await self._make_request_async(
             "POST", "/v1/memories/search", json_data=data, extra_headers=extra_headers
