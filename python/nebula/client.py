@@ -199,6 +199,7 @@ class Nebula:
         endpoint: str,
         json_data: Any | None = None,
         params: dict[str, Any] | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """
         Make an HTTP request to the Nebula API
@@ -208,6 +209,7 @@ class Nebula:
             endpoint: API endpoint (e.g., "/v1/memories")
             json_data: JSON data to send in request body
             params: Query parameters
+            extra_headers: Additional headers to include
 
         Returns:
             Response data as dictionary
@@ -218,6 +220,8 @@ class Nebula:
         """
         url = urljoin(self.base_url, endpoint)
         headers = self._build_auth_headers(include_content_type=True)
+        if extra_headers:
+            headers.update(extra_headers)
 
         try:
             response = self._client.request(
@@ -1331,7 +1335,19 @@ class Nebula:
         if search_settings:
             data["search_settings"] = search_settings
 
-        response = self._make_request("POST", "/v1/memories/search", json_data=data)
+        # Send collection ID header for ingress affinity routing (upstream-hash-by).
+        # Single-collection: send the ID directly. Multi-collection: send a stable
+        # synthetic key so requests for the same set land on the same pod.
+        extra: dict[str, str] = {}
+        ids = data.get("collection_ids")
+        if ids and len(ids) == 1:
+            extra["X-Nebula-Collection-Id"] = ids[0]
+        elif ids and len(ids) > 1:
+            extra["X-Nebula-Collection-Id"] = ",".join(sorted(ids))
+
+        response = self._make_request(
+            "POST", "/v1/memories/search", json_data=data, extra_headers=extra or None
+        )
 
         # Backend returns MemoryResponse wrapped in { results: MemoryResponse }
         # The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}

@@ -183,7 +183,8 @@ export class Nebula {
     method: string,
     endpoint: string,
     jsonData?: unknown,  // Can be object, array, or primitive for JSON body
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    extraHeaders?: Record<string, string>
   ): Promise<unknown> {
     const url = new URL(endpoint, this.baseUrl);
 
@@ -202,7 +203,7 @@ export class Nebula {
       });
     }
 
-    const headers = this._buildAuthHeaders(true);
+    const headers = { ...this._buildAuthHeaders(true), ...extraHeaders };
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -1024,7 +1025,19 @@ export class Nebula {
       data.search_settings = options.searchSettings;
     }
 
-    const response = await this._makeRequest('POST', '/v1/memories/search', data) as { results?: MemoryResponse };
+    // Send collection ID header for ingress affinity routing (upstream-hash-by).
+    // Single-collection: send the ID directly. Multi-collection: send a stable
+    // synthetic key (sorted + joined) so requests for the same set of collections
+    // land on the same pod instead of all hashing on the empty string.
+    const routingHeaders: Record<string, string> = {};
+    const ids = data.collection_ids as string[] | undefined;
+    if (ids && ids.length === 1) {
+      routingHeaders['X-Nebula-Collection-Id'] = ids[0];
+    } else if (ids && ids.length > 1) {
+      routingHeaders['X-Nebula-Collection-Id'] = [...ids].sort().join(',');
+    }
+
+    const response = await this._makeRequest('POST', '/v1/memories/search', data, undefined, routingHeaders) as { results?: MemoryResponse };
 
     // Backend returns MemoryRecall wrapped in { results: MemoryResponse }
     // The @base_endpoint decorator always wraps successful responses as {"results": MemoryResponse}
