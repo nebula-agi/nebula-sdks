@@ -1107,3 +1107,67 @@ class AsyncNebula:
 
     async def health_check(self) -> dict[str, Any]:
         return await self._make_request_async("GET", "/v1/health")
+
+    # ------------------------------------------------------------------
+    # Device Memory
+    # ------------------------------------------------------------------
+
+    async def export_snapshot(self, collection_id: str) -> dict[str, Any]:
+        """Export a collection's full graph state as a portable snapshot."""
+        response = await self._make_request_async(
+            "POST",
+            "/v1/device-memory/snapshot/export",
+            json_data={"collection_id": collection_id},
+        )
+        return cast(dict[str, Any], self._unwrap(response))
+
+    async def import_snapshot(self, snapshot: dict[str, Any]) -> str:
+        """Import a snapshot into an ephemeral server-side collection.
+
+        Returns the ephemeral collection ID.
+        """
+        response = await self._make_request_async(
+            "POST",
+            "/v1/device-memory/snapshot/import",
+            json_data={"snapshot": snapshot},
+        )
+        result = self._unwrap(response)
+        return str(result.get("ephemeral_collection_id", ""))  # type: ignore[union-attr]
+
+    async def compute(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Run extraction and consolidation over new events.
+
+        Returns a PatchEnvelope dict with put/delete ops and the next root hash.
+        """
+        response = await self._make_request_async(
+            "POST",
+            "/v1/device-memory/compute",
+            json_data={"request": request},
+        )
+        return cast(dict[str, Any], self._unwrap(response))
+
+    async def query_snapshot(
+        self,
+        snapshot: dict[str, Any],
+        query: str,
+        *,
+        query_embedding: list[float] | None = None,
+        limit: int = 10,
+    ) -> dict[str, Any]:
+        """Run stateless traversal over a client-provided snapshot.
+
+        Returns dict with ``entities`` and ``relationships`` lists.
+        """
+        data: dict[str, Any] = {
+            "snapshot": snapshot,
+            "query": query,
+            "limit": limit,
+        }
+        if query_embedding:
+            data["query_embedding"] = query_embedding
+        response = await self._make_request_async(
+            "POST",
+            "/v1/device-memory/query",
+            json_data=data,
+        )
+        return cast(dict[str, Any], self._unwrap(response))

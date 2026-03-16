@@ -17,6 +17,10 @@ import {
   Chunk,
   MultimodalContentPart,
   FileContentPart,
+  SnapshotEnvelope,
+  PatchEnvelope,
+  ComputeRequest,
+  QuerySnapshotResult,
 } from './types';
 
 type ApiEnvelope<T> = { results: T };
@@ -1449,5 +1453,64 @@ export class Nebula {
       return response.results;
     }
     return response as { upload_url: string; s3_key: string; bucket: string; expires_in: number };
+  }
+
+  // ------------------------------------------------------------------
+  // Device Memory
+  // ------------------------------------------------------------------
+
+  /**
+   * Export a collection's full graph state as a portable snapshot.
+   */
+  async exportSnapshot(collectionId: string): Promise<SnapshotEnvelope> {
+    const response = await this._makeRequest('POST', '/v1/device-memory/snapshot/export', {
+      collection_id: collectionId,
+    }) as { results?: SnapshotEnvelope } & SnapshotEnvelope;
+    return (response.results ?? response) as SnapshotEnvelope;
+  }
+
+  /**
+   * Import a snapshot into an ephemeral server-side collection.
+   * @returns The ephemeral collection ID.
+   */
+  async importSnapshot(snapshot: SnapshotEnvelope | Record<string, unknown>): Promise<string> {
+    const response = await this._makeRequest('POST', '/v1/device-memory/snapshot/import', {
+      snapshot,
+    }) as { results?: { ephemeral_collection_id: string }; ephemeral_collection_id?: string };
+    const result = response.results ?? response;
+    return (result as { ephemeral_collection_id: string }).ephemeral_collection_id ?? '';
+  }
+
+  /**
+   * Run extraction and consolidation over new events.
+   * @returns A PatchEnvelope with put/delete ops and the next root hash.
+   */
+  async compute(request: ComputeRequest | Record<string, unknown>): Promise<PatchEnvelope> {
+    const response = await this._makeRequest('POST', '/v1/device-memory/compute', {
+      request,
+    }) as { results?: PatchEnvelope } & PatchEnvelope;
+    return (response.results ?? response) as PatchEnvelope;
+  }
+
+  /**
+   * Run stateless traversal over a client-provided snapshot.
+   */
+  async querySnapshot(options: {
+    snapshot: SnapshotEnvelope | Record<string, unknown>;
+    query: string;
+    query_embedding?: number[];
+    limit?: number;
+  }): Promise<QuerySnapshotResult> {
+    const data: Record<string, unknown> = {
+      snapshot: options.snapshot,
+      query: options.query,
+      limit: options.limit ?? 10,
+    };
+    if (options.query_embedding) {
+      data.query_embedding = options.query_embedding;
+    }
+    const response = await this._makeRequest('POST', '/v1/device-memory/query', data) as
+      { results?: QuerySnapshotResult } & QuerySnapshotResult;
+    return (response.results ?? response) as QuerySnapshotResult;
   }
 }

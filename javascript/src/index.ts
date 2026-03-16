@@ -85,5 +85,12 @@ export {
     NebulaRateLimitException,
     NebulaValidationException,
     NebulaCollectionNotFoundException,
-    NebulaNotFoundException
+    NebulaNotFoundException,
+    // Device Memory types
+    SnapshotEnvelope,
+    GraphPayload,
+    EmbeddingBlock,
+    PatchEnvelope,
+    ComputeRequest,
+    QuerySnapshotResult
 } from './types';

@@ -281,3 +281,53 @@ export class NebulaNotFoundException extends NebulaException {
     this.name = 'NebulaNotFoundException';
   }
 }
+
+// Device Memory types
+
+/** Portable graph state envelope returned by export and consumed by compute/query. */
+export interface SnapshotEnvelope {
+  collection_id: string;
+  graph: GraphPayload;
+  root_hash: string;
+  [key: string]: unknown;
+}
+
+export interface GraphPayload {
+  entities: Record<string, unknown>[];
+  relationships: Record<string, unknown>[];
+  entity_embeddings?: EmbeddingBlock;
+  relationship_desc_embeddings?: EmbeddingBlock;
+  relationship_rel_embeddings?: EmbeddingBlock;
+  [key: string]: unknown;
+}
+
+export interface EmbeddingBlock {
+  dimension: number;
+  matrix_b64: string;
+  present_mask: boolean[];
+}
+
+/** Full-value diff produced by compute. */
+export interface PatchEnvelope {
+  collection_id: string;
+  previous_root_hash: string;
+  next_root_hash: string;
+  put_entities: Record<string, unknown>[];
+  delete_entities: string[];
+  put_relationships: Record<string, unknown>[];
+  delete_relationships: string[];
+  events: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
+export interface ComputeRequest {
+  collection_id: string;
+  context: SnapshotEnvelope;
+  events: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
+export interface QuerySnapshotResult {
+  entities: Record<string, unknown>[];
+  relationships: Record<string, unknown>[];
+}

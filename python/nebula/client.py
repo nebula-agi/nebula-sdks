@@ -1555,3 +1555,95 @@ class Nebula:
         if isinstance(response, dict) and "results" in response:
             return dict(response["results"])
         return dict(response)
+
+    # ------------------------------------------------------------------
+    # Device Memory
+    # ------------------------------------------------------------------
+
+    def export_snapshot(self, collection_id: str) -> dict[str, Any]:
+        """Export a collection's full graph state as a portable snapshot.
+
+        Returns a SnapshotEnvelope dict containing entities, relationships,
+        embeddings, and FTS metadata.
+        """
+        response = self._make_request(
+            "POST",
+            "/v1/device-memory/snapshot/export",
+            json_data={"collection_id": collection_id},
+        )
+        if isinstance(response, dict) and "results" in response:
+            return dict(response["results"])
+        return dict(response)
+
+    def import_snapshot(self, snapshot: dict[str, Any]) -> str:
+        """Import a snapshot into an ephemeral server-side collection.
+
+        Args:
+            snapshot: A SnapshotEnvelope dict (as returned by export_snapshot).
+
+        Returns:
+            The ephemeral collection ID.
+        """
+        response = self._make_request(
+            "POST",
+            "/v1/device-memory/snapshot/import",
+            json_data={"snapshot": snapshot},
+        )
+        if isinstance(response, dict) and "results" in response:
+            response = response["results"]
+        return str(response.get("ephemeral_collection_id", ""))  # type: ignore[union-attr]
+
+    def compute(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Run extraction and consolidation over new events.
+
+        Args:
+            request: A ComputeRequest dict containing the context snapshot
+                     and new events to process.
+
+        Returns:
+            A PatchEnvelope dict with put/delete ops and the next root hash.
+        """
+        response = self._make_request(
+            "POST",
+            "/v1/device-memory/compute",
+            json_data={"request": request},
+        )
+        if isinstance(response, dict) and "results" in response:
+            return dict(response["results"])
+        return dict(response)
+
+    def query_snapshot(
+        self,
+        snapshot: dict[str, Any],
+        query: str,
+        *,
+        query_embedding: list[float] | None = None,
+        limit: int = 10,
+    ) -> dict[str, Any]:
+        """Run stateless traversal over a client-provided snapshot.
+
+        Args:
+            snapshot: A SnapshotEnvelope dict.
+            query: Natural-language query string.
+            query_embedding: Optional pre-computed query embedding. If omitted
+                             the server generates one.
+            limit: Maximum number of results to return.
+
+        Returns:
+            Dict with ``entities`` and ``relationships`` lists.
+        """
+        data: dict[str, Any] = {
+            "snapshot": snapshot,
+            "query": query,
+            "limit": limit,
+        }
+        if query_embedding:
+            data["query_embedding"] = query_embedding
+        response = self._make_request(
+            "POST",
+            "/v1/device-memory/query",
+            json_data=data,
+        )
+        if isinstance(response, dict) and "results" in response:
+            return dict(response["results"])
+        return dict(response)
