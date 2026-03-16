@@ -10,6 +10,7 @@ Complete API reference for both JavaScript and Python SDKs.
 - [Multimodal Content](#multimodal-content)
 - [Search](#search)
 - [Graph Queries](#graph-queries)
+- [Device Memory](#device-memory)
 - [Error Handling](#error-handling)
 
 ---
@@ -361,6 +362,91 @@ relationships = client.graph_relationship_search(
     limit: Optional[int] = None
 )
 ```
+
+---
+
+## Device Memory
+
+Client-owned graph state with Nebula as a stateless compute engine. See the [Device Memory Guide](https://docs.trynebula.ai/guides/device-memory) for architecture details.
+
+### Export Snapshot
+
+Export a collection's full graph state as a portable `SnapshotEnvelope`.
+
+**JavaScript:**
+```typescript
+const snapshot = await client.exportSnapshot(collectionId: string);
+```
+
+**Python:**
+```python
+snapshot = client.export_snapshot(collection_id: str)
+```
+
+**Returns:** `SnapshotEnvelope` dict/object with entities, relationships, embeddings, FTS metadata, and root hash.
+
+### Import Snapshot
+
+Import a snapshot into an ephemeral server-side collection.
+
+**JavaScript:**
+```typescript
+const ephemeralId: string = await client.importSnapshot(snapshot);
+```
+
+**Python:**
+```python
+ephemeral_id: str = client.import_snapshot(snapshot: dict)
+```
+
+**Returns:** Ephemeral collection ID string.
+
+### Compute
+
+Send new events and receive a patch with the resulting graph changes.
+
+**JavaScript:**
+```typescript
+const patch = await client.compute({
+  collection_id: string,
+  context: SnapshotEnvelope,
+  events: Array<{ content: string; source_type?: string; metadata?: object }>,
+});
+```
+
+**Python:**
+```python
+patch = client.compute(request: dict)
+# request keys: collection_id, context, events
+```
+
+**Returns:** `PatchEnvelope` with `put_entities`, `delete_entities`, `put_relationships`, `delete_relationships`, `previous_root_hash`, `next_root_hash`.
+
+### Query Snapshot
+
+Run stateless traversal over a client-provided snapshot.
+
+**JavaScript:**
+```typescript
+const results = await client.querySnapshot({
+  snapshot: SnapshotEnvelope,
+  query: string,
+  query_embedding?: number[],
+  limit?: number
+});
+```
+
+**Python:**
+```python
+results = client.query_snapshot(
+    snapshot: dict,
+    query: str,
+    query_embedding: Optional[list[float]] = None,
+    limit: int = 10
+)
+```
+
+**Returns:** `{ entities: [...], relationships: [...] }` with scored results.
 
 ---
 
