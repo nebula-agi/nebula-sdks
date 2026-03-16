@@ -1,0 +1,83 @@
+name: Auto Patch Bump
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  patch-bump:
+    name: Bump patch version
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check for skip label
+        id: skip-check
+        run: |
+          LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+          if echo "$LABELS" | grep -q "skip-patch-bump\|major\|minor"; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump JavaScript SDK patch version
+        if: steps.skip-check.outputs.skip == 'false'
+        working-directory: ./javascript
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '$NEW_VERSION';
+            require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "JS SDK: $CURRENT -> $NEW_VERSION"
+
+      - name: Bump Python SDK patch version
+        if: steps.skip-check.outputs.skip == 'false'
+        run: |
+          CURRENT=$(python -c "import tomllib; print(tomllib.load(open('python/pyproject.toml', 'rb'))['project']['version'])")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          python -c "
+          import re
+          with open('python/pyproject.toml', 'r') as f:
+              content = f.read()
+          content = re.sub(r'version = \"$CURRENT\"', 'version = \"$NEW_VERSION\"', content)
+          with open('python/pyproject.toml', 'w') as f:
+              f.write(content)
+          "
+          echo "Python SDK: $CURRENT -> $NEW_VERSION"
+
+      - name: Commit and push
+        if: steps.skip-check.outputs.skip == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          JS_VERSION=$(node -p "require('./javascript/package.json').version")
+          PY_VERSION=$(python -c "import tomllib; print(tomllib.load(open('python/pyproject.toml', 'rb'))['project']['version'])")
+          git add javascript/package.json python/pyproject.toml
+          git commit -m "chore: bump JS SDK to $JS_VERSION, Python SDK to $PY_VERSION [skip ci]"
+          git push
