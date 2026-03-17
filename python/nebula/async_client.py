@@ -718,7 +718,8 @@ class AsyncNebula:
 
         # Process others (text/json/multimodal) individually - store_memory handles multimodal
         for m in others:
-            results.append(await self.store_memory(m))
+            result = await self.store_memory(m)
+            results.append(str(result) if not isinstance(result, str) else result)
         return results
 
     async def delete(self, memory_ids: str | list[str]) -> bool | dict[str, Any]:

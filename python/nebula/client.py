@@ -1016,7 +1016,8 @@ class Nebula:
 
         # Process others (text/json/multimodal) individually - store_memory handles multimodal
         for m in others:
-            results.append(self.store_memory(m))
+            result = self.store_memory(m)
+            results.append(str(result) if not isinstance(result, str) else result)
         return results
 
     def delete(self, memory_ids: str | list[str]) -> bool | dict[str, Any]:
