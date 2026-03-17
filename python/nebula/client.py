@@ -731,8 +731,8 @@ class Nebula:
             payload: dict[str, Any] = {"snapshot": memory.snapshot}
             if isinstance(memory.content, str):
                 payload["raw_text"] = memory.content
-            elif memory.content:
-                payload["contents"] = memory.content
+            elif isinstance(memory.content, list):
+                payload["contents"] = [str(c) for c in memory.content]
             response = self._make_request("POST", "/v1/memories", json_data=payload)
             if isinstance(response, dict) and "results" in response:
                 return dict(response["results"].get("snapshot", response["results"]))

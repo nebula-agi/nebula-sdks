@@ -440,8 +440,8 @@ class AsyncNebula:
             payload: dict[str, Any] = {"snapshot": memory.snapshot}
             if isinstance(memory.content, str):
                 payload["raw_text"] = memory.content
-            elif memory.content:
-                payload["contents"] = memory.content
+            elif isinstance(memory.content, list):
+                payload["contents"] = [str(c) for c in memory.content]
             response = await self._make_request_async(
                 "POST", "/v1/memories", json_data=payload
             )

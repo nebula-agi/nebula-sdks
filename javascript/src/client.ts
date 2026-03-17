@@ -413,9 +413,7 @@ export class Nebula {
         snapshot: mem.snapshot,
         raw_text: contentText,
       };
-      if (mem.metadata && Object.keys(mem.metadata).length > 0) {
-        payload.metadata = mem.metadata;
-      }
+      // Note: backend rejects metadata in snapshot mode; do not send it.
       const response = await this._makeRequest('POST', '/v1/memories', payload) as {
         results?: { snapshot?: Record<string, unknown> };
       };

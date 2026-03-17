@@ -24,7 +24,7 @@ def main():
 
     # Test 1: Search with cluster filter
     print("\n=== Test 1: Technology Cluster Search ===")
-    results = client.search(query="programming", collection_id=tech_cluster, limit=9)
+    results = client.search(query="programming", collection_ids=[tech_cluster])
 
     print(f"Found {len(results)} results:")
     for i, result in enumerate(results, 1):
