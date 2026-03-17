@@ -34,7 +34,7 @@ def main():
 
     # Test 2: Search with filters parameter
     print("\n=== Test 2: Science Cluster Search (using filters) ===")
-    results = client.search(query="physics", collection_id=science_cluster, limit=9)
+    results = client.search(query="physics", collection_ids=[science_cluster])
 
     print(f"Found {len(results)} results:")
     for i, result in enumerate(results, 1):
@@ -44,7 +44,7 @@ def main():
 
     # Test 3: Search without filter
     print("\n=== Test 3: Search All Clusters ===")
-    results = client.search(query="important", limit=5)
+    results = client.search(query="important")
 
     print(f"Found {len(results)} results:")
     for i, result in enumerate(results, 1):
