@@ -1340,9 +1340,7 @@ class Nebula:
         # Snapshot mode: stateless device-memory search
         if snapshot is not None:
             data: dict[str, Any] = {"snapshot": snapshot, "query": query}
-            response = self._make_request(
-                "POST", "/v1/memories/search", json_data=data
-            )
+            response = self._make_request("POST", "/v1/memories/search", json_data=data)
             return MemoryResponse.from_dict(response["results"], query)
 
         # Build request data - pass params directly to API (no wrapping needed)
@@ -1625,4 +1623,3 @@ class Nebula:
         if isinstance(response, dict) and "results" in response:
             response = response["results"]
         return str(response.get("ephemeral_collection_id", ""))  # type: ignore[union-attr]
-

@@ -1167,4 +1167,3 @@ class AsyncNebula:
         )
         result = self._unwrap(response)
         return str(result.get("ephemeral_collection_id", ""))  # type: ignore[union-attr]
-
