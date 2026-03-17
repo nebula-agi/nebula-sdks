@@ -91,6 +91,4 @@ export {
     GraphPayload,
     EmbeddingBlock,
     PatchEnvelope,
-    ComputeRequest,
-    QuerySnapshotResult
 } from './types';

@@ -53,7 +53,6 @@ async function basicExample() {
         const searchResults = await client.search({
             query: 'JavaScript',
             cluster_ids: [cluster.id],
-            limit: 5,
             filters: { 'metadata.category': 'programming' }
         });
         console.log('📊 Search results:');
@@ -130,8 +129,7 @@ async function conversationExample() {
         console.log('🔍 Searching for AI-related conversations...');
         const conversations = await client.search({
             query: 'machine learning supervised',
-            cluster_ids: [cluster.id],
-            limit: 5
+            cluster_ids: [cluster.id]
         });
         console.log('📊 Found conversations:');
         conversations.forEach((conv, index) => {
@@ -183,7 +181,6 @@ async function advancedSearchExample() {
         const searchResults = await client.search({
             query: 'Einstein relativity physics',
             cluster_ids: [cluster.id],
-            limit: 10,
             searchSettings: {
                 graph_settings: {
                     enabled: true,

@@ -33,8 +33,7 @@ memory = client.store(
 # Retrieve relevant memories
 results = client.retrieve(
     agent_id="my_agent",
-    query="What is machine learning?",
-    limit=5
+    query="What is machine learning?"
 )
 
 # Chat with the agent
@@ -243,8 +242,7 @@ client.append_memory(
 # Search for relevant memories
 results = client.retrieve(
     agent_id="assistant",
-    query="machine learning algorithms",
-    limit=10
+    query="machine learning algorithms"
 )
 
 for result in results:
@@ -258,8 +256,7 @@ for result in results:
 ```python
 # Search across all memories
 results = client.search(
-    query="artificial intelligence",
-    limit=5
+    query="artificial intelligence"
 )
 ```
 

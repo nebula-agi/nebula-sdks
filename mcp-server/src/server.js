@@ -51,10 +51,9 @@ function createClient({ baseUrl, apiKey }) {
     getClusterByName: async (name) => request(`/v1/collections/name/${encodeURIComponent(name)}`),
     createCluster: async ({ name, description }) => request(`/v1/collections`, { method: 'POST', body: JSON.stringify({ name, description }) }),
     deleteCluster: async (id) => request(`/v1/collections/${id}`, { method: 'DELETE' }),
-    search: async ({ query, clusterIds, limit = 10 }) => {
+    search: async ({ query, clusterIds }) => {
       // Simplified search settings - backend handles hybrid search automatically
       const searchSettings = {
-        limit,
         filters: {
           collection_ids: { $overlap: Array.isArray(clusterIds) ? clusterIds : [clusterIds] },
         },
@@ -140,8 +139,8 @@ export async function startServer({ baseUrl, apiKey, transport = 'sse' }) {
     return { content: [{ type: 'text', text: JSON.stringify(data) }] };
   });
 
-  server.tool('search_memories', async ({ query, cluster_ids, limit }) => {
-    const data = await client.search({ query, clusterIds: cluster_ids, limit });
+  server.tool('search_memories', async ({ query, cluster_ids }) => {
+    const data = await client.search({ query, clusterIds: cluster_ids });
     return { content: [{ type: 'text', text: JSON.stringify(data) }] };
   });
 

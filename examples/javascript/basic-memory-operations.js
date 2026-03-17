@@ -57,8 +57,7 @@ async function main() {
   console.log('🔍 Searching for "authentication"...');
   const searchResults = await client.search({
     collectionId: collection.id,
-    query: "how to authenticate",
-    limit: 5
+    query: "how to authenticate"
   });
 
   console.log(`Found ${searchResults.results.length} results:`);

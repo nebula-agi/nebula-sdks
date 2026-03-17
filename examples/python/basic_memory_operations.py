@@ -57,8 +57,7 @@ def main():
     print('🔍 Searching for "authentication"...')
     search_results = client.search(
         collection_id=collection.id,
-        query="how to authenticate",
-        limit=5
+        query="how to authenticate"
     )
 
     print(f"Found {len(search_results.results)} results:")
