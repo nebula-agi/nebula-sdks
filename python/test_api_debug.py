@@ -200,7 +200,7 @@ def test_search_operations(client, collection_id):
 
     # Test 1: Search without filters
     try:
-        results = client.search(query="debug", limit=5)
+        results = client.search(query="debug")
         print_result(True, f"Search: Found {len(results)} results")
         for i, result in enumerate(results[:3]):
             print(

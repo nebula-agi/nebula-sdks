@@ -34,7 +34,6 @@ memory_id = client.store_memory({
 results = client.search(
     query="machine learning healthcare",
     collection_ids=[collection.id],
-    limit=5
 )
 
 for result in results:
@@ -108,7 +107,6 @@ memory = client.get_memory("memory_id")
 results = client.search(
     query="your search query",
     collection_ids=[collection.id],
-    limit=10
 )
 ```
 

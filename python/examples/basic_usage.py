@@ -89,7 +89,6 @@ def main():
         results = nebula.search(
             query="user-123 preferences and issues",
             collection_ids=[cluster.id],
-            limit=5,
         )
         print(f"✅ Retrieved {len(results)} memories")
         for i, result in enumerate(results, 1):
@@ -99,7 +98,6 @@ def main():
         results = nebula.search(
             query="What are the key considerations for helping user-123?",
             collection_ids=[cluster.id],
-            limit=3,
         )
         print(f"\n✅ Retrieved {len(results)} memories")
         for i, result in enumerate(results, 1):
@@ -123,7 +121,7 @@ def main():
         print("\n🔎 Searching across cluster...")
 
         search_results = nebula.search(
-            query="healthcare compliance", collection_ids=[cluster.id], limit=3
+            query="healthcare compliance", collection_ids=[cluster.id]
         )
         print(f"✅ Found {len(search_results)} results")
         for i, result in enumerate(search_results, 1):

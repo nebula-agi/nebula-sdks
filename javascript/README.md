@@ -38,7 +38,6 @@ const memoryId = await client.storeMemory({
 const results = await client.search({
   query: 'machine learning healthcare',
   collection_ids: [collection.id],
-  limit: 5
 });
 
 results.forEach(result => {
@@ -120,7 +119,6 @@ const memory = await client.getMemory('memory-id');
 const results = await client.search({
   query: 'your search query',
   collection_ids: [collection.id],
-  limit: 10
 });
 ```
 

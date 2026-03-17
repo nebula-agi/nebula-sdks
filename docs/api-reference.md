@@ -10,6 +10,7 @@ Complete API reference for both JavaScript and Python SDKs.
 - [Multimodal Content](#multimodal-content)
 - [Search](#search)
 - [Graph Queries](#graph-queries)
+- [Device Memory](#device-memory)
 - [Error Handling](#error-handling)
 
 ---
@@ -291,30 +292,30 @@ Perform semantic search across your memories.
 **JavaScript:**
 ```typescript
 const results = await client.search({
-  collectionId: string,
   query: string,
-  limit?: number,
-  offset?: number,
-  filters?: Record<string, any>
+  collection_ids?: string[],
+  effort?: 'auto' | 'low' | 'medium' | 'high',
+  filters?: Record<string, any>,
+  snapshot?: Record<string, unknown>
 });
 ```
 
 **Python:**
 ```python
 results = client.search(
-    collection_id: str,
     query: str,
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
-    filters: Optional[Dict[str, Any]] = None
+    collection_ids: Optional[list[str]] = None,
+    effort: Optional[str] = None,
+    filters: Optional[Dict[str, Any]] = None,
+    snapshot: Optional[dict] = None
 )
 ```
 
-**Returns:** `SearchResult` object with:
-- `results`: Array of matching memories with scores
-- `total`: Total number of results
-- `offset`: Current offset
-- `limit`: Current limit
+**Returns:** `MemoryResponse` object with:
+- `semantics`: Structured facts and inferences
+- `procedures`: User preferences and habits
+- `episodes`: Temporally clustered events
+- `sources`: Original source text
 
 ---
 
@@ -361,6 +362,90 @@ relationships = client.graph_relationship_search(
     limit: Optional[int] = None
 )
 ```
+
+---
+
+## Device Memory
+
+Client-owned graph state with Nebula as a stateless compute engine. See the [Device Memory Guide](https://docs.trynebula.ai/guides/device-memory) for architecture details.
+
+### Export Snapshot
+
+Export a collection's full graph state as a portable `SnapshotEnvelope`.
+
+**JavaScript:**
+```typescript
+const snapshot = await client.exportSnapshot(collectionId: string);
+```
+
+**Python:**
+```python
+snapshot = client.export_snapshot(collection_id: str)
+```
+
+**Returns:** `SnapshotEnvelope` dict/object with entities, relationships, embeddings, FTS metadata, and root hash.
+
+### Import Snapshot
+
+Import a snapshot into an ephemeral server-side collection.
+
+**JavaScript:**
+```typescript
+const ephemeralId: string = await client.importSnapshot(snapshot);
+```
+
+**Python:**
+```python
+ephemeral_id: str = client.import_snapshot(snapshot: dict)
+```
+
+**Returns:** Ephemeral collection ID string.
+
+### Store Memory (Snapshot Mode)
+
+Store content against a client-owned snapshot. Uses the same `store_memory`/`storeMemory` method -- pass `snapshot` instead of `collection_id`.
+
+**JavaScript:**
+```typescript
+const result = await client.storeMemory({
+  snapshot: snapshotEnvelope,
+  content: 'New content to process',
+});
+// result is the updated snapshot object
+```
+
+**Python:**
+```python
+result = client.store_memory(Memory(
+    snapshot=snapshot,
+    content="New content to process",
+))
+# result is the updated snapshot dict
+```
+
+**Returns:** Updated `SnapshotEnvelope` with new entities/relationships incorporated.
+
+### Search (Snapshot Mode)
+
+Search against a client-owned snapshot. Uses the same `search` method -- pass `snapshot` instead of `collection_ids`.
+
+**JavaScript:**
+```typescript
+const results = await client.search({
+  query: 'your query',
+  snapshot: snapshotEnvelope,
+});
+```
+
+**Python:**
+```python
+results = client.search(
+    query="your query",
+    snapshot=snapshot,
+)
+```
+
+**Returns:** `MemoryResponse` with semantics, procedures, episodes, and sources.
 
 ---
 

@@ -114,9 +114,8 @@ Search enables semantic retrieval of relevant memories based on natural language
 ```javascript
 // Search for relevant memories
 const results = await client.search({
-  collectionId: userCollection.id,
+  collection_ids: [userCollection.id],
   query: "What are the user's UI preferences?",
-  limit: 5
 });
 
 results.results.forEach(result => {
@@ -143,9 +142,8 @@ await client.addMemory({
 
 // Retrieve relevant context for new message
 const context = await client.search({
-  collectionId: conversationCollection.id,
+  collection_ids: [conversationCollection.id],
   query: newUserMessage,
-  limit: 3
 });
 ```
 
@@ -170,9 +168,8 @@ for (const chunk of chunks) {
 
 // Query for relevant chunks
 const relevantChunks = await client.search({
-  collectionId: documentCollection.id,
+  collection_ids: [documentCollection.id],
   query: userQuestion,
-  limit: 5
 });
 ```
 

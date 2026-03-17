@@ -37,9 +37,8 @@ await nebula.addMemory({
 
 // Search memory
 const results = await nebula.search({
-  collectionId: collection.id,
+  collection_ids: [collection.id],
   query: "information",
-  limit: 10
 });
 ```
 
