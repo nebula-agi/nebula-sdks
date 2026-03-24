@@ -101,3 +101,13 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "mcp-v${{ steps.version-check.outputs.version }}" -m "MCP Server v${{ steps.version-check.outputs.version }}"
           git push origin "mcp-v${{ steps.version-check.outputs.version }}"
+
+      - name: Create GitHub Release
+        if: steps.version-check.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "mcp-v${{ steps.version-check.outputs.version }}" \
+            --title "MCP Server v${{ steps.version-check.outputs.version }}" \
+            --generate-notes \
+            --notes-start-tag "$(git tag -l 'mcp-v*' --sort=-v:refname | sed -n '2p')"
