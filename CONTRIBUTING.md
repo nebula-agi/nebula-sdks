@@ -170,7 +170,7 @@ Maintainers handle releases:
 ## Questions?
 
 - Open a [GitHub Discussion](https://github.com/nebula-agi/nebula-sdks/discussions)
-- Join our [Discord](https://discord.gg/nebula)
+- Join our [Slack](https://trynebula.ai/slack)
 - Email: support@trynebula.ai
 
 ## License
