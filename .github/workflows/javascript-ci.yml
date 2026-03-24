@@ -123,3 +123,15 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "js-v${{ steps.version-check.outputs.version }}" -m "JavaScript SDK v${{ steps.version-check.outputs.version }}"
           git push origin "js-v${{ steps.version-check.outputs.version }}"
+
+      - name: Create GitHub Release
+        if: steps.version-check.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --tags
+          PREV_TAG=$(git tag -l 'js-v*' --sort=-v:refname | sed -n '2p')
+          gh release create "js-v${{ steps.version-check.outputs.version }}" \
+            --title "JavaScript SDK v${{ steps.version-check.outputs.version }}" \
+            --generate-notes \
+            ${PREV_TAG:+--notes-start-tag "$PREV_TAG"}

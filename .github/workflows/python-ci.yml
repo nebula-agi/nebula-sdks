@@ -129,3 +129,15 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "py-v${{ steps.version-check.outputs.version }}" -m "Python SDK v${{ steps.version-check.outputs.version }}"
           git push origin "py-v${{ steps.version-check.outputs.version }}"
+
+      - name: Create GitHub Release
+        if: steps.version-check.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --tags
+          PREV_TAG=$(git tag -l 'py-v*' --sort=-v:refname | sed -n '2p')
+          gh release create "py-v${{ steps.version-check.outputs.version }}" \
+            --title "Python SDK v${{ steps.version-check.outputs.version }}" \
+            --generate-notes \
+            ${PREV_TAG:+--notes-start-tag "$PREV_TAG"}

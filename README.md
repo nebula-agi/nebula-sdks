@@ -4,6 +4,8 @@ Official SDKs for the Nebula AI Memory platform. Build intelligent applications 
 
 [![JavaScript CI](https://github.com/nebula-agi/nebula-sdks/actions/workflows/javascript-ci.yml/badge.svg)](https://github.com/nebula-agi/nebula-sdks/actions/workflows/javascript-ci.yml)
 [![Python CI](https://github.com/nebula-agi/nebula-sdks/actions/workflows/python-ci.yml/badge.svg)](https://github.com/nebula-agi/nebula-sdks/actions/workflows/python-ci.yml)
+[![npm version](https://img.shields.io/npm/v/@nebula-ai/sdk.svg)](https://www.npmjs.com/package/@nebula-ai/sdk)
+[![PyPI version](https://img.shields.io/pypi/v/nebula-client.svg)](https://pypi.org/project/nebula-client/)
 
 ## Available SDKs
 
