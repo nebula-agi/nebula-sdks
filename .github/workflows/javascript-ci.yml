@@ -129,7 +129,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          git fetch --tags
+          PREV_TAG=$(git tag -l 'js-v*' --sort=-v:refname | sed -n '2p')
           gh release create "js-v${{ steps.version-check.outputs.version }}" \
             --title "JavaScript SDK v${{ steps.version-check.outputs.version }}" \
             --generate-notes \
-            --notes-start-tag "$(git tag -l 'js-v*' --sort=-v:refname | sed -n '2p')"
+            ${PREV_TAG:+--notes-start-tag "$PREV_TAG"}

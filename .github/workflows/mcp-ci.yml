@@ -107,7 +107,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          git fetch --tags
+          PREV_TAG=$(git tag -l 'mcp-v*' --sort=-v:refname | sed -n '2p')
           gh release create "mcp-v${{ steps.version-check.outputs.version }}" \
             --title "MCP Server v${{ steps.version-check.outputs.version }}" \
             --generate-notes \
-            --notes-start-tag "$(git tag -l 'mcp-v*' --sort=-v:refname | sed -n '2p')"
+            ${PREV_TAG:+--notes-start-tag "$PREV_TAG"}
