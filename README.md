@@ -147,7 +147,7 @@ After cloning, you **must** run `npm install` in the root directory. This instal
 ## Community & Support
 
 - [Documentation](https://docs.trynebula.ai)
-- [Discord Community](https://discord.gg/nebula)
+- [Slack Community](https://trynebula.ai/slack)
 - [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
 - Email: support@trynebula.ai
 
