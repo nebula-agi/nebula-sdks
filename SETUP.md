@@ -219,7 +219,7 @@ pip install nebula-client
 - Update your website/docs
 - Write a blog post
 - Tweet/LinkedIn announcement
-- Discord/Slack announcement
+- Slack announcement
 - Email existing users
 
 ## 10. Ongoing Maintenance

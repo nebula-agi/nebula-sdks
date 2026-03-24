@@ -538,5 +538,5 @@ When rate limited, you'll receive a `NebulaRateLimitException` with a `retry-aft
 
 - [Full Documentation](https://docs.trynebula.ai)
 - [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
-- [Discord Community](https://discord.gg/nebula)
+- [Slack Community](https://trynebula.ai/slack)
 - Email: support@trynebula.ai

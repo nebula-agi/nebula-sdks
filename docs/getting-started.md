@@ -245,11 +245,11 @@ except Exception as e:
 - Explore the [API Reference](./api-reference.md)
 - Check out [Examples](../examples/)
 - Read about [Graph Queries](./graph-queries.md)
-- Join our [Discord Community](https://discord.gg/nebula)
+- Join our [Slack Community](https://trynebula.ai/slack)
 
 ## Getting Help
 
 - [Documentation](https://docs.trynebula.ai)
 - [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
-- [Discord](https://discord.gg/nebula)
+- [Slack](https://trynebula.ai/slack)
 - Email: support@trynebula.ai
