@@ -62,6 +62,7 @@ export interface Memory {
   memory_id?: string; // Alias for id, for backward compatibility
   metadata: Record<string, unknown>;
   authority?: number; // Optional authority score (0.0 - 1.0)
+  snapshot?: Record<string, unknown>; // Device-memory snapshot envelope for stateless mode
 
   // Read-only fields (populated from server response)
   chunks?: Chunk[];
@@ -130,7 +131,6 @@ export interface GraphCommunityResult {
 }
 
 export interface SearchOptions {
-  limit: number;
   filters?: Record<string, unknown>;
 }
 
@@ -320,14 +320,3 @@ export interface PatchEnvelope {
   [key: string]: unknown;
 }
 
-export interface ComputeRequest {
-  collection_id: string;
-  context: SnapshotEnvelope;
-  events: Record<string, unknown>[];
-  [key: string]: unknown;
-}
-
-export interface QuerySnapshotResult {
-  entities: Record<string, unknown>[];
-  relationships: Record<string, unknown>[];
-}

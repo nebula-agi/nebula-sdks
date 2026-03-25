@@ -18,9 +18,6 @@ import {
   MultimodalContentPart,
   FileContentPart,
   SnapshotEnvelope,
-  PatchEnvelope,
-  ComputeRequest,
-  QuerySnapshotResult,
 } from './types';
 
 type ApiEnvelope<T> = { results: T };
@@ -391,10 +388,10 @@ export class Nebula {
   async storeMemory(
     memory: Memory | Record<string, unknown>,
     name?: string
-  ): Promise<string> {
+  ): Promise<string | Record<string, unknown>> {
     let mem: Memory;
 
-    if ('collection_id' in memory) {
+    if ('collection_id' in memory || 'snapshot' in memory) {
       mem = memory as Memory;
     } else {
       // Support both camelCase (collectionId) and snake_case (collection_id)
@@ -405,7 +402,26 @@ export class Nebula {
         role: memRecord.role as string | undefined,
         memory_id: (memRecord.memory_id as string) || (memRecord.memoryId as string) || undefined,
         metadata: (memRecord.metadata as Record<string, unknown>) || {},
+        snapshot: memRecord.snapshot as Record<string, unknown> | undefined,
       };
+    }
+
+    // Device-memory snapshot mode: POST to /v1/memories with snapshot + raw_text
+    if (mem.snapshot) {
+      const contentText = await this._serializeContentAsText(mem.content);
+      const payload: Record<string, unknown> = {
+        snapshot: mem.snapshot,
+        raw_text: contentText,
+      };
+      // Note: backend rejects metadata in snapshot mode; do not send it.
+      const response = await this._makeRequest('POST', '/v1/memories', payload) as {
+        results?: { snapshot?: Record<string, unknown> };
+      };
+      const snapshot = response?.results?.snapshot;
+      if (snapshot) {
+        return snapshot;
+      }
+      return response?.results ?? {};
     }
 
     // If memory_id is present, append to existing memory
@@ -649,7 +665,7 @@ export class Nebula {
 
     // Process others (text/json) individually
     for (const m of others) {
-      results.push(await this.storeMemory(m));
+      results.push(await this.storeMemory(m) as string);
     }
 
     return results;
@@ -1000,7 +1016,31 @@ export class Nebula {
     effort?: 'auto' | 'low' | 'medium' | 'high';
     filters?: Record<string, unknown>;
     searchSettings?: Record<string, unknown>;
+    snapshot?: Record<string, unknown>;
   }): Promise<MemoryResponse> {
+    // Device-memory snapshot mode: POST to /v1/memories/search with snapshot + query
+    if (options.snapshot) {
+      const snapshotData: Record<string, unknown> = {
+        snapshot: options.snapshot,
+        query: options.query,
+      };
+      if (options.effort) {
+        snapshotData.effort = options.effort;
+      }
+      const response = await this._makeRequest('POST', '/v1/memories/search', snapshotData) as { results?: MemoryResponse };
+      const memoryResponseData = response.results as MemoryResponse;
+      return {
+        query: memoryResponseData.query || options.query,
+        semantics: (memoryResponseData as any).semantics || (memoryResponseData as any).knowledge || [],
+        procedures: (memoryResponseData as any).procedures || [],
+        episodes: (memoryResponseData as any).episodes || [],
+        sources: memoryResponseData.sources || [],
+        total_traversal_time_ms: memoryResponseData.total_traversal_time_ms,
+        token_count: memoryResponseData.token_count,
+        entities: (memoryResponseData as any).entities || [],
+      };
+    }
+
     // Build request data - pass params directly to API (no wrapping needed)
     const data: Record<string, unknown> = {
       query: options.query,
@@ -1481,36 +1521,4 @@ export class Nebula {
     return (result as { ephemeral_collection_id: string }).ephemeral_collection_id ?? '';
   }
 
-  /**
-   * Run extraction and consolidation over new events.
-   * @returns A PatchEnvelope with put/delete ops and the next root hash.
-   */
-  async compute(request: ComputeRequest | Record<string, unknown>): Promise<PatchEnvelope> {
-    const response = await this._makeRequest('POST', '/v1/device-memory/compute', {
-      request,
-    }) as { results?: PatchEnvelope } & PatchEnvelope;
-    return (response.results ?? response) as PatchEnvelope;
-  }
-
-  /**
-   * Run stateless traversal over a client-provided snapshot.
-   */
-  async querySnapshot(options: {
-    snapshot: SnapshotEnvelope | Record<string, unknown>;
-    query: string;
-    query_embedding?: number[];
-    limit?: number;
-  }): Promise<QuerySnapshotResult> {
-    const data: Record<string, unknown> = {
-      snapshot: options.snapshot,
-      query: options.query,
-      limit: options.limit ?? 10,
-    };
-    if (options.query_embedding) {
-      data.query_embedding = options.query_embedding;
-    }
-    const response = await this._makeRequest('POST', '/v1/device-memory/query', data) as
-      { results?: QuerySnapshotResult } & QuerySnapshotResult;
-    return (response.results ?? response) as QuerySnapshotResult;
-  }
 }

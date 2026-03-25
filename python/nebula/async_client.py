@@ -388,44 +388,67 @@ class AsyncNebula:
         memory: Memory | dict[str, Any] | None = None,
         name: str | None = None,
         **kwargs,
-    ) -> str:
+    ) -> str | dict[str, Any]:
         """Store or append memory using the unified memory API.
 
         Behavior:
         - If memory_id is absent → creates new memory
         - If memory_id is present → appends to existing memory
-        - Automatically handles multimodal content (images, audio, documents)
+        - If snapshot is provided → runs device-memory compute via unified endpoint
 
         Accepts either a `Memory` object or equivalent keyword arguments:
-        - collection_id: str (required)
+        - collection_id: str (required for non-snapshot mode)
         - content: str | List[ContentPart] (required) - can include ImageContent, AudioContent, DocumentContent
         - memory_id: Optional[str] (if provided, appends to existing memory)
         - name: str (optional, used for conversation names)
         - role: Optional[str] (if provided, creates a conversation; otherwise creates a document)
         - metadata: Optional[dict]
+        - snapshot: Optional[dict] (device-memory snapshot envelope)
 
-        Returns: memory_id (for both conversations and documents)
+        Returns:
+            memory_id (str) for normal mode, or updated snapshot (dict) for snapshot mode.
 
         Raises:
             NebulaNotFoundException: If memory_id is provided but doesn't exist
         """
+        snapshot = kwargs.get("snapshot")
         if memory is None:
             memory = Memory(
-                collection_id=kwargs["collection_id"],
+                collection_id=kwargs.get("collection_id"),
                 content=kwargs.get("content", ""),
                 role=kwargs.get("role"),
                 memory_id=kwargs.get("memory_id"),
                 metadata=kwargs.get("metadata", {}),
                 authority=kwargs.get("authority"),
+                snapshot=snapshot,
             )
         elif isinstance(memory, dict):
             memory = Memory(
-                collection_id=memory["collection_id"],
+                collection_id=memory.get("collection_id"),
                 content=memory.get("content", ""),
                 role=memory.get("role"),
                 memory_id=memory.get("memory_id"),
                 metadata=memory.get("metadata", {}),
                 authority=memory.get("authority"),
+                snapshot=memory.get("snapshot") or snapshot,
+            )
+        elif snapshot and not memory.snapshot:
+            memory.snapshot = snapshot
+
+        # Snapshot mode: device-memory compute via unified endpoint
+        if memory.snapshot:
+            payload: dict[str, Any] = {"snapshot": memory.snapshot}
+            if isinstance(memory.content, str):
+                payload["raw_text"] = memory.content
+            elif isinstance(memory.content, list):
+                payload["contents"] = [str(c) for c in memory.content]
+            response = await self._make_request_async(
+                "POST", "/v1/memories", json_data=payload
+            )
+            if isinstance(response, dict) and "results" in response:
+                return dict(response["results"].get("snapshot", response["results"]))
+            raise NebulaClientException(
+                "Failed to store snapshot memory: invalid response"
             )
 
         # If memory_id is present, append to existing memory
@@ -695,7 +718,8 @@ class AsyncNebula:
 
         # Process others (text/json/multimodal) individually - store_memory handles multimodal
         for m in others:
-            results.append(await self.store_memory(m))
+            result = await self.store_memory(m)
+            results.append(str(result) if not isinstance(result, str) else result)
         return results
 
     async def delete(self, memory_ids: str | list[str]) -> bool | dict[str, Any]:
@@ -843,6 +867,7 @@ class AsyncNebula:
         effort: str | None = None,
         filters: dict[str, Any] | None = None,
         search_settings: dict[str, Any] | None = None,
+        snapshot: dict[str, Any] | None = None,
     ) -> MemoryResponse:
         """
         Search your memory collections with optional metadata filtering (async version).
@@ -860,6 +885,8 @@ class AsyncNebula:
                 - fulltext_weight: Weight for fulltext search (0-1, default: 0.2)
                 - verbose: Include full metadata, UUIDs, and confidence fields (default: False)
                 - include_scores: Whether to include scores in results (default: True)
+            snapshot: Optional device-memory snapshot envelope for stateless search.
+                Mutually exclusive with collection_ids, effort, filters, and search_settings.
 
         Filter Examples:
             Basic equality:
@@ -924,8 +951,16 @@ class AsyncNebula:
             MemoryResponse object containing hierarchical memory structure with entities, semantics,
             and sources
         """
+        # Snapshot mode: stateless device-memory search
+        if snapshot is not None:
+            data: dict[str, Any] = {"snapshot": snapshot, "query": query}
+            response = await self._make_request_async(
+                "POST", "/v1/memories/search", json_data=data
+            )
+            return MemoryResponse.from_dict(response["results"], query)
+
         # Build request data - pass params directly to API (no wrapping needed)
-        data: dict[str, Any] = {
+        data = {
             "query": query,
         }
 
@@ -1133,41 +1168,3 @@ class AsyncNebula:
         )
         result = self._unwrap(response)
         return str(result.get("ephemeral_collection_id", ""))  # type: ignore[union-attr]
-
-    async def compute(self, request: dict[str, Any]) -> dict[str, Any]:
-        """Run extraction and consolidation over new events.
-
-        Returns a PatchEnvelope dict with put/delete ops and the next root hash.
-        """
-        response = await self._make_request_async(
-            "POST",
-            "/v1/device-memory/compute",
-            json_data={"request": request},
-        )
-        return cast(dict[str, Any], self._unwrap(response))
-
-    async def query_snapshot(
-        self,
-        snapshot: dict[str, Any],
-        query: str,
-        *,
-        query_embedding: list[float] | None = None,
-        limit: int = 10,
-    ) -> dict[str, Any]:
-        """Run stateless traversal over a client-provided snapshot.
-
-        Returns dict with ``entities`` and ``relationships`` lists.
-        """
-        data: dict[str, Any] = {
-            "snapshot": snapshot,
-            "query": query,
-            "limit": limit,
-        }
-        if query_embedding:
-            data["query_embedding"] = query_embedding
-        response = await self._make_request_async(
-            "POST",
-            "/v1/device-memory/query",
-            json_data=data,
-        )
-        return cast(dict[str, Any], self._unwrap(response))

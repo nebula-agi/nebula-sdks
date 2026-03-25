@@ -140,6 +140,7 @@ class Memory:
     id: str | None = None  # Memory/Engram UUID
     metadata: dict[str, Any] = field(default_factory=dict)
     authority: float | None = None  # Optional authority score (0.0 - 1.0)
+    snapshot: dict[str, Any] | None = None  # Device-memory snapshot envelope
 
     # Read-only fields (populated from server response)
     chunks: list[Chunk] | None = None
@@ -155,6 +156,7 @@ class Memory:
         id: str | None = None,
         metadata: dict[str, Any] | None = None,
         authority: float | None = None,
+        snapshot: dict[str, Any] | None = None,
         memory_id: str | None = None,
         chunks: list[Chunk] | None = None,
         collection_ids: list[str] | None = None,
@@ -167,6 +169,7 @@ class Memory:
         self.id = id or memory_id
         self.metadata = metadata if metadata is not None else {}
         self.authority = authority
+        self.snapshot = snapshot
         self.chunks = chunks
         self.collection_ids = collection_ids if collection_ids is not None else []
         self.created_at = created_at
@@ -543,7 +546,6 @@ class SearchResult:
 class SearchOptions:
     """Options for search operations"""
 
-    limit: int = 10
     filters: dict[str, Any] | None = None
 
 

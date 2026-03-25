@@ -4,6 +4,8 @@ Official SDKs for the Nebula AI Memory platform. Build intelligent applications 
 
 [![JavaScript CI](https://github.com/nebula-agi/nebula-sdks/actions/workflows/javascript-ci.yml/badge.svg)](https://github.com/nebula-agi/nebula-sdks/actions/workflows/javascript-ci.yml)
 [![Python CI](https://github.com/nebula-agi/nebula-sdks/actions/workflows/python-ci.yml/badge.svg)](https://github.com/nebula-agi/nebula-sdks/actions/workflows/python-ci.yml)
+[![npm version](https://img.shields.io/npm/v/@nebula-ai/sdk.svg)](https://www.npmjs.com/package/@nebula-ai/sdk)
+[![PyPI version](https://img.shields.io/pypi/v/nebula-client.svg)](https://pypi.org/project/nebula-client/)
 
 ## Available SDKs
 
@@ -37,9 +39,8 @@ await nebula.addMemory({
 
 // Search memory
 const results = await nebula.search({
-  collectionId: collection.id,
+  collection_ids: [collection.id],
   query: "information",
-  limit: 10
 });
 ```
 
@@ -147,7 +148,7 @@ After cloning, you **must** run `npm install` in the root directory. This instal
 ## Community & Support
 
 - [Documentation](https://docs.trynebula.ai)
-- [Discord Community](https://discord.gg/nebula)
+- [Slack Community](https://trynebula.ai/slack)
 - [GitHub Issues](https://github.com/nebula-agi/nebula-sdks/issues)
 - Email: support@trynebula.ai
 

@@ -56,7 +56,6 @@ async function basicExample() {
     const searchResults = await nebula.search({
       query: 'JavaScript',
       collection_ids: [cluster.id],
-      limit: 5,
       filters: { 'metadata.category': 'programming' }
     });
 
@@ -145,8 +144,7 @@ async function conversationExample() {
     console.log('🔍 Searching for AI-related conversations...');
     const conversations = await client.search({
       query: 'machine learning supervised',
-      collection_ids: [cluster.id],
-      limit: 5
+      collection_ids: [cluster.id]
     });
 
     console.log('📊 Found conversations:');
@@ -205,7 +203,6 @@ async function advancedSearchExample() {
     const searchResults = await nebula.search({
       query: 'Einstein relativity physics',
       collection_ids: [cluster.id],
-      limit: 10,
       searchSettings: {
         graph_settings: {
           enabled: true,
