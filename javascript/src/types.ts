@@ -226,6 +226,7 @@ export interface NebulaClientConfig {
   apiKey: string;
   baseUrl?: string;
   timeout?: number;
+  defaultHeaders?: Record<string, string>;
 }
 
 // Error types matching Python SDK

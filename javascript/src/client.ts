@@ -33,6 +33,7 @@ export class Nebula {
   private apiKey: string;
   private baseUrl: string;
   private timeout: number;
+  private defaultHeaders: Record<string, string>;
 
   // Files larger than 5MB are automatically uploaded to S3
   private static readonly MAX_INLINE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -47,6 +48,7 @@ export class Nebula {
 
     this.baseUrl = (config.baseUrl || 'https://api.trynebula.ai').replace(/\/$/, '');
     this.timeout = config.timeout || 30000;
+    this.defaultHeaders = { ...(config.defaultHeaders || {}) };
   }
 
   // Public mutators used by tests
@@ -55,6 +57,9 @@ export class Nebula {
   }
   setBaseUrl(next: string) {
     this.baseUrl = (next || this.baseUrl).replace(/\/$/, '');
+  }
+  setDefaultHeaders(next: Record<string, string>) {
+    this.defaultHeaders = { ...next };
   }
   // Kept for backwards-compat tests; no-op in current implementation
   setCorsProxy(_next: string) {
@@ -85,6 +90,8 @@ export class Nebula {
     } else {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
     }
+
+    Object.assign(headers, this.defaultHeaders);
 
     if (includeContentType) {
       headers['Content-Type'] = 'application/json';
