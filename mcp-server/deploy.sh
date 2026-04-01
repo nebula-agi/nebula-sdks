@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+# Emergency/manual npm publish path. Normal CI publishing uses npm trusted publishing.
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -46,13 +48,13 @@ console.log(v.join('.'));
 
 ensure_auth() {
   if [ -n "${NPM_TOKEN:-}" ]; then
-    info "Using NPM_TOKEN from environment"
+    info "Using NPM_TOKEN from environment for manual publish"
     # Create a temporary .npmrc for this publish only
     echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc.publish
     trap 'rm -f .npmrc.publish' EXIT
     export NPM_CONFIG_USERCONFIG="$(pwd)/.npmrc.publish"
   else
-    warn "NPM_TOKEN not set; relying on existing npm login/session"
+    warn "NPM_TOKEN not set; relying on an existing manual npm login/session"
   fi
 }
 
@@ -81,7 +83,7 @@ Examples:
   $0 --auto-bump --tag next  Publish as dist-tag "next"
 
 Env:
-  NPM_TOKEN           npm auth token (optional; otherwise uses existing login)
+  NPM_TOKEN           npm auth token for manual emergency publish only
 USAGE
 }
 
@@ -102,7 +104,7 @@ main() {
 
   # Ensure we are in the right directory
   if [ ! -f package.json ]; then
-    err "Run this script from backend/nebula-r2r/js/nebula-mcp-server"
+    err "Run this script from nebula-sdks/mcp-server"
     exit 1
   fi
 
@@ -149,5 +151,3 @@ main() {
 }
 
 main "$@"
-
-

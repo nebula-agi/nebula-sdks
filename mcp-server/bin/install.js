@@ -129,6 +129,31 @@ if (!config) {
   process.exit(1);
 }
 
+function mergeServerConfig(existingConfig, nextConfig) {
+  const serverKey = Object.prototype.hasOwnProperty.call(nextConfig, 'mcpServers')
+    ? 'mcpServers'
+    : 'servers';
+
+  const existingServers =
+    existingConfig &&
+    typeof existingConfig === 'object' &&
+    !Array.isArray(existingConfig) &&
+    existingConfig[serverKey] &&
+    typeof existingConfig[serverKey] === 'object' &&
+    !Array.isArray(existingConfig[serverKey])
+      ? existingConfig[serverKey]
+      : {};
+
+  return {
+    ...existingConfig,
+    ...nextConfig,
+    [serverKey]: {
+      ...existingServers,
+      ...nextConfig[serverKey]
+    }
+  };
+}
+
 // Ensure directory exists
 const configDir = dirname(config.path);
 if (!existsSync(configDir)) {
@@ -147,10 +172,7 @@ if (existsSync(config.path)) {
 }
 
 // Merge with existing config
-const mergedConfig = {
-  ...existingConfig,
-  ...config.content
-};
+const mergedConfig = mergeServerConfig(existingConfig, config.content);
 
 // Write config
 writeFileSync(config.path, JSON.stringify(mergedConfig, null, 2));
@@ -160,5 +182,4 @@ console.log(`📁 Config written to: ${config.path}`);
 console.log(`🔄 Please restart ${argv.client} to load the MCP server`);
 console.log(`🔑 API Key: ${argv.apiKey.substring(0, 8)}...`);
 console.log(`🌐 API URL: ${argv.apiUrl}`);
-
 

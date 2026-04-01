@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Nebula SDK Deployment Script
-# This script builds and deploys the nebula-client package to PyPI
+# Emergency/manual PyPI publish path. Normal CI publishing uses PyPI trusted publishing.
 
 set -e  # Exit on any error
 
@@ -158,11 +158,11 @@ except Exception as e:
 PY
 
     if [ -n "${PYPI_API_TOKEN:-}" ]; then
-        print_status "Using PYPI_API_TOKEN from environment."
+        print_status "Using PYPI_API_TOKEN from environment for manual publish."
         export TWINE_USERNAME="__token__"
         export TWINE_PASSWORD="$PYPI_API_TOKEN"
     else
-        print_warning "PYPI_API_TOKEN is not set. twine may prompt for credentials."
+        print_warning "PYPI_API_TOKEN is not set. twine may prompt for interactive credentials."
     fi
 }
 

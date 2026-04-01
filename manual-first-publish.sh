@@ -1,8 +1,11 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Nebula SDKs - First Manual Publish Script"
-echo "==========================================="
+echo "🚀 Nebula SDKs - Manual Emergency Publish Script"
+echo "==============================================="
+echo ""
+echo "This script is only for the first release or manual break-glass publishing."
+echo "Normal CI publishing should use npm/PyPI trusted publishing from GitHub Actions."
 echo ""
 
 # Check if logged in to npm
@@ -57,17 +60,11 @@ cd ..
 echo "🎉 Success! Both SDKs published"
 echo ""
 echo "Next steps:"
-echo "1. Set up npm Trusted Publisher: https://www.npmjs.com/package/@nebula-ai/sdk/access"
-echo "   - Owner: nebula-agi"
-echo "   - Repository: nebula-sdks"
-echo "   - Workflow: javascript-ci.yml"
-echo "   - Environment: npm-publish"
+echo "1. Configure npm Trusted Publishers for:"
+echo "   - javascript-ci.yml -> @nebula-ai/sdk -> environment npm-publish"
+echo "   - mcp-ci.yml -> @nebula-ai/mcp-server -> environment npm-publish"
 echo ""
-echo "2. Set up PyPI Trusted Publisher: https://pypi.org/manage/account/publishing/"
-echo "   - Owner: nebula-agi"
-echo "   - Repository: nebula-sdks"
-echo "   - Workflow: python-ci.yml"
-echo "   - Environment: pypi-publish"
+echo "2. Configure PyPI Trusted Publisher:"
+echo "   - python-ci.yml -> nebula-client -> environment pypi-publish"
 echo ""
-echo "3. Test automatic publishing by pushing a new tag:"
-echo "   git tag js-v0.0.35 && git push origin js-v0.0.35"
+echo "3. For normal releases, merge version changes to main and let CI publish automatically."

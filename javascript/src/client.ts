@@ -685,18 +685,14 @@ export class Nebula {
     };
   }> {
     try {
-      console.log('[SDK] delete() called with:', { memoryIds, type: typeof memoryIds, isArray: Array.isArray(memoryIds) });
-
       // Handle single ID vs array
       if (typeof memoryIds === 'string') {
-        console.log('[SDK] Single deletion path for ID:', memoryIds);
         // Single deletion - try existing endpoint first for backward compatibility
         try {
           await this._makeRequest('DELETE', `/v1/memories/${memoryIds}`);
           return true;
         } catch {
           // Fall back to new unified endpoint
-          console.log('[SDK] Falling back to POST /v1/memories/delete with single ID');
           // Send the UUID string directly as body (not wrapped in {ids: ...})
           const response = await this._makeRequest('POST', '/v1/memories/delete', memoryIds) as { success?: boolean } | boolean;
           return typeof response === 'object' && response.success !== undefined
@@ -704,8 +700,6 @@ export class Nebula {
             : true;
         }
       } else {
-        console.log('[SDK] Batch deletion path for IDs:', memoryIds);
-        console.log('[SDK] Sending POST request with body:', memoryIds);
         // Batch deletion - send array directly as body (not wrapped in {ids: ...})
         // FastAPI Body() without embed=True expects the value directly
         const response = await this._makeRequest('POST', '/v1/memories/delete', memoryIds) as boolean | {
@@ -720,11 +714,9 @@ export class Nebula {
             };
           };
         };
-        console.log('[SDK] Batch deletion response:', response);
         return response;
       }
     } catch (error) {
-      console.error('[SDK] Delete error:', error);
       if (error instanceof Error) {
         throw error;
       }

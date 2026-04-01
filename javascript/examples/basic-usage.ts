@@ -142,7 +142,7 @@ async function conversationExample() {
 
     // Search for related conversations
     console.log('🔍 Searching for AI-related conversations...');
-    const conversations = await client.search({
+    const conversations = await nebula.search({
       query: 'machine learning supervised',
       collection_ids: [cluster.id]
     });

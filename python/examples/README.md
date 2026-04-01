@@ -349,20 +349,11 @@ Backend Endpoints (abstracted by SDK)
 
 ## Testing
 
-Run the test suite to verify functionality:
+Run the test suite from the `python/` directory:
 
 ```bash
-python3 test_engrams_endpoint.py
+cd python && pytest
 ```
-
-The test suite covers:
-- Collection management
-- Individual memory storage
-- Conversation storage
-- Memory retrieval
-- Chat functionality
-- General search
-- Collection memories retrieval
 
 ## Error Handling
 

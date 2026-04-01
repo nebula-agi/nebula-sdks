@@ -6,6 +6,32 @@
 # Note: Husky typically runs hooks with `sh -e`, so we explicitly disable errexit.
 set +e
 
+bump_patch_version() {
+  version=$1
+
+  case "$version" in
+    *.*.*) ;;
+    *) return 1 ;;
+  esac
+
+  major=${version%%.*}
+  rest=${version#*.}
+  minor=${rest%%.*}
+  patch=${rest#*.}
+
+  case "$major" in
+    *[!0-9]*|'') return 1 ;;
+  esac
+  case "$minor" in
+    *[!0-9]*|'') return 1 ;;
+  esac
+  case "$patch" in
+    *[!0-9]*|'') return 1 ;;
+  esac
+
+  printf '%s.%s.%s\n' "$major" "$minor" "$((patch + 1))"
+}
+
 # Check Python SDK
 if git diff --cached --name-only | grep -q "^python/nebula/\|^python/tests/\|^python/pyproject.toml"; then
   echo "Python SDK changes detected, checking if current version is published..."
@@ -119,8 +145,11 @@ EOF
     echo "✅ Version $CURRENT_VERSION is published on PyPI, proceeding with bump..."
 
     # Parse and bump patch version
-    IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-    NEW_VERSION="${major}.${minor}.$((patch + 1))"
+    NEW_VERSION=$(bump_patch_version "$CURRENT_VERSION")
+    if [ -z "$NEW_VERSION" ]; then
+      echo "Could not parse version $CURRENT_VERSION, skipping Python version bump"
+      cd ..
+    else
 
     echo "Bumping Python SDK: $CURRENT_VERSION -> $NEW_VERSION"
 
@@ -168,11 +197,12 @@ EOF
       git add nebula/__init__.py
     fi
 
-    git add pyproject.toml
-    cd ..
-  fi
-  fi
-  fi
+	    git add pyproject.toml
+	    cd ..
+    fi
+	  fi
+	  fi
+	  fi
 fi
 
 # Check JavaScript SDK
@@ -197,20 +227,24 @@ if git diff --cached --name-only | grep -q "^javascript/src/"; then
     echo "✅ Version $CURRENT_VERSION is published on npm, proceeding with bump..."
 
     # Parse and bump patch version
-    IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-    NEW_VERSION="${major}.${minor}.$((patch + 1))"
+    NEW_VERSION=$(bump_patch_version "$CURRENT_VERSION")
+    if [ -z "$NEW_VERSION" ]; then
+      echo "Could not parse version $CURRENT_VERSION, skipping JavaScript version bump"
+      cd ..
+    else
 
     echo "Bumping JavaScript SDK: $CURRENT_VERSION -> $NEW_VERSION"
 
     # Update version
     npm version "$NEW_VERSION" --no-git-tag-version --allow-same-version
 
-    git add package.json
-    git add package-lock.json
-    cd ..
-  fi
-  fi
-  fi
+	    git add package.json
+	    git add package-lock.json
+	    cd ..
+    fi
+	  fi
+	  fi
+	  fi
 fi
 
 exit 0

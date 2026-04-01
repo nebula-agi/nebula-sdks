@@ -35,41 +35,71 @@ git remote add origin https://github.com/nebula-agi/nebula-sdks.git
 git push -u origin main
 ```
 
-## 3. Configure GitHub Secrets
+## 3. Configure Publishing and Automation
 
-For automated publishing to npm and PyPI, you need to add secrets:
+Automated publishing uses trusted publishing, not long-lived registry tokens.
 
-### 3.1 Get npm Token
+### 3.1 Add the GitHub Automation Secret
 
-1. Log in to [npmjs.com](https://www.npmjs.com)
-2. Click your profile → "Access Tokens"
-3. Click "Generate New Token" → "Classic Token"
-4. Select "Automation" type
-5. Copy the token (starts with `npm_...`)
-
-### 3.2 Get PyPI Token
-
-1. Log in to [pypi.org](https://pypi.org)
-2. Go to Account Settings → API tokens
-3. Click "Add API token"
-4. Name: "GitHub Actions - nebula-sdks"
-5. Scope: "Entire account" or specific to `nebula-client`
-6. Copy the token (starts with `pypi-...`)
-
-### 3.3 Add Secrets to GitHub
+The public SDK repo needs one GitHub token so `auto-patch-bump.yml` can push the
+version bump commit and trigger the publish workflows on `main`, plus one
+separate token to trigger inbound sync back into the private monorepo.
 
 1. Go to your GitHub repo: https://github.com/nebula-agi/nebula-sdks
 2. Click "Settings" → "Secrets and variables" → "Actions"
 3. Click "New repository secret"
-4. Add two secrets:
+4. Add:
 
-**NPM_TOKEN:**
-- Name: `NPM_TOKEN`
-- Value: Your npm token
+**PAT_TOKEN:**
+- Name: `PAT_TOKEN`
+- Value: a GitHub token that can push to `main`
 
-**PYPI_TOKEN:**
-- Name: `PYPI_TOKEN`
-- Value: Your PyPI token
+This token is only for GitHub-to-GitHub automation. It is not used for npm or PyPI authentication.
+
+**MONOREPO_SYNC_TOKEN:**
+- Name: `MONOREPO_SYNC_TOKEN`
+- Value: a fine-grained GitHub token or GitHub App token with access to `nebula-agi/nebula`
+- Permissions: `Actions: write`
+
+Use a dedicated token for this. Do not reuse `PAT_TOKEN` unless you intentionally
+want the public repo to hold broader access. `MONOREPO_SYNC_TOKEN` should only be
+able to dispatch `sync-sdk-inbound.yml`; it does not need permission to read or
+write monorepo contents.
+
+### 3.2 Configure npm Trusted Publishers
+
+Configure trusted publishing separately for each npm package:
+
+**`@nebula-ai/sdk`**
+- Repository: `nebula-agi/nebula-sdks`
+- Workflow filename: `javascript-ci.yml`
+- Environment: `npm-publish`
+
+**`@nebula-ai/mcp-server`**
+- Repository: `nebula-agi/nebula-sdks`
+- Workflow filename: `mcp-ci.yml`
+- Environment: `npm-publish`
+
+After trusted publishing is working, npm recommends disabling token-based publishing for the package.
+
+### 3.3 Configure PyPI Trusted Publisher
+
+For `nebula-client`, configure:
+
+- Repository: `nebula-agi/nebula-sdks`
+- Workflow filename: `python-ci.yml`
+- Environment: `pypi-publish`
+
+### 3.4 Manual Emergency Publishing
+
+Local/manual publishing scripts still support token or interactive credentials as a
+break-glass fallback:
+
+- `mcp-server/deploy.sh` can use `NPM_TOKEN`
+- `python/deploy.sh` can use `PYPI_API_TOKEN`
+
+Pass those credentials locally only when needed. Do not store them as GitHub Actions
+secrets for normal CI publishing.
 
 ## 4. Verify CI/CD Setup
 
@@ -88,51 +118,55 @@ For automated publishing to npm and PyPI, you need to add secrets:
 ### Expected Workflows
 
 - **JavaScript SDK CI**: Runs on changes to `javascript/**`
+- **MCP Server CI**: Runs on changes to `mcp-server/**`
 - **Python SDK CI**: Runs on changes to `python/**`
 
-Both should show green checkmarks.
+All should show green checkmarks.
 
 ## 5. Publishing Releases
 
-### JavaScript SDK Release
+### Standard Release Flow
+
+Releases publish from the public `nebula-sdks` repo when version files change on
+`main`. The normal path is:
+
+1. Merge SDK changes to `main`
+2. `auto-patch-bump.yml` bumps patch versions for the JavaScript and Python SDKs unless the PR is labeled `major`, `minor`, or `skip-patch-bump`
+3. The version bump commit lands on `main`
+4. `javascript-ci.yml`, `mcp-ci.yml`, and `python-ci.yml` publish the package whose version changed
+
+### Minor or Major JavaScript / Python Release
+
+If you are doing a non-patch release, update the version in your PR and add the
+`minor` or `major` label. That label is required so the auto patch bump job does
+not override your version:
 
 ```bash
+# JavaScript
 cd javascript
-
-# Update version in package.json
-npm version patch  # or minor, major
-
-# Commit the version bump
+npm version minor --no-git-tag-version
 cd ..
-git add javascript/package.json
-git commit -m "Release JavaScript SDK v0.0.34"
 
-# Create and push tag
-git tag js-v0.0.34
-git push origin main --tags
+# Python
+# Edit python/pyproject.toml version manually
+
+git add javascript/package.json python/pyproject.toml
+git commit -m "chore: prepare SDK minor release"
 ```
 
-The GitHub Action will automatically publish to npm when it detects the `js-v*` tag.
+Merge that PR with the `minor` or `major` label, and CI will publish from the resulting `main` commit.
 
-### Python SDK Release
+### MCP Server Release
 
 ```bash
-cd python
-
-# Update version in pyproject.toml
-# Edit: version = "0.1.9"
-
-# Commit the version bump
+cd mcp-server
+npm version patch --no-git-tag-version
 cd ..
-git add python/pyproject.toml
-git commit -m "Release Python SDK v0.1.9"
-
-# Create and push tag
-git tag py-v0.1.9
-git push origin main --tags
+git add mcp-server/package.json package-lock.json
+git commit -m "chore: bump MCP server version"
 ```
 
-The GitHub Action will automatically publish to PyPI when it detects the `py-v*` tag.
+Merge the PR and `mcp-ci.yml` will publish on the `main` commit where the version changed.
 
 ## 6. Configure Branch Protection (Recommended)
 
@@ -230,7 +264,7 @@ pip install nebula-client
 2. Write tests
 3. Update documentation
 4. Bump versions
-5. Create tags and push
+5. Merge to `main`
 6. GitHub Actions publishes automatically
 
 ### Monitor Issues and PRs
@@ -244,10 +278,12 @@ pip install nebula-client
 
 ### Publishing Fails
 
-1. Check that secrets are set correctly
-2. Verify npm/PyPI tokens haven't expired
-3. Check that package names are available
-4. Review GitHub Actions logs
+1. Check the trusted publisher configuration for repository, workflow filename, and environment name
+2. Check that the `npm-publish` / `pypi-publish` environments still exist and allow this workflow to run
+3. Check that `PAT_TOKEN` is configured if `auto-patch-bump.yml` failed to push the version bump commit
+4. Check that `MONOREPO_SYNC_TOKEN` is configured if `trigger-monorepo-sdk-sync.yml` failed
+5. Check that the package version is new and the package name is correct
+6. Review GitHub Actions logs
 
 ### CI Fails
 
@@ -265,8 +301,11 @@ pip install nebula-client
 
 - [ ] GitHub repository created
 - [ ] Code pushed to GitHub
-- [ ] NPM_TOKEN secret added
-- [ ] PYPI_TOKEN secret added
+- [ ] PAT_TOKEN secret added
+- [ ] MONOREPO_SYNC_TOKEN secret added
+- [ ] npm trusted publisher configured for `javascript-ci.yml`
+- [ ] npm trusted publisher configured for `mcp-ci.yml`
+- [ ] PyPI trusted publisher configured for `python-ci.yml`
 - [ ] CI workflows passing
 - [ ] Branch protection configured
 - [ ] First release published
